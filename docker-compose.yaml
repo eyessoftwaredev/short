@@ -1,29 +1,8 @@
-services:
-  web:
-    build:
-      context: .
-      dockerfile: infra/Dockerfile
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      APP_URL: ${APP_URL}
-      BETTER_AUTH_URL: ${APP_URL}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      PLATFORM_SHORT_DOMAIN: ${PLATFORM_SHORT_DOMAIN}
-      CUSTOM_HOSTNAME_TARGET: ${CUSTOM_HOSTNAME_TARGET}
-      DATABASE_URL: postgres://short:${POSTGRES_PASSWORD}@postgres:5432/short
-      REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379
-      CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_DATABASE: short
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
-      CRON_SECRET: ${CRON_SECRET}
-    depends_on:
-      - postgres
-      - redis
-      - clickhouse
+# Coolify compose for stateful origin services.
+# The Next.js panel is a separate Coolify Dockerfile resource (infra/Dockerfile)
+# because this Coolify version rejects Compose `build:` services.
 
+services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -33,6 +12,11 @@ services:
       POSTGRES_DB: short
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U short -d short"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
