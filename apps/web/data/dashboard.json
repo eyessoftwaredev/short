@@ -1,0 +1,13 @@
+{
+  "kpis": [
+    { "label": "Active projects", "value": "24", "delta": "↑ 3", "deltaTone": "accent" },
+    { "label": "Team members", "value": "8", "delta": "↑ 1", "deltaTone": "accent" },
+    { "label": "API requests", "value": "184k", "delta": "↓ 4%", "deltaTone": "danger" },
+    { "label": "Uptime", "value": "99.98%", "delta": "30 days", "deltaTone": "muted" }
+  ],
+  "rows": [
+    { "name": "Q4 onboarding", "owner": "Merve K.", "status": "Active" },
+    { "name": "Billing v2", "owner": "Ahmet Y.", "status": "Active" },
+    { "name": "API docs", "owner": "Selin B.", "status": "Paused" }
+  ]
+}

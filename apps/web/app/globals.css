@@ -1,0 +1,619 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --bg: #ffffff;
+  --surface: #f5f7fa;
+  --surface-subtle: #fafbfc;
+  --border: #e3e8ee;
+  --border-subtle: #eef2f6;
+  --border-strong: #cbd5e1;
+  --border-hover: #8494a8;
+  --ink: #171717;
+  --on-ink: #ffffff;
+  --on-ink-dim: #d4d4d4;
+  --on-ink-soft: rgba(255, 255, 255, 0.08);
+  --on-ink-border: #525252;
+  --fg-muted: #525252;
+  --fg-subtle: #737373;
+  --fg-disabled: #a3a3a3;
+  --fg-faint: #d4d4d4;
+  --accent: #0f766e;
+  --accent-hover: #0b5952;
+  --accent-ink: #0b5952;
+  --accent-surface: #e6f2f0;
+  --accent-surface-hover: #d3e9e5;
+  --accent-tint: #f7fbfa;
+  --accent-bright: #7fd1c4;
+  --on-accent: #ffffff;
+  --danger: #b42318;
+  --danger-hover: #911a12;
+  --danger-surface: #fef3f2;
+  --danger-border: #f1d3d3;
+  --warn: #b4530a;
+  --warn-ink: #7a3a06;
+  --warn-surface: #fdf6e9;
+  --warn-border: #e8c98a;
+  --inverse: #171717;
+  --on-inverse: #ffffff;
+  --on-inverse-dim: #d4d4d4;
+  --on-inverse-soft: rgba(255, 255, 255, 0.1);
+  --on-inverse-border: #737373;
+  --overlay: rgba(23, 23, 23, 0.45);
+  --shadow-lift: 0 12px 28px rgba(23, 23, 23, 0.08);
+  --shadow-pop: 0 8px 24px rgba(23, 23, 23, 0.12);
+  --shadow-toast: 0 10px 30px rgba(23, 23, 23, 0.14);
+  --shadow-modal: 0 20px 60px rgba(23, 23, 23, 0.25);
+  --radius: 8px;
+  --radius-xs: 5px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+
+  /* Text that sits on `--accent-surface`. `--accent-hover` is tuned for solid
+     fills and drops under 4.5:1 on the tinted surface in dark mode. */
+  --accent-on-surface: #0b5952;
+
+  /* Row states for data tables. Kept separate from `--surface` so a hovered row
+     and a striped/selected row never collapse into the same value. */
+  --row-hover: #fafbfc;
+  --row-selected: #f7fbfa;
+
+  /* Chart series. Anchored to the brand but spaced so that consecutive series
+     differ in hue *and* lightness — they stay separable under deuteranopia,
+     protanopia and in plain greyscale. 1/2 are the pair used by the click
+     timeseries, so they are the most strongly contrasted. */
+  --chart-1: var(--accent);
+  --chart-2: var(--warn);
+  --chart-3: #1e5fa8;
+  --chart-4: #6d46b8;
+  --chart-5: #a8347a;
+  --chart-grid: var(--border-subtle);
+  --chart-track: var(--surface);
+  --chart-cursor: var(--border-strong);
+
+  --skeleton-from: #f1f4f8;
+  --skeleton-to: #e7ecf2;
+
+  /* Shell metrics. Declared once so a sticky table header can work out how
+     much viewport is actually left to it. */
+  --topbar-h: 3.5rem;
+  --page-gutter: 1.5rem;
+
+  /* Stacking order, layered so a pinned table header slides under an open menu
+     and every overlay sits above both. Mirrored into the Tailwind `z-*` scale. */
+  --z-sticky: 30;
+  --z-dropdown: 50;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #111111;
+  --surface: #1a1a1a;
+  --surface-subtle: #161616;
+  --border: #2a2a2a;
+  --border-subtle: #222222;
+  --border-strong: #3d3d3d;
+  --border-hover: #525252;
+  --ink: #f2f2f2;
+  --fg-muted: #a3a3a3;
+  --fg-subtle: #737373;
+  --fg-disabled: #525252;
+  --fg-faint: #3d3d3d;
+  --accent: #12857c;
+  --accent-hover: #16a79b;
+  --accent-ink: #7fd1c4;
+  --accent-surface: #10322f;
+  --accent-surface-hover: #14403b;
+  --accent-tint: #0e2523;
+  --accent-bright: #0f766e;
+  --danger: #f2837a;
+  --danger-hover: #f9a9a2;
+  --danger-surface: #2b1513;
+  --danger-border: #4a211d;
+  --warn: #e0a050;
+  --warn-ink: #f2cc93;
+  --warn-surface: #2a1e0d;
+  --warn-border: #4a3517;
+  --inverse: #0a0a0a;
+  --on-inverse: #f2f2f2;
+  --on-inverse-dim: #a3a3a3;
+  --on-inverse-soft: rgba(255, 255, 255, 0.08);
+  --on-inverse-border: #55647a;
+  --overlay: rgba(0, 0, 0, 0.65);
+  --shadow-lift: 0 12px 28px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-toast: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.7);
+
+  --accent-on-surface: #7fd1c4;
+
+  --row-hover: #191919;
+  --row-selected: #13302d;
+
+  /* Same series order as light, re-lit for a #111 ground. */
+  --chart-1: #2eb8a6;
+  --chart-2: var(--warn);
+  --chart-3: #5fa8f0;
+  --chart-4: #a98bea;
+  --chart-5: #e87fbb;
+
+  --skeleton-from: #1d1d1d;
+  --skeleton-to: #2a2a2a;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-border-hover: var(--border-hover);
+  --color-ink: var(--ink);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-disabled: var(--fg-disabled);
+  --color-fg-faint: var(--fg-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-surface: var(--accent-surface);
+  --color-accent-surface-hover: var(--accent-surface-hover);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-on-surface: var(--accent-on-surface);
+  --color-on-accent: var(--on-accent);
+  --color-row-hover: var(--row-hover);
+  --color-row-selected: var(--row-selected);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-border: var(--danger-border);
+  --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
+  --color-warn-surface: var(--warn-surface);
+  --color-warn-border: var(--warn-border);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-on-inverse-dim: var(--on-inverse-dim);
+  --color-on-inverse-soft: var(--on-inverse-soft);
+  --color-on-inverse-border: var(--on-inverse-border);
+  --color-overlay: var(--overlay);
+  --color-bio-bg: var(--bio-bg);
+  --color-bio-bg-alt: var(--bio-bg-alt);
+  --color-bio-fg: var(--bio-fg);
+  --color-bio-fg-muted: var(--bio-fg-muted);
+  --color-bio-card: var(--bio-card);
+  --color-bio-border: var(--bio-border);
+  --color-bio-accent: var(--bio-accent);
+  --color-bio-accent-hover: var(--bio-accent-hover);
+  --color-bio-on-accent: var(--bio-on-accent);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-default: var(--radius);
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-pill: var(--radius-pill);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-track: var(--chart-track);
+  --shadow-lift: var(--shadow-lift);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-toast: var(--shadow-toast);
+  --shadow-modal: var(--shadow-modal);
+  --z-index-sticky: var(--z-sticky);
+  --z-index-dropdown: var(--z-dropdown);
+  --z-index-modal: 60;
+  --z-index-toast: 70;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+
+  button {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* Checkbox, radio and range keep their native box model — the full-width
+     text-input treatment below would stretch them across the row. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    appearance: none;
+    font-family: inherit;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--fg-subtle);
+    opacity: 1;
+  }
+
+  /* `appearance: none` above removes the native chevron, so draw one back.
+     Without this every select in the panel looks like a plain text input. */
+  select {
+    padding-right: 36px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+      linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+    background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--accent);
+  }
+
+  input[type="range"] {
+    accent-color: var(--accent);
+    background: transparent;
+  }
+
+  /* A disabled control has to look unavailable before it is clicked, not only
+     refuse the click. */
+  input:disabled,
+  textarea:disabled,
+  select:disabled,
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    background: var(--surface);
+    color: var(--fg-disabled);
+    border-color: var(--border);
+  }
+
+  /* Links, menu items and any roving-tabindex target were previously invisible
+     on keyboard focus — only form controls got a ring. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible,
+  [role="button"]:focus-visible,
+  [role="menuitem"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [role="switch"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  ::selection {
+    background: var(--accent-surface);
+    color: var(--accent-on-surface);
+  }
+
+  /* Keep overflow areas (sidebar, wide tables) from shipping a heavy OS bar. */
+  * {
+    scrollbar-color: var(--border-strong) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+/*
+ * Motion is decoration in this panel: every transition here is a hover lift, a
+ * fade or a progress fill, so a user who asks for reduced motion loses nothing
+ * but the movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@utility animate-progress-fill {
+  animation: progress-fill 0.7s ease;
+  transform-origin: left center;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/*
+ * A directional shimmer reads as "content is arriving" where a pulse only reads
+ * as "something is blinking". Falls back to the flat base colour under
+ * reduced motion via the global guard above.
+ */
+@utility skeleton-sheen {
+  background-color: var(--skeleton-from);
+  background-image: linear-gradient(
+    90deg,
+    var(--skeleton-from) 0%,
+    var(--skeleton-to) 40%,
+    var(--skeleton-from) 80%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+/* Metrics and table figures must not jitter as digits change. */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/*
+ * Caps a scrolling table at whatever the shell leaves below the topbar, so a
+ * pinned header has something to stick to without the page growing a second
+ * full-height scrollbar.
+ */
+@utility table-viewport {
+  max-height: calc(100svh - var(--topbar-h) - var(--page-gutter) * 2);
+  overflow-y: auto;
+}
+
+/*
+ * Row density. Driven by an attribute rather than per-cell classes so one prop
+ * on `<Table>` retunes every cell, header included.
+ */
+table[data-density="compact"] th,
+table[data-density="compact"] td {
+  padding-block: 0.375rem;
+  padding-inline: 0.75rem;
+}
+
+/*
+ * The wrapper already draws the outer edge, so the last row drops its rule
+ * instead of doubling it. `data-density` is only ever set by the `Table`
+ * primitive, which keeps this away from catalog markup.
+ */
+table[data-density] tbody > tr:last-child > td {
+  border-bottom-width: 0;
+}
+
+/* Pinned column headers. Applied to the cells so the fill survives
+   `border-collapse: collapse` while the header is detached. */
+table[data-density] thead[data-sticky] th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--surface-subtle);
+}
+
+/*
+ * Recharts tooltips are plain DOM, so they are styled here rather than with
+ * utilities. Scoped to the panel root: the `/docs` catalog ships its own copy
+ * of these rules under `.eyesone` and must keep rendering exactly as it does.
+ */
+.panel-root .kit-chart-tooltip {
+  min-width: 9rem;
+  max-width: 16rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}
+
+.panel-root .kit-chart-tooltip--spark {
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+.panel-root .kit-chart-tooltip__label {
+  margin-bottom: 0.375rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.panel-root .kit-chart-tooltip__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.panel-root .kit-chart-tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.panel-root .kit-chart-tooltip__dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-xs);
+}
+
+.panel-root .kit-chart-tooltip__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-root .kit-chart-tooltip__value {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.panel-root .kit-chart-tooltip__foot {
+  margin-top: 0.375rem;
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  color: var(--fg-subtle);
+}
+
+/* Recharts focuses its SVG surface on click; the ring adds nothing there. */
+.panel-root .recharts-wrapper:focus,
+.panel-root .recharts-surface:focus {
+  outline: none;
+}
+
+/*
+ * Bio page palettes. These are visitor-facing and intentionally independent of the
+ * panel's light/dark tokens: switching the `.bio-theme-*` class on the wrapper repaints
+ * the whole page, so the renderer only ever uses `bg-bio-*` / `text-bio-*` utilities.
+ */
+.bio-theme-minimal {
+  --bio-bg: #fafaf9;
+  --bio-bg-alt: #f1f0ee;
+  --bio-fg: #1c1917;
+  --bio-fg-muted: #57534e;
+  --bio-card: #ffffff;
+  --bio-border: #e0dedb;
+  --bio-accent: #1c1917;
+  --bio-accent-hover: #2f2b28;
+  --bio-on-accent: #fafaf9;
+}
+
+.bio-theme-midnight {
+  --bio-bg: #0b1120;
+  --bio-bg-alt: #111a2e;
+  --bio-fg: #e8ecf6;
+  --bio-fg-muted: #93a0bb;
+  --bio-card: #151f38;
+  --bio-border: #24314f;
+  --bio-accent: #4f8cff;
+  --bio-accent-hover: #6b9dff;
+  --bio-on-accent: #061021;
+}
+
+.bio-theme-sunset {
+  --bio-bg: #fff6f0;
+  --bio-bg-alt: #ffe9dc;
+  --bio-fg: #46211a;
+  --bio-fg-muted: #8a5544;
+  --bio-card: #ffffff;
+  --bio-border: #f6d3c1;
+  --bio-accent: #e4572e;
+  --bio-accent-hover: #c8451f;
+  --bio-on-accent: #fff6f0;
+}
+
+.bio-theme-forest {
+  --bio-bg: #f2f7f3;
+  --bio-bg-alt: #e2efe6;
+  --bio-fg: #14281d;
+  --bio-fg-muted: #466853;
+  --bio-card: #ffffff;
+  --bio-border: #cbe0d3;
+  --bio-accent: #0f766e;
+  --bio-accent-hover: #0c5f58;
+  --bio-on-accent: #f2f7f3;
+}
+
+.bio-theme-mono {
+  --bio-bg: #111111;
+  --bio-bg-alt: #1a1a1a;
+  --bio-fg: #f5f5f5;
+  --bio-fg-muted: #a1a1a1;
+  --bio-card: #1c1c1c;
+  --bio-border: #2e2e2e;
+  --bio-accent: #f5f5f5;
+  --bio-accent-hover: #d6d6d6;
+  --bio-on-accent: #111111;
+}
+
+.bio-theme-candy {
+  --bio-bg: #fdf2f8;
+  --bio-bg-alt: #fce7f3;
+  --bio-fg: #500724;
+  --bio-fg-muted: #9d2c5f;
+  --bio-card: #ffffff;
+  --bio-border: #f9cfe3;
+  --bio-accent: #db2777;
+  --bio-accent-hover: #be185d;
+  --bio-on-accent: #fdf2f8;
+}

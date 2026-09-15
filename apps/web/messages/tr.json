@@ -1,0 +1,42 @@
+{
+  "common": {
+    "save": "Kaydet",
+    "cancel": "Vazgeç",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "create": "Oluştur",
+    "search": "Ara",
+    "loading": "Yükleniyor",
+    "empty": "Kayıt yok",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "unsavedChanges": "Kaydedilmemiş değişiklikler"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "links": "Linkler",
+    "qr": "QR kodlar",
+    "bio": "Bio sayfalar",
+    "analytics": "Analitik",
+    "domains": "Domainler",
+    "settings": "Ayarlar",
+    "billing": "Faturalandırma"
+  },
+  "stats": {
+    "clicks": "Tıklama",
+    "visitors": "Ziyaretçi",
+    "countries": "Ülke",
+    "device": "Cihaz",
+    "os": "İşletim sistemi",
+    "browser": "Tarayıcı",
+    "referrer": "Kaynak",
+    "botsFiltered": "Bot trafiği otomatik ayıklanır"
+  },
+  "auth": {
+    "signIn": "Giriş yap",
+    "signUp": "Kayıt ol",
+    "signOut": "Çıkış yap",
+    "email": "E-posta",
+    "password": "Parola"
+  }
+}

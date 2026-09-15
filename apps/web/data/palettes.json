@@ -1,0 +1,11 @@
+{
+  "default": "teal",
+  "items": [
+    { "id": "teal", "label": "Teal" },
+    { "id": "graphite", "label": "Graphite" },
+    { "id": "forest", "label": "Forest" },
+    { "id": "amber", "label": "Amber" },
+    { "id": "violet", "label": "Violet" },
+    { "id": "rose", "label": "Rose" }
+  ]
+}

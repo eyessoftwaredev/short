@@ -1,0 +1,64 @@
+{
+  "invoices": [
+    {
+      "date": "13 Ağu 2026",
+      "amount": "₺890",
+      "status": "Ödendi",
+      "statusBg": "var(--accent-surface)",
+      "statusColor": "var(--accent-hover)"
+    },
+    {
+      "date": "13 Tem 2026",
+      "amount": "₺890",
+      "status": "Ödendi",
+      "statusBg": "var(--accent-surface)",
+      "statusColor": "var(--accent-hover)"
+    },
+    {
+      "date": "13 Haz 2026",
+      "amount": "₺890",
+      "status": "Ödendi",
+      "statusBg": "var(--accent-surface)",
+      "statusColor": "var(--accent-hover)"
+    },
+    {
+      "date": "13 May 2026",
+      "amount": "₺890",
+      "status": "İade",
+      "statusBg": "var(--danger-surface)",
+      "statusColor": "var(--danger)"
+    }
+  ],
+  "billingCycles": [
+    "monthly",
+    "yearly"
+  ],
+  "planMatrix": {
+    "headers": [
+      "Özellik",
+      "Free",
+      "Pro",
+      "Biz"
+    ],
+    "rows": [
+      [
+        "Projeler",
+        "3",
+        "50",
+        "∞"
+      ],
+      [
+        "SSO",
+        "—",
+        "—",
+        "✓"
+      ],
+      [
+        "Denetim",
+        "—",
+        "✓",
+        "✓"
+      ]
+    ]
+  }
+}

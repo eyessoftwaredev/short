@@ -1,0 +1,68 @@
+{
+  "capabilities": ["Read", "Write", "Billing", "Members"],
+  "roles": ["Admin", "Editor", "Viewer", "User"],
+  "matrix": {
+    "Admin": { "Read": true, "Write": true, "Billing": true, "Members": true },
+    "Editor": { "Read": true, "Write": true, "Billing": false, "Members": false },
+    "Viewer": { "Read": true, "Write": false, "Billing": false, "Members": false },
+    "User": { "Read": true, "Write": false, "Billing": false, "Members": false }
+  },
+  "sessions": [
+    { "id": "s1", "device": "Chrome · Windows", "place": "İstanbul", "when": "Şimdi", "current": true },
+    { "id": "s2", "device": "Safari · iPhone", "place": "Ankara", "when": "2 sa önce", "current": false },
+    { "id": "s3", "device": "Firefox · macOS", "place": "Berlin", "when": "dün", "current": false }
+  ],
+  "notifications": [
+    { "id": "n1", "title": "Davet kabul edildi", "body": "Selin Boz çalışma alanına katıldı.", "when": "12 dk", "unread": true },
+    { "id": "n2", "title": "Fatura hazır", "body": "Eylül dönemi PDF olarak eklendi.", "when": "1 sa", "unread": true },
+    { "id": "n3", "title": "SSO testi", "body": "Okta bağlantısı doğrulandı.", "when": "dün", "unread": false }
+  ],
+  "notifyPrefs": [
+    { "id": "email", "label": "E-posta", "on": true },
+    { "id": "inapp", "label": "Uygulama içi", "on": true },
+    { "id": "digest", "label": "Haftalık özet", "on": false }
+  ],
+  "impersonation": {
+    "actor": "Merve Kaya",
+    "target": "Selin Boz",
+    "role": "Viewer"
+  },
+  "chatThreads": [
+    {
+      "id": "t1",
+      "title": "SSO kurulumu",
+      "preview": "Test hesabı hazır.",
+      "when": "12 dk",
+      "unread": 2
+    },
+    {
+      "id": "t2",
+      "title": "Fatura sorusu",
+      "preview": "Ağustos dönemini kontrol eder misiniz?",
+      "when": "1 sa",
+      "unread": 0
+    },
+    {
+      "id": "t3",
+      "title": "Kota artışı",
+      "preview": "Pro plana geçişi onayladık.",
+      "when": "dün",
+      "unread": 0
+    }
+  ],
+  "chatMessages": {
+    "t1": [
+      { "id": "m1", "from": "in", "body": "Okta yönlendirmesi 404 veriyor." },
+      { "id": "m2", "from": "out", "body": "Callback URL'yi workspace ayarlarına ekledik." },
+      { "id": "m3", "from": "in", "body": "Test hesabı hazır, teşekkürler." }
+    ],
+    "t2": [
+      { "id": "m4", "from": "in", "body": "Ağustos faturası eksik görünüyor." },
+      { "id": "m5", "from": "out", "body": "PDF'i billing sekmesine yükledik." }
+    ],
+    "t3": [
+      { "id": "m6", "from": "in", "body": "Kota doldu, yükseltme gerekir." },
+      { "id": "m7", "from": "out", "body": "Pro plana geçişi onayladık." }
+    ]
+  }
+}

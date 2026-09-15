@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "short-edge",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  // Bound to the Cloudflare for SaaS fallback origin so every custom hostname
+  // and every platform short domain lands here.
+  "routes": [
+    { "pattern": "short.ky/*", "zone_name": "short.ky" },
+    { "pattern": "fallback.short.ky/*", "zone_name": "short.ky" },
+    { "pattern": "cname.short.ky/*", "zone_name": "short.ky" }
+  ],
+
+  "kv_namespaces": [
+    { "binding": "LINKS", "id": "f2e7e6fa82d54eeb97cbf2170ed290b7", "preview_id": "4bdf8caeb9bb48bbbac11b362fb87e82" }
+  ],
+
+  "queues": {
+    "producers": [{ "binding": "CLICK_QUEUE", "queue": "short-clicks" }]
+  },
+
+  "vars": {
+    "ORIGIN_URL": "https://app.short.ky",
+    "DEFAULT_NOT_FOUND": "https://app.short.ky/404",
+    "KV_TTL_SECONDS": "3600"
+  }
+
+  // Secrets (wrangler secret put): INTERNAL_TOKEN, VISITOR_SALT
+}

@@ -1,0 +1,42 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading",
+    "empty": "Nothing here yet",
+    "copy": "Copy",
+    "copied": "Copied",
+    "unsavedChanges": "Unsaved changes"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "links": "Links",
+    "qr": "QR codes",
+    "bio": "Bio pages",
+    "analytics": "Analytics",
+    "domains": "Domains",
+    "settings": "Settings",
+    "billing": "Billing"
+  },
+  "stats": {
+    "clicks": "Clicks",
+    "visitors": "Visitors",
+    "countries": "Countries",
+    "device": "Device",
+    "os": "Operating system",
+    "browser": "Browser",
+    "referrer": "Referrer",
+    "botsFiltered": "Bot traffic is filtered automatically"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out",
+    "email": "Email",
+    "password": "Password"
+  }
+}

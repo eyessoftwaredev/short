@@ -1,0 +1,19 @@
+<clickhouse>
+    <!-- The ingest worker writes over HTTP from Cloudflare, so the listener has to
+         accept connections from outside the container network. Put ClickHouse behind
+         Coolify's proxy with TLS and basic IP allow-listing before exposing it. -->
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- Click volume is append-only and bursty; a small merge tree cache plus a
+         capped log keeps the disk footprint predictable on a single-node box. -->
+    <logger>
+        <level>warning</level>
+        <size>100M</size>
+        <count>3</count>
+    </logger>
+
+    <!-- 25 month TTL on `events` means parts get dropped, not rewritten. -->
+    <merge_tree>
+        <ttl_only_drop_parts>1</ttl_only_drop_parts>
+    </merge_tree>
+</clickhouse>

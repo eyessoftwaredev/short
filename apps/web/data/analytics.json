@@ -1,0 +1,261 @@
+{
+  "breakdowns": {
+    "Ülke": [
+      {
+        "label": "Türkiye",
+        "pct": "62%"
+      },
+      {
+        "label": "Almanya",
+        "pct": "14%"
+      },
+      {
+        "label": "ABD",
+        "pct": "11%"
+      },
+      {
+        "label": "Hollanda",
+        "pct": "7%"
+      }
+    ],
+    "Cihaz": [
+      {
+        "label": "Mobil",
+        "pct": "71%"
+      },
+      {
+        "label": "Masaüstü",
+        "pct": "24%"
+      },
+      {
+        "label": "Tablet",
+        "pct": "5%"
+      }
+    ],
+    "Tarayıcı": [
+      {
+        "label": "Chrome",
+        "pct": "58%"
+      },
+      {
+        "label": "Safari",
+        "pct": "27%"
+      },
+      {
+        "label": "Edge",
+        "pct": "9%"
+      },
+      {
+        "label": "Firefox",
+        "pct": "6%"
+      }
+    ],
+    "Sistem": [
+      {
+        "label": "Android",
+        "pct": "44%"
+      },
+      {
+        "label": "iOS",
+        "pct": "31%"
+      },
+      {
+        "label": "Windows",
+        "pct": "18%"
+      },
+      {
+        "label": "macOS",
+        "pct": "7%"
+      }
+    ],
+    "Yönlendiren": [
+      {
+        "label": "instagram",
+        "pct": "38%"
+      },
+      {
+        "label": "doğrudan",
+        "pct": "29%"
+      },
+      {
+        "label": "google",
+        "pct": "21%"
+      },
+      {
+        "label": "linkedin",
+        "pct": "12%"
+      }
+    ],
+    "Tetikleyici": [
+      {
+        "label": "Panel",
+        "pct": "82%"
+      },
+      {
+        "label": "API",
+        "pct": "18%"
+      }
+    ]
+  },
+  "deviceStats": [
+    {
+      "name": "Mobil",
+      "icon": "fa-solid fa-mobile-screen",
+      "pct": "64%"
+    },
+    {
+      "name": "Masaüstü",
+      "icon": "fa-solid fa-desktop",
+      "pct": "29%"
+    },
+    {
+      "name": "Tablet",
+      "icon": "fa-solid fa-tablet-screen-button",
+      "pct": "7%"
+    }
+  ],
+  "osStats": [
+    {
+      "name": "iOS",
+      "icon": "fa-brands fa-apple",
+      "color": "var(--ink)",
+      "pct": "%41",
+      "trend": "↑ 3,1",
+      "trendColor": "var(--accent-hover)"
+    },
+    {
+      "name": "Android",
+      "icon": "fa-brands fa-android",
+      "color": "var(--accent-hover)",
+      "pct": "%34",
+      "trend": "↑ 1,4",
+      "trendColor": "var(--accent-hover)"
+    },
+    {
+      "name": "Windows",
+      "icon": "fa-brands fa-windows",
+      "color": "var(--fg-muted)",
+      "pct": "%19",
+      "trend": "↓ 2,0",
+      "trendColor": "var(--danger)"
+    },
+    {
+      "name": "Linux",
+      "icon": "fa-brands fa-linux",
+      "color": "var(--fg-muted)",
+      "pct": "%6",
+      "trend": "sabit",
+      "trendColor": "var(--fg-disabled)"
+    }
+  ],
+  "browserStats": [
+    {
+      "name": "Chrome",
+      "icon": "fa-brands fa-chrome",
+      "pct": "%52"
+    },
+    {
+      "name": "Safari",
+      "icon": "fa-brands fa-safari",
+      "pct": "%31"
+    },
+    {
+      "name": "Edge",
+      "icon": "fa-brands fa-edge",
+      "pct": "%9"
+    },
+    {
+      "name": "Firefox",
+      "icon": "fa-brands fa-firefox-browser",
+      "pct": "%8"
+    }
+  ],
+  "countryStats": [
+    {
+      "code": "TR",
+      "name": "Türkiye",
+      "clicks": "22.4B",
+      "pct": "62%",
+      "fill": "var(--accent)"
+    },
+    {
+      "code": "DE",
+      "name": "Almanya",
+      "clicks": "5.1B",
+      "pct": "14%",
+      "fill": "var(--accent)"
+    },
+    {
+      "code": "NL",
+      "name": "Hollanda",
+      "clicks": "3.2B",
+      "pct": "9%",
+      "fill": "var(--border-strong)"
+    },
+    {
+      "code": "GB",
+      "name": "Birleşik Krallık",
+      "clicks": "2.5B",
+      "pct": "7%",
+      "fill": "var(--border-strong)"
+    },
+    {
+      "code": "US",
+      "name": "ABD",
+      "clicks": "2.9B",
+      "pct": "8%",
+      "fill": "var(--border-strong)"
+    }
+  ],
+  "drawerCountries": [
+    {
+      "name": "Türkiye",
+      "share": "62%"
+    },
+    {
+      "name": "Almanya",
+      "share": "14%"
+    },
+    {
+      "name": "Hollanda",
+      "share": "9%"
+    },
+    {
+      "name": "Diğer",
+      "share": "15%"
+    }
+  ],
+  "months": [
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık"
+  ],
+  "today": "2026-09-13",
+  "presets": {
+    "Bugün": [
+      "2026-09-13",
+      "2026-09-13"
+    ],
+    "Son 7 gün": [
+      "2026-09-07",
+      "2026-09-13"
+    ],
+    "Son 30 gün": [
+      "2026-08-15",
+      "2026-09-13"
+    ],
+    "Bu çeyrek": [
+      "2026-07-01",
+      "2026-09-13"
+    ]
+  }
+}

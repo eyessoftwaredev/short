@@ -1,0 +1,838 @@
+{
+  "linkTabs": [
+    {
+      "label": "Temel",
+      "title": "Ad ve sahip",
+      "body": "Projenin adı, sahibi ve hangi çalışma alanında yaşayacağı. Boş bırakırsan kısa ad otomatik üretilir."
+    },
+    {
+      "label": "Hedefleme",
+      "title": "Kim görür",
+      "body": "Bölge ve dile göre görünürlük kuralları. Kural yoksa çalışma alanındaki herkes görür."
+    },
+    {
+      "label": "Meta",
+      "title": "Kart görünümü",
+      "body": "Listede ve paylaşımda görünecek başlık, açıklama ve kapak. Dış aramalara kapatmak da burada."
+    },
+    {
+      "label": "Etiket",
+      "title": "Kampanya etiketleri",
+      "body": "Kaynak, ortam ve kampanya bilgisi. Aşağıda oluşan etiket setini anında görürsün."
+    },
+    {
+      "label": "Gelişmiş",
+      "title": "Süre, parola ve arşiv",
+      "body": "Bitiş tarihi, parola koruması ve süre sonunda arşivleme seçenekleri."
+    }
+  ],
+  "palette": [
+    {
+      "label": "Yeni proje oluştur",
+      "icon": "fa-solid fa-plus",
+      "hint": "N",
+      "act": "new"
+    },
+    {
+      "label": "Proje analitiğini aç",
+      "icon": "fa-solid fa-chart-line",
+      "hint": "S",
+      "act": "stats"
+    },
+    {
+      "label": "CSV içe aktar",
+      "icon": "fa-solid fa-cloud-arrow-up",
+      "hint": "I",
+      "act": "toast"
+    },
+    {
+      "label": "Çalışma alanı ekle",
+      "icon": "fa-solid fa-globe",
+      "hint": "D",
+      "act": "toast"
+    },
+    {
+      "label": "Rapor indir",
+      "icon": "fa-solid fa-file-export",
+      "hint": "Q",
+      "act": "toast"
+    },
+    {
+      "label": "Ekip üyesi davet et",
+      "icon": "fa-solid fa-user-plus",
+      "hint": "U",
+      "act": "toast"
+    }
+  ],
+  "toastPresets": {
+    "success": {
+      "icon": "fa-solid fa-check",
+      "title": "Proje oluşturuldu",
+      "body": "Atlas CRM çalışma alanına eklendi.",
+      "border": "var(--accent)",
+      "iconBg": "var(--accent)"
+    },
+    "error": {
+      "icon": "fa-solid fa-xmark",
+      "title": "Proje adı kullanımda",
+      "body": "Atlas CRM başka bir kayıt tarafından alınmış.",
+      "border": "var(--danger-border-strong)",
+      "iconBg": "var(--danger)"
+    },
+    "info": {
+      "icon": "fa-solid fa-circle-info",
+      "title": "İçe aktarma sürüyor",
+      "body": "412 satırın 180'i işlendi.",
+      "border": "var(--border-strong)",
+      "iconBg": "var(--fg-muted)"
+    },
+    "warn": {
+      "icon": "fa-solid fa-triangle-exclamation",
+      "title": "Kota %92 dolu",
+      "body": "Bu ay 46.000/50.000 kayıt kullandın.",
+      "border": "var(--warn-border)",
+      "iconBg": "var(--warn)"
+    }
+  },
+  "toastTriggers": [
+    {
+      "label": "Başarılı toast",
+      "kind": "success",
+      "border": "var(--accent)",
+      "color": "var(--accent-hover)"
+    },
+    {
+      "label": "Hata toast",
+      "kind": "error",
+      "border": "var(--danger-border-strong)",
+      "color": "var(--danger)"
+    },
+    {
+      "label": "Bilgi toast",
+      "kind": "info",
+      "border": "var(--border-strong)",
+      "color": "var(--fg-muted)"
+    },
+    {
+      "label": "Uyarı toast",
+      "kind": "warn",
+      "border": "var(--warn-border)",
+      "color": "var(--warn)"
+    }
+  ],
+  "inlineAlerts": [
+    {
+      "icon": "fa-solid fa-circle-info",
+      "title": "Alan doğrulanıyor",
+      "body": "portal.acme.com için DNS kaydı kontrol ediliyor; genelde 10 dakika sürer.",
+      "bg": "var(--surface)",
+      "border": "var(--border)",
+      "iconBg": "var(--fg-muted)",
+      "titleColor": "var(--ink)"
+    },
+    {
+      "icon": "fa-solid fa-triangle-exclamation",
+      "title": "Kota sınırına yaklaşıyorsun",
+      "body": "Bu ay 46.000/50.000 kayıt kullandın. Limit aşılırsa yeni kayıt oluşturulmaz.",
+      "bg": "var(--warn-surface)",
+      "border": "var(--warn-border)",
+      "iconBg": "var(--warn)",
+      "titleColor": "var(--warn-ink)"
+    },
+    {
+      "icon": "fa-solid fa-circle-xmark",
+      "title": "3 proje senkron olamıyor",
+      "body": "Hedef sunucu 5xx döndürüyor. Proje URL'lerini kontrol et.",
+      "bg": "var(--danger-surface)",
+      "border": "var(--danger-border-strong)",
+      "iconBg": "var(--danger)",
+      "titleColor": "var(--danger-hover)"
+    }
+  ],
+  "badges": [
+    {
+      "label": "Aktif",
+      "bg": "var(--accent-surface)",
+      "color": "var(--accent-hover)"
+    },
+    {
+      "label": "Süresi geçti",
+      "bg": "var(--danger-surface)",
+      "color": "var(--danger)"
+    },
+    {
+      "label": "Duraklatıldı",
+      "bg": "var(--surface)",
+      "color": "var(--fg-muted)"
+    },
+    {
+      "label": "Parolalı",
+      "bg": "var(--warn-surface)",
+      "color": "var(--warn-ink)"
+    },
+    {
+      "label": "Pro",
+      "bg": "var(--inverse)",
+      "color": "var(--on-inverse)"
+    }
+  ],
+  "shortcuts": [
+    {
+      "label": "Komut paleti",
+      "mod": "⌘",
+      "key": "K"
+    },
+    {
+      "label": "Yeni proje",
+      "mod": "⌘",
+      "key": "N"
+    },
+    {
+      "label": "Ara",
+      "mod": "⌘",
+      "key": "F"
+    },
+    {
+      "label": "Tema değiştir",
+      "mod": "⌘",
+      "key": "D"
+    }
+  ],
+  "authTabs": [
+    {
+      "id": "login",
+      "label": "Giriş"
+    },
+    {
+      "id": "otp",
+      "label": "OTP"
+    }
+  ],
+  "settingsNav": [
+    {
+      "id": "profile",
+      "label": "Profil",
+      "icon": "fa-solid fa-user"
+    },
+    {
+      "id": "team",
+      "label": "Ekip",
+      "icon": "fa-solid fa-users"
+    },
+    {
+      "id": "security",
+      "label": "Güvenlik",
+      "icon": "fa-solid fa-shield-halved"
+    },
+    {
+      "id": "notifications",
+      "label": "Bildirimler",
+      "icon": "fa-solid fa-bell"
+    },
+    {
+      "id": "api",
+      "label": "API",
+      "icon": "fa-solid fa-code"
+    }
+  ],
+  "settingsCopy": {
+    "profile": {
+      "title": "Profil",
+      "body": "Ad, e-posta ve avatar bilgilerin."
+    },
+    "team": {
+      "title": "Ekip",
+      "body": "Üyeleri davet et ve rollerini yönet."
+    },
+    "security": {
+      "title": "Güvenlik",
+      "body": "Parola ve iki adımlı doğrulama."
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "body": "E-posta ve uygulama bildirimleri."
+    },
+    "api": {
+      "title": "API",
+      "body": "Anahtarlar ve webhook uç noktaları."
+    }
+  },
+  "redirectOptions": [
+    {
+      "code": "301",
+      "label": "301 — kalıcı",
+      "hint": "SEO değerini hedefe taşır, tarayıcı önbelleğe alır."
+    },
+    {
+      "code": "302",
+      "label": "302 — geçici",
+      "hint": "Kampanya sonunda hedefi değiştireceksen bunu seç."
+    },
+    {
+      "code": "meta",
+      "label": "Meta yenileme",
+      "hint": "Araya bilgilendirme sayfası koyar (ör. yaş doğrulama)."
+    }
+  ],
+  "localePreview": {
+    "tr-TR": "13 Eyl 2026",
+    "en-US": "Sep 13, 2026",
+    "de-DE": "13. Sep 2026"
+  },
+  "announceSlides": [
+    {
+      "title": "SSO Business planda",
+      "body": "Okta veya Entra ID bağla."
+    },
+    {
+      "title": "Bakım penceresi",
+      "body": "Pazar 02:00–04:00 UTC dışa aktarma kapalı."
+    },
+    {
+      "title": "Ekip rolleri",
+      "body": "Editor rolü artık proje bazlı."
+    }
+  ],
+  "cardSlides": [
+    {
+      "label": "Mobil",
+      "value": "%64",
+      "body": "Son 30 gün cihaz payı"
+    },
+    {
+      "label": "Masaüstü",
+      "value": "%29",
+      "body": "Son 30 gün cihaz payı"
+    },
+    {
+      "label": "Tablet",
+      "value": "%7",
+      "body": "Son 30 gün cihaz payı"
+    }
+  ],
+  "userMenuItems": [
+    "Profil",
+    "Ayarlar",
+    "Klavye kısayolları",
+    "Çıkış"
+  ],
+  "overlayMenuItems": [
+    "Düzenle",
+    "Kopyala",
+    "Arşivle",
+    "Sil"
+  ],
+  "accordionItems": [
+    {
+      "id": "billing",
+      "title": "Fatura adresi",
+      "body": "Acme Inc. · Maslak Mah. · İstanbul 34398 · TR"
+    },
+    {
+      "id": "security",
+      "title": "Güvenlik",
+      "body": "İki adımlı doğrulama kapalı. Etkinleştirmek için Authenticator uygulaması gerekir."
+    },
+    {
+      "id": "api",
+      "title": "API erişimi",
+      "body": "Production anahtarı aktif. Rate limit: 600 istek/dk."
+    }
+  ],
+  "notifications": [
+    {
+      "title": "Fatura ödendi",
+      "body": "Ağustos faturan başarıyla tahsil edildi.",
+      "when": "2 sa önce",
+      "dot": "var(--accent)"
+    },
+    {
+      "title": "Yeni ekip üyesi",
+      "body": "Selin Boz daveti kabul etti.",
+      "when": "dün",
+      "dot": "var(--border-strong)"
+    },
+    {
+      "title": "API limiti",
+      "body": "Rate limit %80'e ulaştı.",
+      "when": "2 gün önce",
+      "dot": "var(--warn)"
+    },
+    {
+      "title": "Güvenlik",
+      "body": "Yeni cihazdan giriş algılandı.",
+      "when": "3 gün önce",
+      "dot": "var(--danger-border-strong)"
+    }
+  ],
+  "iconButtons": [
+    {
+      "icon": "fa-solid fa-copy",
+      "color": "var(--ink)"
+    },
+    {
+      "icon": "fa-solid fa-file-export",
+      "color": "var(--ink)"
+    },
+    {
+      "icon": "fa-solid fa-pen",
+      "color": "var(--ink)"
+    },
+    {
+      "icon": "fa-solid fa-ellipsis",
+      "color": "var(--fg-muted)"
+    },
+    {
+      "icon": "fa-solid fa-trash",
+      "color": "var(--danger)"
+    }
+  ],
+  "sideNav": [
+    {
+      "label": "Genel bakış",
+      "icon": "fa-solid fa-gauge-high",
+      "count": ""
+    },
+    {
+      "label": "Projeler",
+      "icon": "fa-solid fa-folder",
+      "count": "1.284"
+    },
+    {
+      "label": "Üyeler",
+      "icon": "fa-solid fa-users",
+      "count": "96"
+    },
+    {
+      "label": "Alanlar",
+      "icon": "fa-solid fa-globe",
+      "count": "3"
+    },
+    {
+      "label": "Ayarlar",
+      "icon": "fa-solid fa-gear",
+      "count": ""
+    }
+  ],
+  "appTabs": [
+    "Projeler",
+    "Analitik",
+    "Üyeler",
+    "Ayarlar"
+  ],
+  "filters": [
+    "Tümü",
+    "Aktif",
+    "Süresi geçti"
+  ],
+  "segments": [
+    "Tablo",
+    "Kartlar",
+    "Takvim"
+  ],
+  "steps": [
+    "Alan",
+    "Proje",
+    "Yayın"
+  ],
+  "ranges": [
+    "Bugün",
+    "Son 7 gün",
+    "Son 30 gün",
+    "Bu çeyrek",
+    "Özel"
+  ],
+  "weekDays": [
+    "Pzt",
+    "Sal",
+    "Çar",
+    "Per",
+    "Cum",
+    "Cmt",
+    "Paz"
+  ],
+  "skeletons": [
+    {
+      "w1": "68%",
+      "w2": "40%"
+    },
+    {
+      "w1": "52%",
+      "w2": "34%"
+    },
+    {
+      "w1": "74%",
+      "w2": "46%"
+    },
+    {
+      "w1": "44%",
+      "w2": "28%"
+    }
+  ],
+  "uiIcons": [
+    {
+      "cls": "fa-solid fa-folder",
+      "name": "folder"
+    },
+    {
+      "cls": "fa-solid fa-file-export",
+      "name": "export"
+    },
+    {
+      "cls": "fa-solid fa-chart-line",
+      "name": "chart-line"
+    },
+    {
+      "cls": "fa-solid fa-globe",
+      "name": "globe"
+    },
+    {
+      "cls": "fa-solid fa-copy",
+      "name": "copy"
+    },
+    {
+      "cls": "fa-solid fa-plus",
+      "name": "plus"
+    },
+    {
+      "cls": "fa-solid fa-gear",
+      "name": "gear"
+    },
+    {
+      "cls": "fa-solid fa-gauge-high",
+      "name": "gauge-high"
+    },
+    {
+      "cls": "fa-solid fa-cloud-arrow-up",
+      "name": "cloud-up"
+    },
+    {
+      "cls": "fa-solid fa-arrow-down",
+      "name": "arrow-down"
+    },
+    {
+      "cls": "fa-solid fa-magnifying-glass",
+      "name": "search"
+    },
+    {
+      "cls": "fa-solid fa-filter",
+      "name": "filter"
+    },
+    {
+      "cls": "fa-solid fa-calendar-days",
+      "name": "calendar"
+    },
+    {
+      "cls": "fa-solid fa-clock",
+      "name": "clock"
+    },
+    {
+      "cls": "fa-solid fa-tag",
+      "name": "tag"
+    },
+    {
+      "cls": "fa-solid fa-user-plus",
+      "name": "user-plus"
+    },
+    {
+      "cls": "fa-solid fa-users",
+      "name": "users"
+    },
+    {
+      "cls": "fa-solid fa-code",
+      "name": "code"
+    },
+    {
+      "cls": "fa-solid fa-key",
+      "name": "key"
+    },
+    {
+      "cls": "fa-solid fa-shield-halved",
+      "name": "shield"
+    },
+    {
+      "cls": "fa-solid fa-trash",
+      "name": "trash"
+    },
+    {
+      "cls": "fa-solid fa-pen",
+      "name": "pen"
+    },
+    {
+      "cls": "fa-solid fa-ellipsis",
+      "name": "ellipsis"
+    },
+    {
+      "cls": "fa-solid fa-check",
+      "name": "check"
+    },
+    {
+      "cls": "fa-solid fa-xmark",
+      "name": "xmark"
+    },
+    {
+      "cls": "fa-solid fa-circle-info",
+      "name": "circle-info"
+    },
+    {
+      "cls": "fa-solid fa-triangle-exclamation",
+      "name": "warning"
+    },
+    {
+      "cls": "fa-solid fa-arrow-right",
+      "name": "arrow-right"
+    },
+    {
+      "cls": "fa-solid fa-chevron-down",
+      "name": "chevron-down"
+    },
+    {
+      "cls": "fa-solid fa-layer-group",
+      "name": "layer-group"
+    },
+    {
+      "cls": "fa-solid fa-bolt",
+      "name": "bolt"
+    },
+    {
+      "cls": "fa-solid fa-earth-europe",
+      "name": "earth"
+    }
+  ],
+  "brandIcons": [
+    {
+      "cls": "fa-brands fa-apple",
+      "name": "apple"
+    },
+    {
+      "cls": "fa-brands fa-android",
+      "name": "android"
+    },
+    {
+      "cls": "fa-brands fa-windows",
+      "name": "windows"
+    },
+    {
+      "cls": "fa-brands fa-linux",
+      "name": "linux"
+    },
+    {
+      "cls": "fa-brands fa-chrome",
+      "name": "chrome"
+    },
+    {
+      "cls": "fa-brands fa-safari",
+      "name": "safari"
+    },
+    {
+      "cls": "fa-brands fa-firefox-browser",
+      "name": "firefox"
+    },
+    {
+      "cls": "fa-brands fa-edge",
+      "name": "edge"
+    },
+    {
+      "cls": "fa-brands fa-linkedin",
+      "name": "linkedin"
+    },
+    {
+      "cls": "fa-brands fa-x-twitter",
+      "name": "x-twitter"
+    },
+    {
+      "cls": "fa-brands fa-instagram",
+      "name": "instagram"
+    },
+    {
+      "cls": "fa-brands fa-whatsapp",
+      "name": "whatsapp"
+    },
+    {
+      "cls": "fa-brands fa-youtube",
+      "name": "youtube"
+    },
+    {
+      "cls": "fa-brands fa-github",
+      "name": "github"
+    },
+    {
+      "cls": "fa-brands fa-google",
+      "name": "google"
+    },
+    {
+      "cls": "fa-brands fa-slack",
+      "name": "slack"
+    }
+  ],
+  "mobileNavItems": [
+    {
+      "id": "home",
+      "label": "Ana sayfa",
+      "icon": "fa-solid fa-house"
+    },
+    {
+      "id": "projects",
+      "label": "Projeler",
+      "icon": "fa-solid fa-folder"
+    },
+    {
+      "id": "team",
+      "label": "Ekip",
+      "icon": "fa-solid fa-users"
+    },
+    {
+      "id": "settings",
+      "label": "Ayarlar",
+      "icon": "fa-solid fa-gear"
+    },
+    {
+      "id": "help",
+      "label": "Yardım",
+      "icon": "fa-solid fa-circle-question"
+    }
+  ],
+  "mobileTabs": [
+    {
+      "id": "home",
+      "label": "Ana",
+      "icon": "fa-solid fa-house"
+    },
+    {
+      "id": "search",
+      "label": "Ara",
+      "icon": "fa-solid fa-magnifying-glass"
+    },
+    {
+      "id": "inbox",
+      "label": "Gelen",
+      "icon": "fa-solid fa-inbox"
+    },
+    {
+      "id": "profile",
+      "label": "Profil",
+      "icon": "fa-solid fa-user"
+    }
+  ],
+  "shellGroups": [
+    {
+      "label": "Çalışma alanı",
+      "items": [
+        {
+          "id": "Projeler",
+          "label": "Projeler",
+          "icon": "fa-solid fa-folder",
+          "count": "24"
+        },
+        {
+          "id": "Ekip",
+          "label": "Ekip",
+          "icon": "fa-solid fa-users",
+          "count": "8"
+        },
+        {
+          "id": "Gelen kutusu",
+          "label": "Gelen kutusu",
+          "icon": "fa-solid fa-inbox",
+          "count": "5"
+        }
+      ]
+    },
+    {
+      "label": "Hesap",
+      "items": [
+        {
+          "id": "Ayarlar",
+          "label": "Ayarlar",
+          "icon": "fa-solid fa-gear",
+          "count": ""
+        },
+        {
+          "id": "Fatura",
+          "label": "Fatura",
+          "icon": "fa-solid fa-credit-card",
+          "count": ""
+        }
+      ]
+    }
+  ],
+  "filterChips": [
+    "Tümü",
+    "Aktif",
+    "Bekleyen",
+    "Arşiv",
+    "Sahibim"
+  ],
+  "rteTools": [
+    {
+      "id": "bold",
+      "icon": "fa-solid fa-bold",
+      "label": "Kalın"
+    },
+    {
+      "id": "italic",
+      "icon": "fa-solid fa-italic",
+      "label": "İtalik"
+    },
+    {
+      "id": "list",
+      "icon": "fa-solid fa-list-ul",
+      "label": "Liste"
+    },
+    {
+      "id": "link",
+      "icon": "fa-solid fa-link",
+      "label": "Bağlantı"
+    }
+  ],
+  "swatches": [
+    {
+      "id": "accent",
+      "color": "var(--accent)",
+      "label": "Aksan"
+    },
+    {
+      "id": "ink",
+      "color": "var(--ink)",
+      "label": "Mürekkep"
+    },
+    {
+      "id": "warn",
+      "color": "var(--warn)",
+      "label": "Uyarı"
+    },
+    {
+      "id": "danger",
+      "color": "var(--danger)",
+      "label": "Tehlike"
+    }
+  ],
+  "ringMap": {
+    "accent": {
+      "pct": "72%",
+      "label": "%72",
+      "color": "var(--accent)"
+    },
+    "ink": {
+      "pct": "48%",
+      "label": "%48",
+      "color": "var(--ink)"
+    },
+    "warn": {
+      "pct": "86%",
+      "label": "%86",
+      "color": "var(--warn)"
+    },
+    "danger": {
+      "pct": "24%",
+      "label": "%24",
+      "color": "var(--danger)"
+    }
+  },
+  "statRanges": [
+    "14g",
+    "30g",
+    "90g"
+  ],
+  "codeSample": "curl -X POST https://api.acme.com/v1/projects \\\n  -H \"Authorization: Bearer sk_live_...\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"name\":\"Atlas CRM\",\"workspace\":\"marketing\"}'"
+}

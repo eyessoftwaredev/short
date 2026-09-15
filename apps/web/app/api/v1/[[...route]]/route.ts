@@ -1,0 +1,358 @@
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
+import { after } from "next/server";
+import { z } from "zod";
+import { linkInputSchema, linkListQuerySchema } from "@short/core";
+import { recordAudit } from "@/lib/audit";
+import { ApiError, checkApiRateLimit, resolveApiContext, type ApiContext } from "@/lib/api-auth";
+import {
+  serializeBiopage,
+  serializeDomain,
+  serializeLink,
+  serializeQrCode,
+} from "@/lib/api-serializers";
+import { loadBreakdownSet, loadMonthlyClicks, loadSummary, loadTimeseries } from "@/lib/analytics";
+import { incrementApiRequests, incrementLinksCreated } from "@/lib/billing";
+import { listBiopages } from "@/lib/biopages";
+import { serverEnv } from "@/lib/env";
+import {
+  createLink,
+  deleteLink,
+  getLink,
+  listLinks,
+  listWorkspaceDomains,
+  updateLink,
+} from "@/lib/links";
+import { listQrCodes } from "@/lib/qr-codes";
+import { assertFeature, assertQuota, currentPeriod, getWorkspaceUsage } from "@/lib/quota";
+import { QuotaError } from "@/lib/action-result";
+import { resolveRange } from "@/lib/stats";
+import { dispatchWebhook } from "@/lib/webhooks";
+import { openApiDocument } from "./openapi";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Variables = { api: ApiContext };
+
+const app = new Hono<{ Variables: Variables }>().basePath("/api/v1");
+
+function errorBody(code: string, message: string, fields?: Record<string, string[]>) {
+  return { error: { code, message, ...(fields ? { fields } : {}) } };
+}
+
+app.get("/openapi.json", (c) =>
+  c.json(openApiDocument(`${serverEnv().APP_URL.replace(/\/$/, "")}/api/v1`)),
+);
+
+/**
+ * Auth + rate limiting for everything except the spec. Usage is counted after the
+ * response is sent so the extra write never shows up in the caller's latency.
+ */
+app.use("*", async (c, next) => {
+  const context = await resolveApiContext(c.req.raw.headers);
+  const limit = await checkApiRateLimit(context);
+
+  c.header("x-ratelimit-limit", String(context.plan.limits.apiRequestsPerHour));
+  c.header("x-ratelimit-remaining", String(Math.max(0, limit.remaining)));
+  c.header("x-ratelimit-reset", String(Math.floor(limit.resetAt / 1000)));
+
+  if (!limit.allowed) {
+    throw new ApiError(429, "rate_limited", "Hourly API limit reached for this plan.");
+  }
+
+  c.set("api", context);
+  after(() => incrementApiRequests(context.workspace.id));
+
+  await next();
+});
+
+app.get("/me", async (c) => {
+  const { workspace, plan, keyName } = c.get("api");
+  const [usage, clicks] = await Promise.all([
+    getWorkspaceUsage(workspace.id),
+    loadMonthlyClicks(workspace.id, currentPeriod(), 0),
+  ]);
+
+  return c.json({
+    data: {
+      workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug },
+      key: { name: keyName },
+      plan: { name: plan.name, key: plan.key, limits: plan.limits, features: plan.features },
+      usage: { ...usage, clicksThisMonth: clicks },
+    },
+  });
+});
+
+app.get("/links", async (c) => {
+  const { workspace } = c.get("api");
+  const parsed = linkListQuerySchema.safeParse(
+    Object.fromEntries(new URL(c.req.url).searchParams),
+  );
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+
+  const { items, total } = await listLinks(workspace.id, parsed.data);
+
+  return c.json({
+    data: items.map(serializeLink),
+    pagination: { page: parsed.data.page, pageSize: parsed.data.pageSize, total },
+  });
+});
+
+app.post("/links", async (c) => {
+  const context = c.get("api");
+  const parsed = linkInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  const input = parsed.data;
+
+  await assertQuota(context.workspace.id, context.plan, "links");
+  if (input.rules.length > 0) {
+    assertFeature(context.plan, "targeting");
+  }
+  if (input.abVariants.length > 0) {
+    assertFeature(context.plan, "abTesting");
+  }
+  if (input.password) {
+    assertFeature(context.plan, "passwordProtection");
+  }
+  if (input.cloaked) {
+    assertFeature(context.plan, "cloaking");
+  }
+
+  const link = await createLink({
+    workspaceId: context.workspace.id,
+    creatorId: null,
+    input,
+  });
+  const resource = serializeLink(link);
+
+  await incrementLinksCreated(context.workspace.id);
+  await recordAudit({
+    workspaceId: context.workspace.id,
+    actorId: null,
+    action: "link.created",
+    targetType: "link",
+    targetId: link.id,
+    metadata: { slug: link.slug, via: "api", keyId: context.keyId },
+  });
+  after(() => dispatchWebhook(context.workspace.id, "link.created", resource));
+
+  return c.json({ data: resource }, 201);
+});
+
+const idParam = z.string().uuid();
+
+app.get("/links/:id", async (c) => {
+  const { workspace } = c.get("api");
+  const id = idParam.parse(c.req.param("id"));
+
+  const link = await getLink(workspace.id, id);
+  if (!link) {
+    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+  }
+  return c.json({ data: serializeLink(link) });
+});
+
+app.patch("/links/:id", async (c) => {
+  const context = c.get("api");
+  const id = idParam.parse(c.req.param("id"));
+
+  const existing = await getLink(context.workspace.id, id);
+  if (!existing) {
+    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+  }
+
+  // PATCH semantics: unspecified fields keep their stored value.
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const merged = {
+    domainId: existing.domainId,
+    slug: existing.slug,
+    destination: existing.destination,
+    title: existing.title ?? undefined,
+    description: existing.description ?? undefined,
+    image: existing.image ?? undefined,
+    comments: existing.comments ?? undefined,
+    folderId: existing.folderId,
+    tags: existing.tags,
+    expiresAt: existing.expiresAt,
+    expiredDestination: existing.expiredDestination,
+    iosDestination: existing.iosDestination,
+    androidDestination: existing.androidDestination,
+    cloaked: existing.cloaked,
+    noIndex: existing.noIndex,
+    forwardQuery: existing.forwardQuery,
+    archived: existing.archived,
+    utm: existing.utm,
+    rules: existing.rules,
+    abVariants: existing.abVariants,
+    ...body,
+  };
+
+  const parsed = linkInputSchema.safeParse(merged);
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  const input = parsed.data;
+
+  if (input.rules.length > 0) {
+    assertFeature(context.plan, "targeting");
+  }
+  if (input.abVariants.length > 0) {
+    assertFeature(context.plan, "abTesting");
+  }
+  if (input.password) {
+    assertFeature(context.plan, "passwordProtection");
+  }
+  if (input.cloaked) {
+    assertFeature(context.plan, "cloaking");
+  }
+
+  const link = await updateLink({ workspaceId: context.workspace.id, linkId: id, input });
+  const resource = serializeLink(link);
+
+  await recordAudit({
+    workspaceId: context.workspace.id,
+    actorId: null,
+    action: "link.updated",
+    targetType: "link",
+    targetId: id,
+    metadata: { via: "api", keyId: context.keyId },
+  });
+  after(() => dispatchWebhook(context.workspace.id, "link.updated", resource));
+
+  return c.json({ data: resource });
+});
+
+app.delete("/links/:id", async (c) => {
+  const context = c.get("api");
+  const id = idParam.parse(c.req.param("id"));
+
+  const existing = await getLink(context.workspace.id, id);
+  if (!existing) {
+    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+  }
+
+  await deleteLink(context.workspace.id, id);
+  await recordAudit({
+    workspaceId: context.workspace.id,
+    actorId: null,
+    action: "link.deleted",
+    targetType: "link",
+    targetId: id,
+    metadata: { slug: existing.slug, via: "api", keyId: context.keyId },
+  });
+  after(() =>
+    dispatchWebhook(context.workspace.id, "link.deleted", {
+      id,
+      slug: existing.slug,
+      hostname: existing.hostname,
+    }),
+  );
+
+  return c.body(null, 204);
+});
+
+app.get("/links/:id/stats", async (c) => {
+  const { workspace } = c.get("api");
+  const id = idParam.parse(c.req.param("id"));
+
+  const link = await getLink(workspace.id, id);
+  if (!link) {
+    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+  }
+
+  const range = resolveRange(c.req.query("range"));
+  const scope = { workspaceId: workspace.id, linkId: id, from: range.from, to: range.to };
+
+  const [summary, timeseries, breakdowns] = await Promise.all([
+    loadSummary(scope),
+    loadTimeseries(scope, range.granularity),
+    loadBreakdownSet(scope, 10),
+  ]);
+
+  return c.json({
+    data: {
+      range: { key: range.key, from: range.from.toISOString(), to: range.to.toISOString() },
+      summary,
+      timeseries,
+      breakdowns,
+    },
+  });
+});
+
+app.get("/analytics", async (c) => {
+  const { workspace } = c.get("api");
+  const range = resolveRange(c.req.query("range"));
+  const scope = { workspaceId: workspace.id, from: range.from, to: range.to };
+
+  const [summary, timeseries, breakdowns] = await Promise.all([
+    loadSummary(scope),
+    loadTimeseries(scope, range.granularity),
+    loadBreakdownSet(scope, 10),
+  ]);
+
+  return c.json({
+    data: {
+      range: { key: range.key, from: range.from.toISOString(), to: range.to.toISOString() },
+      summary,
+      timeseries,
+      breakdowns,
+    },
+  });
+});
+
+app.get("/domains", async (c) => {
+  const { workspace } = c.get("api");
+  const rows = await listWorkspaceDomains(workspace.id);
+  return c.json({ data: rows.map(serializeDomain) });
+});
+
+app.get("/qr-codes", async (c) => {
+  const { workspace } = c.get("api");
+  const { items, total } = await listQrCodes(workspace.id, 1, 100);
+  return c.json({
+    data: items.map(serializeQrCode),
+    pagination: { page: 1, pageSize: 100, total },
+  });
+});
+
+app.get("/biopages", async (c) => {
+  const { workspace } = c.get("api");
+  const { items, total } = await listBiopages(workspace.id, 1, 100);
+  return c.json({
+    data: items.map(serializeBiopage),
+    pagination: { page: 1, pageSize: 100, total },
+  });
+});
+
+app.notFound((c) => c.json(errorBody("not_found", "Unknown endpoint."), 404));
+
+app.onError((error, c) => {
+  if (error instanceof ApiError) {
+    return c.json(errorBody(error.code, error.message), error.status);
+  }
+  if (error instanceof QuotaError) {
+    return c.json(errorBody("quota_exceeded", error.message), 403);
+  }
+  if (error instanceof z.ZodError) {
+    const fields: Record<string, string[]> = {};
+    for (const issue of error.issues) {
+      const path = issue.path.join(".") || "_body";
+      fields[path] = [...(fields[path] ?? []), issue.message];
+    }
+    return c.json(errorBody("validation_failed", "Request body is invalid.", fields), 400);
+  }
+
+  console.error("api/v1 failed", error);
+  return c.json(errorBody("internal_error", "Something went wrong."), 500);
+});
+
+export const GET = handle(app);
+export const POST = handle(app);
+export const PATCH = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);

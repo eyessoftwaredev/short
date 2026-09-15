@@ -1,0 +1,116 @@
+{
+  "rows": [
+    {
+      "short": "Atlas CRM",
+      "target": "Merve K.",
+      "tag": "Ürün",
+      "status": "Aktif",
+      "clicks": 12480,
+      "created": "2 Eyl 2026"
+    },
+    {
+      "short": "Fiyatlandırma",
+      "target": "Ahmet Y.",
+      "tag": "Pazarlama",
+      "status": "Aktif",
+      "clicks": 8340,
+      "created": "28 Ağu 2026"
+    },
+    {
+      "short": "Eylül demosu",
+      "target": "Selin B.",
+      "tag": "Satış",
+      "status": "Aktif",
+      "clicks": 5102,
+      "created": "24 Ağu 2026"
+    },
+    {
+      "short": "Ağustos webinarı",
+      "target": "Can T.",
+      "tag": "Satış",
+      "status": "Süresi geçti",
+      "clicks": 3975,
+      "created": "11 Ağu 2026"
+    },
+    {
+      "short": "API belgeleri",
+      "target": "Sistem",
+      "tag": "Dokümanlar",
+      "status": "Aktif",
+      "clicks": 2840,
+      "created": "5 Ağu 2026"
+    },
+    {
+      "short": "İK başvuru",
+      "target": "Elif S.",
+      "tag": "İnsan kaynakları",
+      "status": "Duraklatıldı",
+      "clicks": 1620,
+      "created": "30 Tem 2026"
+    },
+    {
+      "short": "Yaz indirimi",
+      "target": "Ahmet Y.",
+      "tag": "Pazarlama",
+      "status": "Süresi geçti",
+      "clicks": 940,
+      "created": "18 Tem 2026"
+    },
+    {
+      "short": "Podcast 12",
+      "target": "Selin B.",
+      "tag": "İçerik",
+      "status": "Aktif",
+      "clicks": 412,
+      "created": "9 Tem 2026"
+    }
+  ],
+  "status": {
+    "Aktif": {
+      "bg": "var(--accent-surface)",
+      "color": "var(--accent-hover)"
+    },
+    "Süresi geçti": {
+      "bg": "var(--danger-surface)",
+      "color": "var(--danger)"
+    },
+    "Duraklatıldı": {
+      "bg": "var(--surface)",
+      "color": "var(--fg-muted)"
+    }
+  },
+  "pageSize": 8,
+  "domains": [
+    "app.acme.com",
+    "eu.acme.com",
+    "us.acme.com",
+    "staging.acme.com",
+    "dev.acme.com"
+  ],
+  "apiKey": "sk_live_8f2c41d9b7e34a6c9d02e14f7a",
+  "workspaces": [
+    "Acme Pazarlama",
+    "Acme Ürün",
+    "Kişisel"
+  ],
+  "composedRows": [
+    {
+      "name": "Q4 onboarding",
+      "owner": "Merve K.",
+      "status": "Aktif",
+      "statusColor": "var(--accent-hover)"
+    },
+    {
+      "name": "Billing v2",
+      "owner": "Ahmet Y.",
+      "status": "Aktif",
+      "statusColor": "var(--accent-hover)"
+    }
+  ],
+  "treeLeaves": [
+    "Atlas CRM",
+    "Billing v2",
+    "Q4 onboarding"
+  ],
+  "rteDefaultDraft": "Q4 onboarding metni. SSO adımlarını burada tut."
+}

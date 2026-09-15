@@ -1,0 +1,474 @@
+[
+  {
+    "id": "sec-01",
+    "slug": "01",
+    "num": "01",
+    "title": "Renk",
+    "heading": "01 — Renk, tipografi & ölçek",
+    "blurb": "Aksan yalnızca birincil aksiyon ve aktif durumda kullanılır. Köşe ve gölge sabit basamaklardan seçilir; ara değer üretilmez."
+  },
+  {
+    "id": "sec-02",
+    "slug": "02",
+    "num": "02",
+    "title": "Buton",
+    "heading": "02 — Butonlar",
+    "blurb": "Altı varyant, üç boyut. Bir ekranda yalnızca bir birincil buton."
+  },
+  {
+    "id": "sec-03",
+    "slug": "03",
+    "num": "03",
+    "title": "Header",
+    "heading": "03 — Header",
+    "blurb": "Pazarlama başlığı (üstte) ve uygulama başlığı (altta: çalışma alanı seçici + sekmeler)."
+  },
+  {
+    "id": "sec-04",
+    "slug": "04",
+    "num": "04",
+    "title": "Kart",
+    "heading": "04 — Kartlar",
+    "blurb": "Metrik, özellik, proje ve plan kartı. 1px kenar + 8px köşe; gölge yok."
+  },
+  {
+    "id": "sec-04b",
+    "slug": "04b",
+    "num": "04b",
+    "title": "Hizmet",
+    "heading": "04b — Hizmet kartları",
+    "blurb": "Landing'de hizmetleri anlatmak için altı düzen. Kenardaki aksan çizgisi kartın merkezinde döner; hover kartı kaldırır."
+  },
+  {
+    "id": "sec-05",
+    "slug": "05",
+    "num": "05",
+    "title": "Form",
+    "heading": "05 — Formlar",
+    "blurb": "Etiket üstte, yardım metni altta, hata durumu kırmızı kenar + açıklama."
+  },
+  {
+    "id": "sec-06",
+    "slug": "06",
+    "num": "06",
+    "title": "Tablo",
+    "heading": "06 — DataTable",
+    "blurb": "Arama, filtre, toplu seçim, sıralama ve sayfalama çalışıyor."
+  },
+  {
+    "id": "sec-07",
+    "slug": "07",
+    "num": "07",
+    "title": "Takvim",
+    "heading": "07 — Takvim & tarih aralığı",
+    "blurb": "Proje bitiş tarihi ve analitik tarih aralığı için. Gün seç, aylar arasında gez."
+  },
+  {
+    "id": "sec-08",
+    "slug": "08",
+    "num": "08",
+    "title": "Modal",
+    "heading": "08 — Modal",
+    "blurb": "Form modalı ve yıkıcı onay. Örtüye tıklamak veya Esc kapatır."
+  },
+  {
+    "id": "sec-09",
+    "slug": "09",
+    "num": "09",
+    "title": "Toast",
+    "heading": "09 — Toast & uyarı",
+    "blurb": "Toast sağ altta yığılır, 4 saniyede kendini kapatır. Satır içi uyarılar sayfada kalır."
+  },
+  {
+    "id": "sec-10",
+    "slug": "10",
+    "num": "10",
+    "title": "Badge",
+    "heading": "10 — Badge, tooltip, boş durum",
+    "blurb": "Durum etiketleri, ilerleme ve ilk kullanım ekranı."
+  },
+  {
+    "id": "sec-11",
+    "slug": "11",
+    "num": "11",
+    "title": "Nav",
+    "heading": "11 — Navigasyon",
+    "blurb": "Breadcrumb, kenar menüsü, segment kontrolü ve adım göstergesi."
+  },
+  {
+    "id": "sec-12",
+    "slug": "12",
+    "num": "12",
+    "title": "Girdi",
+    "heading": "12 — İleri seviye girdiler",
+    "blurb": "Aranabilir seçici, etiket girişi, kaydırıcı, radyo grubu, dosya yükleme ve API anahtarı."
+  },
+  {
+    "id": "sec-13",
+    "slug": "13",
+    "num": "13",
+    "title": "Analitik",
+    "heading": "13 — Analitik & aktivite",
+    "blurb": "Sütun grafiği, kırılım listesi, ekip avatarları ve etkinlik akışı."
+  },
+  {
+    "id": "sec-14",
+    "slug": "14",
+    "num": "14",
+    "title": "Yükleme",
+    "heading": "14 — Yükleme durumları",
+    "blurb": "İskelet (skeleton) satırlar, dönen gösterge ve buton içi yükleme."
+  },
+  {
+    "id": "sec-15",
+    "slug": "15",
+    "num": "15",
+    "title": "Palet",
+    "heading": "15 — Komut paleti",
+    "blurb": "Klavye ile hızlı erişim. Aç, yazarak filtrele, Esc ile kapat."
+  },
+  {
+    "id": "sec-16",
+    "slug": "16",
+    "num": "16",
+    "title": "İkon",
+    "heading": "16 — İkon seti",
+    "blurb": "Font Awesome 6 (free). Arayüz ikonları 14–16px, aksan veya ikincil metin renginde; marka ikonları yalnızca cihaz/platform göstermek için."
+  },
+  {
+    "id": "sec-17",
+    "slug": "17",
+    "num": "17",
+    "title": "Cihaz",
+    "heading": "17 — Cihaz, platform & ülke istatistikleri",
+    "blurb": "İkonlu kırılım kartları: cihaz tipi, işletim sistemi, tarayıcı ve ülke."
+  },
+  {
+    "id": "sec-18",
+    "slug": "18",
+    "num": "18",
+    "title": "Sekme",
+    "heading": "18 — Sekmeler",
+    "blurb": "İki varyant: alt çizgili (form bölümleri) ve dolgulu (veri kırılımı). Sekme şeridi her zaman kendi yatay kaydırma kabında durur; dar ekranda taşmaz, alta sarmaz."
+  },
+  {
+    "id": "sec-19",
+    "slug": "19",
+    "num": "19",
+    "title": "Kota",
+    "heading": "19 — Plan kilidi & kota",
+    "blurb": "Ürünün her ileri seviye alanı plana bağlı. Kilitli alan asla sessizce devre dışı bırakılmaz; ne olduğu ve nasıl açılacağı alanın yanında yazar."
+  },
+  {
+    "id": "sec-20",
+    "slug": "20",
+    "num": "20",
+    "title": "Auth",
+    "heading": "20 — Auth",
+    "blurb": "Giriş, kayıt, magic link, OTP ve SSO — ürün bağımsız."
+  },
+  {
+    "id": "sec-21",
+    "slug": "21",
+    "num": "21",
+    "title": "Settings",
+    "heading": "21 — Settings & team",
+    "blurb": "Ayarlar kabuğu, profil alanları, ekip tablosu ve davet satırı."
+  },
+  {
+    "id": "sec-22",
+    "slug": "22",
+    "num": "22",
+    "title": "Billing",
+    "heading": "22 — Billing",
+    "blurb": "Mevcut plan, karşılaştırma, ödeme yöntemi ve fatura tablosu."
+  },
+  {
+    "id": "sec-23",
+    "slug": "23",
+    "num": "23",
+    "title": "Overlay",
+    "heading": "23 — Overlays",
+    "blurb": "Dropdown, popover, accordion ve numaralı sayfalama."
+  },
+  {
+    "id": "sec-24",
+    "slug": "24",
+    "num": "24",
+    "title": "System",
+    "heading": "24 — System surfaces",
+    "blurb": "Kapatılabilir banner, bildirim kutusu ve tam sayfa durum ekranları."
+  },
+  {
+    "id": "sec-25",
+    "slug": "25",
+    "num": "25",
+    "title": "Mobil",
+    "heading": "25 — Mobile chrome",
+    "blurb": "Hamburger + sheet nav ve alt tab bar — dar ekran kabuğu."
+  },
+  {
+    "id": "sec-26",
+    "slug": "26",
+    "num": "26",
+    "title": "Grid",
+    "heading": "26 — Section & grid",
+    "blurb": "Sayfa başlığı, bölüm kabuğu ve 2/3/4/12 kolon grid — admin içerik iskeleti."
+  },
+  {
+    "id": "sec-27",
+    "slug": "27",
+    "num": "27",
+    "title": "Shell",
+    "heading": "27 — Admin shell",
+    "blurb": "Sol menü (gruplu, sayaçlı, daraltılabilir) + üst bar."
+  },
+  {
+    "id": "sec-28",
+    "slug": "28",
+    "num": "28",
+    "title": "Hero",
+    "heading": "28 — Dashboard hero",
+    "blurb": "Tam hero, kompakt metrik hero ve ters promo şeridi."
+  },
+  {
+    "id": "sec-29",
+    "slug": "29",
+    "num": "29",
+    "title": "Slider",
+    "heading": "29 — Slider",
+    "blurb": "Duyuru karuseli ve kart karuseli — ok, nokta ve klavye."
+  },
+  {
+    "id": "sec-30",
+    "slug": "30",
+    "num": "30",
+    "title": "Dashboard",
+    "heading": "30 — Composed dashboard",
+    "blurb": "Shell + hero + KPI + slider + bölümler — tek admin ekranı."
+  },
+  {
+    "id": "sec-31",
+    "slug": "31",
+    "num": "31",
+    "title": "Switch",
+    "heading": "31 — Switch, progress, avatar",
+    "blurb": "Ayar satırı, kota çubuğu ve kişi yığını — form ve üst barda ortak."
+  },
+  {
+    "id": "sec-32",
+    "slug": "32",
+    "num": "32",
+    "title": "Timeline",
+    "heading": "32 — Timeline & yorum",
+    "blurb": "Aktivite akışı ve tartışma ipliği."
+  },
+  {
+    "id": "sec-33",
+    "slug": "33",
+    "num": "33",
+    "title": "Filtre",
+    "heading": "33 — Filtre çubuğu",
+    "blurb": "Chip filtre + sıralama — liste ve kanban üstü."
+  },
+  {
+    "id": "sec-34",
+    "slug": "34",
+    "num": "34",
+    "title": "Kanban",
+    "heading": "34 — Kanban",
+    "blurb": "Üç kolonlu iş tahtası — backlog / devam / bitti."
+  },
+  {
+    "id": "sec-35",
+    "slug": "35",
+    "num": "35",
+    "title": "Entegrasyon",
+    "heading": "35 — Entegrasyonlar",
+    "blurb": "Bağlı / kopuk uygulama kartları."
+  },
+  {
+    "id": "sec-36",
+    "slug": "36",
+    "num": "36",
+    "title": "Onboarding",
+    "heading": "36 — Onboarding",
+    "blurb": "Boş çalışma alanı + 3 adımlı kurulum."
+  },
+  {
+    "id": "sec-37",
+    "slug": "37",
+    "num": "37",
+    "title": "Footer",
+    "heading": "37 — Footer & kullanıcı menüsü",
+    "blurb": "Sayfa altı ve profil açılır menü."
+  },
+  {
+    "id": "sec-38",
+    "slug": "38",
+    "num": "38",
+    "title": "Arama",
+    "heading": "38 — Arama sonuçları & denetim",
+    "blurb": "Global arama listesi ve audit satırları."
+  },
+  {
+    "id": "sec-39",
+    "slug": "39",
+    "num": "39",
+    "title": "Dropzone",
+    "heading": "39 — Dropzone",
+    "blurb": "Dosya bırakma alanı. Hover ve seçim aynı yüzeyde."
+  },
+  {
+    "id": "sec-40",
+    "slug": "40",
+    "num": "40",
+    "title": "Kısayol",
+    "heading": "40 — Kısayol",
+    "blurb": "Klavye kısayol listesi. Mod tuşu ve tuş yan yana."
+  },
+  {
+    "id": "sec-41",
+    "slug": "41",
+    "num": "41",
+    "title": "Dil",
+    "heading": "41 — Dil ve saat dilimi",
+    "blurb": "Çalışma alanı yerel ayarları. Önizleme anında güncellenir."
+  },
+  {
+    "id": "sec-42",
+    "slug": "42",
+    "num": "42",
+    "title": "Kod",
+    "heading": "42 — Kod bloğu",
+    "blurb": "Doküman ve API örnekleri için ters yüzey."
+  },
+  {
+    "id": "sec-43",
+    "slug": "43",
+    "num": "43",
+    "title": "Paywall",
+    "heading": "43 — Paywall",
+    "blurb": "Özellik kapısı. İçerik bulanık, teklif üstte."
+  },
+  {
+    "id": "sec-44",
+    "slug": "44",
+    "num": "44",
+    "title": "403",
+    "heading": "44 — 403",
+    "blurb": "Yetkisiz erişim boş hali. 404 ile karışmaz."
+  },
+  {
+    "id": "sec-45",
+    "slug": "45",
+    "num": "45",
+    "title": "Mention",
+    "heading": "45 — Mention",
+    "blurb": "Kişi seçici. Sorgu daraltır, seçim inputa yazılır."
+  },
+  {
+    "id": "sec-46",
+    "slug": "46",
+    "num": "46",
+    "title": "Ağaç",
+    "heading": "46 — Ağaç menü",
+    "blurb": "Klasör aç/kapa ve yaprak seçimi."
+  },
+  {
+    "id": "sec-47",
+    "slug": "47",
+    "num": "47",
+    "title": "Split",
+    "heading": "47 — Split &amp; zengin metin",
+    "blurb": "İki panelli düzen ve biçim araç çubuğu."
+  },
+  {
+    "id": "sec-48",
+    "slug": "48",
+    "num": "48",
+    "title": "Inbox",
+    "heading": "48 — Inbox, fiyat, renk, halka",
+    "blurb": "Gelen kutusu, plan karşılaştırması, renk seçici ve dairesel ilerleme."
+  },
+  {
+    "id": "sec-49",
+    "slug": "49",
+    "num": "49",
+    "title": "Chart",
+    "heading": "49 — Chart",
+    "blurb": "Area, çizgi, sütun, pasta, radar, scatter ve gauge. Hover’da seri adı ve değer kutusu."
+  },
+  {
+    "id": "sec-50",
+    "slug": "50",
+    "num": "50",
+    "title": "Users",
+    "heading": "50 — Users",
+    "blurb": "Admin kullanıcı dizini. Arama, rol, durum, son görülme."
+  },
+  {
+    "id": "sec-51",
+    "slug": "51",
+    "num": "51",
+    "title": "RBAC",
+    "heading": "51 — RBAC",
+    "blurb": "Rol × yetki matrisi. Hücre aç/kapa."
+  },
+  {
+    "id": "sec-52",
+    "slug": "52",
+    "num": "52",
+    "title": "Security",
+    "heading": "52 — Security",
+    "blurb": "Oturumlar, cihazlar ve 2FA satırı. Auth giriş ekranlarından ayrı."
+  },
+  {
+    "id": "sec-53",
+    "slug": "53",
+    "num": "53",
+    "title": "Notify",
+    "heading": "53 — Notifications",
+    "blurb": "Zil popover, okunmamış liste ve e-posta / uygulama tercihleri."
+  },
+  {
+    "id": "sec-54",
+    "slug": "54",
+    "num": "54",
+    "title": "Impersonate",
+    "heading": "54 — Impersonate",
+    "blurb": "Kalıcı admin bandı. Oturumu bitir."
+  },
+  {
+    "id": "sec-55",
+    "slug": "55",
+    "num": "55",
+    "title": "Sheet",
+    "heading": "55 — Sheet",
+    "blurb": "Sağ detay paneli ve alt mobil sheet."
+  },
+  {
+    "id": "sec-56",
+    "slug": "56",
+    "num": "56",
+    "title": "Context",
+    "heading": "56 — Context",
+    "blurb": "Satır bağlam menüsü ve isim hover kartı."
+  },
+  {
+    "id": "sec-57",
+    "slug": "57",
+    "num": "57",
+    "title": "Savebar",
+    "heading": "57 — Savebar",
+    "blurb": "Kaydedilmemiş değişiklik çubuğu. Vazgeç / Kaydet."
+  },
+  {
+    "id": "sec-58",
+    "slug": "58",
+    "num": "58",
+    "title": "Chat",
+    "heading": "58 — Chat",
+    "blurb": "Pop widget ve sayfa içi thread + konuşma. Destek için hazır chatbox."
+  }
+]

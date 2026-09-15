@@ -1,0 +1,26 @@
+{
+  "name": "short",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@short/web",
+    "dev:edge": "turbo run dev --filter=@short/edge --filter=@short/ingest",
+    "build": "turbo run build --filter=@short/web",
+    "deploy:workers": "turbo run deploy --filter=@short/edge --filter=@short/ingest",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @short/db generate",
+    "db:migrate": "pnpm --filter @short/db migrate",
+    "db:push": "pnpm --filter @short/db push",
+    "db:seed": "pnpm --filter @short/db seed",
+    "ch:migrate": "pnpm --filter @short/analytics migrate"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

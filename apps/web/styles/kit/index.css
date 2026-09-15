@@ -1,0 +1,9 @@
+@import "./tokens.css";
+@import "./palettes.css";
+@import "./base.css";
+@import "./layout.css";
+
+@keyframes om-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.5); }
+}

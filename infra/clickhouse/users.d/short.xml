@@ -1,0 +1,17 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <!-- apps/ingest batches 100 events per request; async inserts let ClickHouse
+                 coalesce those batches into larger parts instead of one part per POST. -->
+            <async_insert>1</async_insert>
+            <wait_for_async_insert>0</wait_for_async_insert>
+            <async_insert_busy_timeout_ms>1000</async_insert_busy_timeout_ms>
+            <async_insert_max_data_size>10485760</async_insert_max_data_size>
+
+            <!-- Panel queries hit rollup views and should never be able to eat the box. -->
+            <max_memory_usage>4000000000</max_memory_usage>
+            <max_execution_time>30</max_execution_time>
+            <readonly>0</readonly>
+        </default>
+    </profiles>
+</clickhouse>

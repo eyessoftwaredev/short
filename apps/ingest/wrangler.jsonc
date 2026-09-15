@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "short-ingest",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  "queues": {
+    "consumers": [
+      {
+        "queue": "short-clicks",
+        "max_batch_size": 100,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "max_concurrency": 10,
+        "dead_letter_queue": "short-clicks-dlq"
+      }
+    ]
+  },
+
+  // Optional: batches that exhaust their retries are archived here as NDJSON.
+  "r2_buckets": [{ "binding": "FAILED_EVENTS", "bucket_name": "short-failed-events" }],
+
+  "vars": {
+    "CLICKHOUSE_URL": "https://ch.short.ky",
+    "CLICKHOUSE_DATABASE": "short",
+    "CLICKHOUSE_USER": "default",
+    // Used only to relay click events to customer webhooks; omit to disable the relay.
+    "ORIGIN_URL": "https://app.short.ky"
+  }
+
+  // Secrets (wrangler secret put): CLICKHOUSE_PASSWORD, INTERNAL_TOKEN
+}

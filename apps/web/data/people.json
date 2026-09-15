@@ -1,0 +1,202 @@
+{
+  "mentions": [
+    {
+      "name": "Merve Kaya",
+      "handle": "@merve",
+      "initials": "MK"
+    },
+    {
+      "name": "Ahmet Yılmaz",
+      "handle": "@ahmet",
+      "initials": "AY"
+    },
+    {
+      "name": "Selin Boz",
+      "handle": "@selin",
+      "initials": "SB"
+    }
+  ],
+  "teamMembers": [
+    {
+      "name": "Merve Kaya",
+      "email": "merve@acme.com",
+      "role": "Admin",
+      "status": "Aktif",
+      "statusBg": "var(--accent-surface)",
+      "statusColor": "var(--accent-hover)",
+      "lastSeen": "2 dk önce",
+      "suspended": false
+    },
+    {
+      "name": "Ahmet Yılmaz",
+      "email": "ahmet@acme.com",
+      "role": "Editor",
+      "status": "Aktif",
+      "statusBg": "var(--accent-surface)",
+      "statusColor": "var(--accent-hover)",
+      "lastSeen": "1 sa önce",
+      "suspended": false
+    },
+    {
+      "name": "Selin Boz",
+      "email": "selin@acme.com",
+      "role": "Viewer",
+      "status": "Bekliyor",
+      "statusBg": "var(--warn-surface)",
+      "statusColor": "var(--warn-ink)",
+      "lastSeen": "—",
+      "suspended": false
+    },
+    {
+      "name": "Can Demir",
+      "email": "can@acme.com",
+      "role": "Editor",
+      "status": "Aktif",
+      "statusBg": "var(--accent-surface)",
+      "statusColor": "var(--accent-hover)",
+      "lastSeen": "dün",
+      "suspended": false
+    }
+  ],
+  "avatars": [
+    {
+      "initials": "MK",
+      "bg": "var(--inverse)",
+      "color": "var(--on-inverse)"
+    },
+    {
+      "initials": "AY",
+      "bg": "var(--accent)",
+      "color": "var(--on-accent)"
+    },
+    {
+      "initials": "SB",
+      "bg": "var(--accent-surface)",
+      "color": "var(--accent-ink)"
+    },
+    {
+      "initials": "+2",
+      "bg": "var(--surface)",
+      "color": "var(--fg-muted)"
+    }
+  ],
+  "activity": [
+    {
+      "who": "Merve K.",
+      "what": "Atlas CRM projesini oluşturdu",
+      "when": "12 dk önce",
+      "dot": "var(--accent)"
+    },
+    {
+      "who": "Ahmet Y.",
+      "what": "412 satırlık CSV içe aktardı",
+      "when": "1 sa önce",
+      "dot": "var(--accent)"
+    },
+    {
+      "who": "Selin B.",
+      "what": "portal.acme.com alanını doğruladı",
+      "when": "3 sa önce",
+      "dot": "var(--border-strong)"
+    },
+    {
+      "who": "Sistem",
+      "what": "Yaz indirimi projesinin süresi doldu",
+      "when": "dün",
+      "dot": "var(--danger-border-strong)"
+    }
+  ],
+  "comments": [
+    {
+      "initials": "AY",
+      "name": "Ahmet Yılmaz",
+      "when": "14:02",
+      "body": "Billing v2 için webhook listesini paylaşıyorum."
+    },
+    {
+      "initials": "MK",
+      "name": "Merve Kaya",
+      "when": "14:18",
+      "body": "SSO testini yarın sabah tamamlarız."
+    }
+  ],
+  "inboxRows": [
+    {
+      "id": "0",
+      "initials": "MK",
+      "title": "SSO incelemesi",
+      "body": "Okta bağlandı, test hesabı hazır.",
+      "when": "12 dk"
+    },
+    {
+      "id": "1",
+      "initials": "AY",
+      "title": "Fatura PDF",
+      "body": "Ağustos dönemini ekledim.",
+      "when": "1 sa"
+    },
+    {
+      "id": "2",
+      "initials": "SB",
+      "title": "Davet kabul",
+      "body": "Viewer rolüyle katıldım.",
+      "when": "dün"
+    }
+  ],
+  "timelineItems": [
+    {
+      "title": "Proje oluşturuldu",
+      "body": "Q4 onboarding Merve tarafından açıldı.",
+      "when": "12 dk önce"
+    },
+    {
+      "title": "Üye davet edildi",
+      "body": "Selin Boz Viewer olarak eklendi.",
+      "when": "1 sa önce"
+    },
+    {
+      "title": "Plan güncellendi",
+      "body": "Aylık Pro yenilendi.",
+      "when": "dün"
+    },
+    {
+      "title": "API anahtarı",
+      "body": "Yeni production anahtarı üretildi.",
+      "when": "2 gün önce"
+    }
+  ],
+  "directory": [
+    {
+      "name": "Merve Kaya",
+      "email": "merve@acme.com",
+      "role": "Admin",
+      "status": "Aktif",
+      "lastSeen": "2 dk önce",
+      "suspended": false
+    },
+    {
+      "name": "Ahmet Yılmaz",
+      "email": "ahmet@acme.com",
+      "role": "Editor",
+      "status": "Aktif",
+      "lastSeen": "1 sa önce",
+      "suspended": false
+    },
+    {
+      "name": "Selin Boz",
+      "email": "selin@acme.com",
+      "role": "Viewer",
+      "status": "Bekliyor",
+      "lastSeen": "—",
+      "suspended": false
+    },
+    {
+      "name": "Can Demir",
+      "email": "can@acme.com",
+      "role": "Editor",
+      "status": "Askıda",
+      "lastSeen": "4 gün önce",
+      "suspended": true
+    }
+  ]
+}

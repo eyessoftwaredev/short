@@ -1,0 +1,115 @@
+{
+  "kanbanCols": [
+    {
+      "title": "Backlog",
+      "count": "3",
+      "cards": [
+        {
+          "title": "SSO dokümanı",
+          "meta": "Docs · düşük"
+        },
+        {
+          "title": "Fatura PDF",
+          "meta": "Billing · orta"
+        }
+      ]
+    },
+    {
+      "title": "Devam",
+      "count": "2",
+      "cards": [
+        {
+          "title": "Rol kapsamı",
+          "meta": "MK · yüksek"
+        },
+        {
+          "title": "Webhook retry",
+          "meta": "AY · orta"
+        }
+      ]
+    },
+    {
+      "title": "Bitti",
+      "count": "1",
+      "cards": [
+        {
+          "title": "Davet e-postası",
+          "meta": "SB · dün"
+        }
+      ]
+    }
+  ],
+  "integrations": [
+    {
+      "id": "slack",
+      "name": "Slack",
+      "body": "Kanal bildirimleri ve slash komutlar."
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "body": "PR durumu ve deploy yorumları."
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "body": "Abonelik ve fatura senkronu.",
+      "connected": true
+    }
+  ],
+  "onboarding": {
+    "steps": [
+      {
+        "title": "Çalışma alanını adlandır",
+        "body": "Şirket veya ürün adını yaz. Bunu sonra değiştirebilirsin."
+      },
+      {
+        "title": "Ekibini davet et",
+        "body": "En az bir yönetici ekle. Davetler 7 gün geçerli."
+      },
+      {
+        "title": "İlk projeyi aç",
+        "body": "Bir proje oluşturunca dashboard dolar."
+      }
+    ]
+  },
+  "searchHits": [
+    {
+      "title": "Ağustos faturası",
+      "kind": "Fatura",
+      "icon": "fa-solid fa-file-invoice"
+    },
+    {
+      "title": "Fatura adresi",
+      "kind": "Ayar",
+      "icon": "fa-solid fa-gear"
+    },
+    {
+      "title": "Billing v2",
+      "kind": "Proje",
+      "icon": "fa-solid fa-folder"
+    }
+  ],
+  "auditRows": [
+    {
+      "event": "Üye davet",
+      "actor": "Merve K.",
+      "when": "14:18"
+    },
+    {
+      "event": "Anahtar üret",
+      "actor": "Ahmet Y.",
+      "when": "13:02"
+    },
+    {
+      "event": "Plan yükselt",
+      "actor": "Sistem",
+      "when": "dün"
+    },
+    {
+      "event": "SSO bağla",
+      "actor": "Merve K.",
+      "when": "12 Eyl"
+    }
+  ]
+}

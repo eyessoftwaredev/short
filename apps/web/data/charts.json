@@ -1,0 +1,521 @@
+{
+  "chart": [
+    {
+      "d": "31 Ağu",
+      "v": 1840
+    },
+    {
+      "d": "1 Eyl",
+      "v": 2210
+    },
+    {
+      "d": "2 Eyl",
+      "v": 2980
+    },
+    {
+      "d": "3 Eyl",
+      "v": 2640
+    },
+    {
+      "d": "4 Eyl",
+      "v": 3180
+    },
+    {
+      "d": "5 Eyl",
+      "v": 2410
+    },
+    {
+      "d": "6 Eyl",
+      "v": 1520
+    },
+    {
+      "d": "7 Eyl",
+      "v": 1290
+    },
+    {
+      "d": "8 Eyl",
+      "v": 2860
+    },
+    {
+      "d": "9 Eyl",
+      "v": 3340
+    },
+    {
+      "d": "10 Eyl",
+      "v": 3020
+    },
+    {
+      "d": "11 Eyl",
+      "v": 3480
+    },
+    {
+      "d": "12 Eyl",
+      "v": 2740
+    },
+    {
+      "d": "13 Eyl",
+      "v": 1620
+    }
+  ],
+  "lockedBars": [
+    "40%",
+    "62%",
+    "48%",
+    "78%",
+    "55%",
+    "88%",
+    "70%",
+    "94%",
+    "66%",
+    "82%",
+    "58%",
+    "74%"
+  ],
+  "sparkKpis": [
+    {
+      "label": "Oturum",
+      "value": "36.1B",
+      "delta": "↑ %18",
+      "deltaColor": "var(--accent-hover)",
+      "sparkClass": "",
+      "bars": [
+        40,
+        48,
+        44,
+        62,
+        58,
+        70,
+        66,
+        80,
+        74,
+        88,
+        72,
+        90
+      ]
+    },
+    {
+      "label": "API istek",
+      "value": "184k",
+      "delta": "↓ %4",
+      "deltaColor": "var(--danger)",
+      "sparkClass": "kit-spark--muted",
+      "bars": [
+        80,
+        72,
+        76,
+        60,
+        64,
+        52,
+        48,
+        56,
+        44,
+        40,
+        46,
+        38
+      ]
+    },
+    {
+      "label": "Dönüşüm",
+      "value": "%7,4",
+      "delta": "sabit",
+      "deltaColor": "var(--fg-muted)",
+      "sparkClass": "",
+      "bars": [
+        50,
+        52,
+        48,
+        55,
+        54,
+        58,
+        56,
+        60,
+        58,
+        57,
+        59,
+        61
+      ]
+    }
+  ],
+  "weekTicks": [
+    "Pzt",
+    "Sal",
+    "Çar",
+    "Per",
+    "Cum",
+    "Cmt",
+    "Paz"
+  ],
+  "colBars": [
+    46,
+    58,
+    52,
+    70,
+    64,
+    38,
+    30
+  ],
+  "groupBars": [
+    {
+      "a": 62,
+      "b": 40
+    },
+    {
+      "a": 70,
+      "b": 48
+    },
+    {
+      "a": 54,
+      "b": 36
+    },
+    {
+      "a": 80,
+      "b": 58
+    },
+    {
+      "a": 74,
+      "b": 50
+    },
+    {
+      "a": 36,
+      "b": 22
+    },
+    {
+      "a": 28,
+      "b": 18
+    }
+  ],
+  "stackBars": [
+    {
+      "h": 70,
+      "a": 62,
+      "b": 38
+    },
+    {
+      "h": 82,
+      "a": 58,
+      "b": 42
+    },
+    {
+      "h": 64,
+      "a": 70,
+      "b": 30
+    },
+    {
+      "h": 90,
+      "a": 55,
+      "b": 45
+    },
+    {
+      "h": 76,
+      "a": 60,
+      "b": 40
+    },
+    {
+      "h": 40,
+      "a": 72,
+      "b": 28
+    },
+    {
+      "h": 34,
+      "a": 68,
+      "b": 32
+    }
+  ],
+  "rankBars": [
+    {
+      "name": "LinkedIn",
+      "w": 86,
+      "val": "%38"
+    },
+    {
+      "name": "E-posta",
+      "w": 62,
+      "val": "%27"
+    },
+    {
+      "name": "Doğrudan",
+      "w": 48,
+      "val": "%21"
+    },
+    {
+      "name": "Doküman",
+      "w": 32,
+      "val": "%9"
+    },
+    {
+      "name": "Diğer",
+      "w": 18,
+      "val": "%5"
+    }
+  ],
+  "funnelSteps": [
+    {
+      "label": "Ziyaret",
+      "val": "12.4B",
+      "w": 100
+    },
+    {
+      "label": "Kayıt",
+      "val": "3.1B",
+      "w": 78
+    },
+    {
+      "label": "Aktivasyon",
+      "val": "1.8B",
+      "w": 56
+    },
+    {
+      "label": "Ücretli",
+      "val": "640M",
+      "w": 34
+    }
+  ],
+  "heatDays": [
+    "Pt",
+    "Sa",
+    "Ça",
+    "Pe",
+    "Cu",
+    "Ct",
+    "Pa"
+  ],
+  "heatCells": [
+    0.12,
+    0.22,
+    0.35,
+    0.48,
+    0.7,
+    0.28,
+    0.16,
+    0.2,
+    0.4,
+    0.55,
+    0.82,
+    0.64,
+    0.3,
+    0.18,
+    0.25,
+    0.5,
+    0.6,
+    0.9,
+    0.72,
+    0.34,
+    0.2,
+    0.18,
+    0.42,
+    0.58,
+    0.76,
+    0.5,
+    0.24,
+    0.14,
+    0.15,
+    0.3,
+    0.38,
+    0.44,
+    0.28,
+    0.16,
+    0.12
+  ],
+  "bullets": [
+    {
+      "label": "Kayıt kotası",
+      "val": "46k / 50k",
+      "range": "80%",
+      "value": "72%",
+      "mark": "80%"
+    },
+    {
+      "label": "Depolama",
+      "val": "7.2 / 10 GB",
+      "range": "70%",
+      "value": "72%",
+      "mark": "90%"
+    },
+    {
+      "label": "API limit",
+      "val": "%64",
+      "range": "60%",
+      "value": "64%",
+      "mark": "75%"
+    }
+  ],
+  "statCards": [
+    {
+      "label": "Toplam oturum",
+      "value": "36.1B",
+      "delta": "↑ %18 — son 30 gün",
+      "deltaColor": "var(--accent-hover)"
+    },
+    {
+      "label": "Aktif proje",
+      "value": "1.284",
+      "delta": "↑ 62 bu hafta",
+      "deltaColor": "var(--accent-hover)"
+    },
+    {
+      "label": "Dönüşüm oranı",
+      "value": "%7,4",
+      "delta": "↓ %0,6 — geçen aya göre",
+      "deltaColor": "var(--danger)"
+    },
+    {
+      "label": "Benzersiz ziyaretçi",
+      "value": "21.9B",
+      "delta": "Sabit",
+      "deltaColor": "var(--fg-muted)"
+    }
+  ],
+  "layoutKpiCards": [
+    {
+      "label": "Aktif proje",
+      "value": "24",
+      "delta": "↑ 3",
+      "deltaColor": "var(--accent-hover)"
+    },
+    {
+      "label": "Ekip",
+      "value": "8",
+      "delta": "↑ 1",
+      "deltaColor": "var(--accent-hover)"
+    },
+    {
+      "label": "API istek",
+      "value": "184k",
+      "delta": "↓ %4",
+      "deltaColor": "var(--danger)"
+    },
+    {
+      "label": "Uptime",
+      "value": "%99,98",
+      "delta": "30 gün",
+      "deltaColor": "var(--fg-muted)"
+    }
+  ],
+  "areaValues": {
+    "14g": "18.4B",
+    "30g": "36.1B",
+    "90g": "94.8B"
+  },
+  "areaMeta": {
+    "14g": "↑ %11 · 14 gün",
+    "30g": "↑ %18 · 30 gün",
+    "90g": "↑ %9 · 90 gün"
+  },
+  "areaSeries": {
+    "14g": [
+      { "day": "1", "sessions": 1420 },
+      { "day": "2", "sessions": 1580 },
+      { "day": "3", "sessions": 1710 },
+      { "day": "4", "sessions": 1650 },
+      { "day": "5", "sessions": 1820 },
+      { "day": "6", "sessions": 1760 },
+      { "day": "7", "sessions": 1890 },
+      { "day": "8", "sessions": 1940 },
+      { "day": "9", "sessions": 2010 },
+      { "day": "10", "sessions": 1980 },
+      { "day": "11", "sessions": 2100 },
+      { "day": "12", "sessions": 2050 },
+      { "day": "13", "sessions": 2180 },
+      { "day": "14", "sessions": 2240 }
+    ],
+    "30g": [
+      { "day": "1", "sessions": 1840 },
+      { "day": "3", "sessions": 2210 },
+      { "day": "5", "sessions": 2980 },
+      { "day": "7", "sessions": 2640 },
+      { "day": "9", "sessions": 3180 },
+      { "day": "11", "sessions": 2410 },
+      { "day": "13", "sessions": 1520 },
+      { "day": "15", "sessions": 1290 },
+      { "day": "17", "sessions": 2860 },
+      { "day": "19", "sessions": 3340 },
+      { "day": "21", "sessions": 3020 },
+      { "day": "23", "sessions": 3480 },
+      { "day": "25", "sessions": 2740 },
+      { "day": "27", "sessions": 1620 }
+    ],
+    "90g": [
+      { "day": "W1", "sessions": 8200 },
+      { "day": "W2", "sessions": 9100 },
+      { "day": "W3", "sessions": 8800 },
+      { "day": "W4", "sessions": 9600 },
+      { "day": "W5", "sessions": 10200 },
+      { "day": "W6", "sessions": 9800 },
+      { "day": "W7", "sessions": 10500 },
+      { "day": "W8", "sessions": 11200 },
+      { "day": "W9", "sessions": 10800 },
+      { "day": "W10", "sessions": 11600 },
+      { "day": "W11", "sessions": 12100 },
+      { "day": "W12", "sessions": 11800 }
+    ]
+  },
+  "dualLineSeries": [
+    { "day": "Pzt", "panel": 4200, "api": 3800 },
+    { "day": "Sal", "panel": 4600, "api": 4100 },
+    { "day": "Çar", "panel": 5100, "api": 4400 },
+    { "day": "Per", "panel": 4800, "api": 4300 },
+    { "day": "Cum", "panel": 5400, "api": 4700 },
+    { "day": "Cmt", "panel": 3900, "api": 3600 },
+    { "day": "Paz", "panel": 3600, "api": 3400 }
+  ],
+  "pieSlices": [
+    { "name": "Web", "value": 38, "fill": "var(--chart-1)" },
+    { "name": "Mobil", "value": 24, "fill": "var(--chart-2)" },
+    { "name": "API", "value": 18, "fill": "var(--chart-3)" },
+    { "name": "Diğer", "value": 20, "fill": "var(--chart-4)" }
+  ],
+  "composedSeries": [
+    { "day": "Oca", "revenue": 420, "growth": 12 },
+    { "day": "Şub", "revenue": 480, "growth": 15 },
+    { "day": "Mar", "revenue": 510, "growth": 18 },
+    { "day": "Nis", "revenue": 460, "growth": 14 },
+    { "day": "May", "revenue": 540, "growth": 22 },
+    { "day": "Haz", "revenue": 580, "growth": 25 }
+  ],
+  "scatterPoints": [
+    { "sessions": 1200, "conversion": 4.2, "label": "Blog" },
+    { "sessions": 2400, "conversion": 6.1, "label": "Landing" },
+    { "sessions": 1800, "conversion": 5.4, "label": "Docs" },
+    { "sessions": 3200, "conversion": 7.8, "label": "Panel" },
+    { "sessions": 900, "conversion": 3.1, "label": "Referral" },
+    { "sessions": 4100, "conversion": 8.6, "label": "Campaign" }
+  ],
+  "radarChannels": [
+    { "channel": "Web", "reach": 88, "engagement": 72, "retention": 65 },
+    { "channel": "Mobil", "reach": 76, "engagement": 68, "retention": 58 },
+    { "channel": "API", "reach": 62, "engagement": 84, "retention": 78 },
+    { "channel": "E-posta", "reach": 54, "engagement": 61, "retention": 52 },
+    { "channel": "Sosyal", "reach": 48, "engagement": 55, "retention": 44 }
+  ],
+  "radialQuota": [
+    { "name": "Kayıt", "value": 92, "fill": "var(--chart-1)" },
+    { "name": "Depolama", "value": 72, "fill": "var(--chart-4)" },
+    { "name": "API", "value": 64, "fill": "var(--chart-3)" }
+  ],
+  "breakdownShare": [
+    {
+      "name": "LinkedIn",
+      "value": "%38",
+      "share": "38%",
+      "fill": "var(--accent)"
+    },
+    {
+      "name": "E-posta",
+      "value": "%27",
+      "share": "27%",
+      "fill": "var(--accent)"
+    },
+    {
+      "name": "Doğrudan",
+      "value": "21%",
+      "share": "21%",
+      "fill": "var(--border-strong)"
+    },
+    {
+      "name": "Diğer",
+      "value": "%14",
+      "share": "14%",
+      "fill": "var(--border-strong)"
+    }
+  ]
+}
