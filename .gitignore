@@ -16,6 +16,7 @@ yarn-error.log*
 
 .wrangler/
 .dev.vars
+dist-bundle/
 
 .DS_Store
 Thumbs.db
