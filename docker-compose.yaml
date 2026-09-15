@@ -130,16 +130,8 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - clickhouse-logs:/var/log/clickhouse-server
-      - type: bind
-        source: ./infra/clickhouse/config.d
-        target: /etc/clickhouse-server/config.d
-        read_only: true
-        is_directory: true
-      - type: bind
-        source: ./infra/clickhouse/users.d
-        target: /etc/clickhouse-server/users.d
-        read_only: true
-        is_directory: true
+      - ./infra/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
+      - ./infra/clickhouse/users.d:/etc/clickhouse-server/users.d:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.short-ch.rule=Host(`ch.short.ky`)
