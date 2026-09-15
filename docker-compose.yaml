@@ -39,15 +39,6 @@ services:
         condition: service_healthy
       clickhouse:
         condition: service_healthy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.short-web.rule=Host(`app.short.ky`) || Host(`www.short.ky`)
-      - traefik.http.routers.short-web.entrypoints=https
-      - traefik.http.routers.short-web.tls=true
-      - traefik.http.routers.short-web.tls.certresolver=letsencrypt
-      - traefik.http.routers.short-web-http.rule=Host(`app.short.ky`) || Host(`www.short.ky`)
-      - traefik.http.routers.short-web-http.entrypoints=http
-      - traefik.http.services.short-web.loadbalancer.server.port=3000
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -110,15 +101,6 @@ services:
       - clickhouse-logs:/var/log/clickhouse-server
       - ./infra/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
       - ./infra/clickhouse/users.d:/etc/clickhouse-server/users.d:ro
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.short-ch.rule=Host(`ch.short.ky`)
-      - traefik.http.routers.short-ch.entrypoints=https
-      - traefik.http.routers.short-ch.tls=true
-      - traefik.http.routers.short-ch.tls.certresolver=letsencrypt
-      - traefik.http.routers.short-ch-http.rule=Host(`ch.short.ky`)
-      - traefik.http.routers.short-ch-http.entrypoints=http
-      - traefik.http.services.short-ch.loadbalancer.server.port=8123
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8123/ping"]
       interval: 15s
