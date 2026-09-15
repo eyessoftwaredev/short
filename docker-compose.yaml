@@ -44,3 +44,8 @@ volumes:
   redis-data:
   clickhouse-data:
   clickhouse-logs:
+
+networks:
+  default:
+    name: coolify
+    external: true
