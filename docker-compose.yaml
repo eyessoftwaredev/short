@@ -17,6 +17,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      default:
+        aliases:
+          - short-postgres
 
   redis:
     image: redis:7-alpine
@@ -26,6 +30,10 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
+    networks:
+      default:
+        aliases:
+          - short-redis
 
   clickhouse:
     image: clickhouse/clickhouse-server:25.3-alpine
@@ -38,6 +46,10 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - clickhouse-logs:/var/log/clickhouse-server
+    networks:
+      default:
+        aliases:
+          - short-clickhouse
 
 volumes:
   postgres-data:
