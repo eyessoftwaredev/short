@@ -89,19 +89,19 @@ async function main(): Promise<void> {
 }
 
 /**
- * Live Short.ky catalogue in the account settlement currency (AED) so Adaptive
- * Pricing can localize Checkout. Panel copy stays USD. Opt-in so kisa.ly seed
+ * Live Short.ky catalogue in USD. Adaptive Pricing localizes Checkout only when
+ * USD is a settlement currency on the Stripe account. Opt-in so kisa.ly seed
  * does not inherit these ids. Existing admin-set ids are replaced only when
  * STRIPE_ATTACH_LIVE_PRICES=1.
  */
 const LIVE_STRIPE_PRICES = {
   pro: {
-    month: "price_1UGOntPZFgnTJkfp71ccXinC",
-    year: "price_1UGOntPZFgnTJkfpsMLSZrKA",
+    month: "price_1UGLvrPZFgnTJkfpdQvxuwGN",
+    year: "price_1UGLvrPZFgnTJkfpmTuxhpMk",
   },
   business: {
-    month: "price_1UGOntPZFgnTJkfp3qkd4gUR",
-    year: "price_1UGOnuPZFgnTJkfp3mnEQvZ6",
+    month: "price_1UGLvsPZFgnTJkfpVFgshZzH",
+    year: "price_1UGLvtPZFgnTJkfp9YfrgCzt",
   },
 } as const;
 
