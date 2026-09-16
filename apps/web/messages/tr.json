@@ -220,7 +220,11 @@
     "rewrite_too_many": "Çok fazla link eşleşti. Güncellemeyi böl veya destekle yaz.",
     "domain_taken": "{host} zaten başka bir hesaba bağlı.",
     "handle_taken": "/{handle} handle'ı zaten kullanılıyor.",
-    "portal_failed": "Fatura portalı açılamadı. Tekrar dene."
+    "portal_failed": "Fatura portalı açılamadı. Tekrar dene.",
+    "slug_too_short": "Özel kısa ad en az 3 karakter olmalı.",
+    "slug_premium": "3–5 karakterlik kısa ad için Pro veya üzeri gerekir.",
+    "handle_too_short": "Handle en az 3 karakter olmalı.",
+    "handle_premium": "3–5 karakterlik handle için Pro veya üzeri gerekir."
   },
   "auth": {
     "signIn": "Giriş yap",
@@ -522,6 +526,7 @@
     "featureQrLogo": "QR logosu",
     "featureWebhooks": "Webhook",
     "featureApi": "REST API",
+    "featureShortSlugs": "Kısa vanity slug (3–5 karakter)",
     "featureBranding": "Markasız",
     "title": "Faturalandırma",
     "heroTitle": "Plan ve kullanım",
@@ -889,7 +894,7 @@
     "destinationHint": "Hiçbir kural eşleşmezse ziyaretçinin gideceği yer",
     "destinationPlaceholder": "https://acme.com/campaign",
     "domain": "Domain",
-    "slugHint": "Otomatik üretmek için boş bırak",
+    "slugHint": "Otomatik üretmek için boş bırak. 3–5 karakter için Pro gerekir.",
     "slugPlaceholder": "bahar-indirimi",
     "slugAuto": "otomatik",
     "slugPattern": "Harf, rakam, nokta, tire veya alt çizgi kullan",
@@ -1450,7 +1455,7 @@
     "expand": "Genişlet",
     "noBlocks": "Henüz blok yok. Başlamak için bir link düğmesi ekle.",
     "handle": "Handle",
-    "handleHint": "Sayfan {url} adresinde yayınlanır",
+    "handleHint": "Sayfan {url} adresinde yayınlanır. 3–5 karakter için Pro gerekir.",
     "domain": "Domain",
     "domainHint": "Özel domainler önce doğrulanmalıdır.",
     "displayName": "Görünen ad",

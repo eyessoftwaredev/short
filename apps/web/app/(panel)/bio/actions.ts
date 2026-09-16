@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { recordAudit } from "@/lib/audit";
-import { createBiopage, deleteBiopage, handleTaken, updateBiopage } from "@/lib/biopages";
+import { createBiopage, deleteBiopage, getBiopage, handleTaken, updateBiopage } from "@/lib/biopages";
 import { toBiopageInput, type BioFormValues } from "@/lib/bio-form";
-import { assertQuota } from "@/lib/quota";
+import { assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 
 export type SavedBiopage = { id: string; handle: string };
@@ -18,6 +18,12 @@ export async function createBiopageAction(
     const input = toBiopageInput(values);
 
     await assertQuota(context.workspace.id, context.plan, "biopages");
+    assertSlugLength({
+      slug: input.handle,
+      plan: context.plan,
+      isSuperadmin: context.isSuperadmin,
+      kind: "handle",
+    });
 
     if (await handleTaken(input.handle, input.domainId)) {
       return fail("handle_taken");
@@ -49,6 +55,14 @@ export async function updateBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
+    const existing = await getBiopage(context.workspace.id, id);
+    assertSlugLength({
+      slug: input.handle,
+      plan: context.plan,
+      isSuperadmin: context.isSuperadmin,
+      previous: existing?.handle,
+      kind: "handle",
+    });
 
     if (await handleTaken(input.handle, input.domainId, id)) {
       return fail("handle_taken");

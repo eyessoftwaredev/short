@@ -24,7 +24,13 @@ import {
   updateLink,
 } from "@/lib/links";
 import { listQrCodes } from "@/lib/qr-codes";
-import { assertFeature, assertQuota, currentPeriod, getWorkspaceUsage } from "@/lib/quota";
+import {
+  assertFeature,
+  assertQuota,
+  assertSlugLength,
+  currentPeriod,
+  getWorkspaceUsage,
+} from "@/lib/quota";
 import { QuotaError } from "@/lib/action-result";
 import { resolveRange } from "@/lib/stats";
 import { dispatchWebhook } from "@/lib/webhooks";
@@ -122,6 +128,11 @@ app.post("/links", async (c) => {
   if (input.cloaked) {
     assertFeature(context.plan, "cloaking");
   }
+  assertSlugLength({
+    slug: input.slug,
+    plan: context.plan,
+    isSuperadmin: false,
+  });
 
   const link = await createLink({
     workspaceId: context.workspace.id,
@@ -210,6 +221,12 @@ app.patch("/links/:id", async (c) => {
   if (input.cloaked) {
     assertFeature(context.plan, "cloaking");
   }
+  assertSlugLength({
+    slug: input.slug,
+    plan: context.plan,
+    isSuperadmin: false,
+    previous: existing.slug,
+  });
 
   const link = await updateLink({ workspaceId: context.workspace.id, linkId: id, input });
   const resource = serializeLink(link);

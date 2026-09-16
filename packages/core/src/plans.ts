@@ -36,6 +36,8 @@ export type PlanFeatures = {
   webhooks: boolean;
   apiAccess: boolean;
   removeBranding: boolean;
+  /** Custom slugs and bio handles of 3–5 characters. 1–2 stay superadmin-only. */
+  shortSlugs: boolean;
 };
 
 export type PlanDefinition = {
@@ -57,11 +59,11 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
     priceYearly: 0,
     currency: "USD",
     limits: {
-      links: 50,
-      clicksPerMonth: 1_000,
+      links: 100,
+      clicksPerMonth: 5_000,
       customDomains: 0,
       biopages: 1,
-      qrCodes: 5,
+      qrCodes: 10,
       members: 1,
       teams: 0,
       retentionDays: 30,
@@ -76,21 +78,22 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       webhooks: false,
       apiAccess: false,
       removeBranding: false,
+      shortSlugs: false,
     },
   },
   pro: {
     key: "pro",
     name: "Pro",
-    priceMonthly: 1900,
-    priceYearly: 19000,
+    priceMonthly: 1000,
+    priceYearly: 9600,
     currency: "USD",
     limits: {
-      links: 5_000,
-      clicksPerMonth: 100_000,
-      customDomains: 3,
-      biopages: 5,
-      qrCodes: 100,
-      members: 3,
+      links: 15_000,
+      clicksPerMonth: 250_000,
+      customDomains: 5,
+      biopages: 10,
+      qrCodes: 250,
+      members: 5,
       teams: 1,
       retentionDays: 365,
       apiRequestsPerHour: 1_000,
@@ -104,21 +107,22 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       webhooks: true,
       apiAccess: true,
       removeBranding: true,
+      shortSlugs: true,
     },
   },
   business: {
     key: "business",
     name: "Business",
-    priceMonthly: 7900,
-    priceYearly: 79000,
+    priceMonthly: 2900,
+    priceYearly: 27600,
     currency: "USD",
     limits: {
-      links: 50_000,
-      clicksPerMonth: 1_000_000,
-      customDomains: 25,
-      biopages: 50,
-      qrCodes: 1_000,
-      members: 15,
+      links: 100_000,
+      clicksPerMonth: 2_500_000,
+      customDomains: 50,
+      biopages: 100,
+      qrCodes: 2_500,
+      members: 25,
       teams: 3,
       retentionDays: 730,
       apiRequestsPerHour: 10_000,
@@ -132,6 +136,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       webhooks: true,
       apiAccess: true,
       removeBranding: true,
+      shortSlugs: true,
     },
   },
   enterprise: {
@@ -160,6 +165,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       webhooks: true,
       apiAccess: true,
       removeBranding: true,
+      shortSlugs: true,
     },
   },
   infinity: {
@@ -188,6 +194,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       webhooks: true,
       apiAccess: true,
       removeBranding: true,
+      shortSlugs: true,
     },
   },
 };

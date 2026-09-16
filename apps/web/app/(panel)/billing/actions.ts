@@ -74,6 +74,9 @@ export async function startCheckoutAction(
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
+      automatic_tax: { enabled: true },
+      billing_address_collection: "required",
+      customer_update: { address: "auto", name: "auto" },
       client_reference_id: context.user.id,
       subscription_data: {
         metadata: { userId: context.user.id, planKey: plan.key },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateSlug, slugify, validateSlug } from "../slug";
+import { evaluateSlugLength, generateSlug, slugify, validateSlug } from "../slug";
 import {
   applyUtm,
   forwardQuery,
@@ -125,5 +125,31 @@ describe("slug helpers", () => {
 
   it("folds Turkish characters when slugifying", () => {
     expect(slugify("Çağrı Şen — Güncel İçerik")).toBe("cagri-sen-guncel-icerik");
+  });
+
+  it("gates slug length by plan and superadmin", () => {
+    expect(
+      evaluateSlugLength({ slug: "go", shortSlugs: true, isSuperadmin: false }),
+    ).toEqual({ ok: false, reason: "too_short" });
+    expect(
+      evaluateSlugLength({ slug: "shop", shortSlugs: false, isSuperadmin: false }),
+    ).toEqual({ ok: false, reason: "premium" });
+    expect(
+      evaluateSlugLength({ slug: "shop", shortSlugs: true, isSuperadmin: false }),
+    ).toEqual({ ok: true });
+    expect(
+      evaluateSlugLength({ slug: "spring", shortSlugs: false, isSuperadmin: false }),
+    ).toEqual({ ok: true });
+    expect(
+      evaluateSlugLength({ slug: "x", shortSlugs: true, isSuperadmin: true }),
+    ).toEqual({ ok: true });
+    expect(
+      evaluateSlugLength({
+        slug: "go",
+        shortSlugs: false,
+        isSuperadmin: false,
+        previous: "go",
+      }),
+    ).toEqual({ ok: true });
   });
 });

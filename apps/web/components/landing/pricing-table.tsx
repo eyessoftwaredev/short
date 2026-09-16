@@ -50,6 +50,7 @@ const FEATURE_KEYS = [
   ["qrLogo", "featureQrLogo"],
   ["webhooks", "featureWebhooks"],
   ["apiAccess", "featureApi"],
+  ["shortSlugs", "featureShortSlugs"],
   ["removeBranding", "featureBranding"],
 ] as const;
 

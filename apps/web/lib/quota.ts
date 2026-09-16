@@ -1,4 +1,9 @@
-import { isWithinLimit, type PlanDefinition, type PlanFeatures } from "@short/core";
+import {
+  evaluateSlugLength,
+  isWithinLimit,
+  type PlanDefinition,
+  type PlanFeatures,
+} from "@short/core";
 import {
   and,
   biopages,
@@ -177,6 +182,7 @@ const FEATURE_LABELS: Record<keyof PlanFeatures, string> = {
   webhooks: "Webhooks",
   apiAccess: "API access",
   removeBranding: "Branding removal",
+  shortSlugs: "Short vanity slugs",
 };
 
 export function assertFeature(plan: PlanDefinition, feature: keyof PlanFeatures): void {
@@ -186,4 +192,38 @@ export function assertFeature(plan: PlanDefinition, feature: keyof PlanFeatures)
       feature,
     );
   }
+}
+
+export function assertSlugLength(options: {
+  slug: string | undefined | null;
+  plan: PlanDefinition;
+  isSuperadmin: boolean;
+  previous?: string | null;
+  kind?: "slug" | "handle";
+}): void {
+  if (!options.slug) {
+    return;
+  }
+
+  const result = evaluateSlugLength({
+    slug: options.slug,
+    shortSlugs: options.plan.features.shortSlugs,
+    isSuperadmin: options.isSuperadmin,
+    previous: options.previous,
+  });
+  if (result.ok) {
+    return;
+  }
+
+  const kind = options.kind ?? "slug";
+  if (result.reason === "too_short") {
+    throw new QuotaError(
+      "Custom slugs must be at least 3 characters.",
+      kind === "handle" ? "handle_too_short" : "slug_too_short",
+    );
+  }
+  throw new QuotaError(
+    "Short vanity slugs require a paid plan.",
+    kind === "handle" ? "handle_premium" : "slug_premium",
+  );
 }

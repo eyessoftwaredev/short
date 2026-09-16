@@ -1,4 +1,9 @@
 export { getDb, getSql, schema, type Database } from "./client";
+export {
+  PLATFORM_WORKSPACE_ID,
+  ensurePlatformDomain,
+  normalizePlatformHostname,
+} from "./platform-domain";
 export * from "./schema";
 export {
   aliasedTable,

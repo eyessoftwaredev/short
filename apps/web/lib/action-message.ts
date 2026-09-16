@@ -44,6 +44,10 @@ export const ERROR_CODES = [
   "rewrite_too_many",
   "handle_taken",
   "portal_failed",
+  "slug_too_short",
+  "slug_premium",
+  "handle_too_short",
+  "handle_premium",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

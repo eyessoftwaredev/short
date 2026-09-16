@@ -39,6 +39,7 @@ const planUpdateSchema = z.object({
     webhooks: z.boolean(),
     apiAccess: z.boolean(),
     removeBranding: z.boolean(),
+    shortSlugs: z.boolean(),
   }),
 });
 

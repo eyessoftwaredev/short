@@ -115,6 +115,12 @@ export async function getStripeCredentials(): Promise<StripeCredentials | null> 
 
   const row = await loadSettingsRow();
   const fromDb = row ? credentialsFromRow(row) : null;
+  const envWebhook = serverEnv().STRIPE_WEBHOOK_SECRET?.trim();
+  // A new live endpoint can rotate via env without re-entering the secret key in /admin/system.
+  if (fromDb && envWebhook && isStripeWebhookSecret(envWebhook)) {
+    cachedCreds = { ...fromDb, webhookSecret: envWebhook };
+    return cachedCreds;
+  }
   const resolved = fromDb ?? credentialsFromEnv();
   if (resolved) {
     cachedCreds = resolved;

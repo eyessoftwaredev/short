@@ -4,10 +4,12 @@ import {
   count,
   desc,
   domains,
+  ensurePlatformDomain,
   eq,
   getDb,
   links,
   ne,
+  or,
   type DomainRow,
 } from "@short/db";
 import {
@@ -39,6 +41,7 @@ export function toDomainKvRecord(domain: DomainRow): DomainKvRecord {
 
 export async function listDomains(workspaceId: string): Promise<DomainWithUsage[]> {
   const db = getDb();
+  await ensurePlatformDomain(db, serverEnv().PLATFORM_SHORT_DOMAIN);
   const rows = await db
     .select({
       domain: domains,
@@ -46,7 +49,7 @@ export async function listDomains(workspaceId: string): Promise<DomainWithUsage[
     })
     .from(domains)
     .leftJoin(links, eq(links.domainId, domains.id))
-    .where(eq(domains.workspaceId, workspaceId))
+    .where(or(eq(domains.workspaceId, workspaceId), eq(domains.isPlatform, true)))
     .groupBy(domains.id)
     .orderBy(desc(domains.isPlatform), desc(domains.createdAt));
 

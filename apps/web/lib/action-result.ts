@@ -41,6 +41,14 @@ export function toActionError(error: unknown): ActionResult<never> {
     if (error.resource === "members") {
       return fail("quota_members");
     }
+    if (
+      error.resource === "slug_too_short" ||
+      error.resource === "slug_premium" ||
+      error.resource === "handle_too_short" ||
+      error.resource === "handle_premium"
+    ) {
+      return fail(error.resource);
+    }
     return fail("quota");
   }
   if (error instanceof z.ZodError) {

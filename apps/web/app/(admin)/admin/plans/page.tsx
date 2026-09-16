@@ -28,7 +28,7 @@ export default async function AdminPlansPage() {
     priceYearly: row.priceYearly,
     currency: row.currency as "USD" | "TRY" | "EUR",
     limits: { ...row.definition.limits, ...row.limits },
-    features: row.features,
+    features: { ...row.definition.features, ...row.features },
     stripePriceMonthlyId: row.stripePriceMonthlyId,
     stripePriceYearlyId: row.stripePriceYearlyId,
     visible: row.visible,

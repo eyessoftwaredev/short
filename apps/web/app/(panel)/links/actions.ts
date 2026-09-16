@@ -17,11 +17,12 @@ import { linkFormSchema, toLinkInput, type LinkFormValues } from "@/lib/link-for
 import {
   createLink,
   deleteLink,
+  getLink,
   setLinkArchived,
   shortUrl,
   updateLink,
 } from "@/lib/links";
-import { assertFeature, assertQuota } from "@/lib/quota";
+import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace, requireWorkspaceRole } from "@/lib/session";
 import { dispatchWebhook } from "@/lib/webhooks";
 
@@ -50,6 +51,11 @@ export async function createLinkAction(values: LinkFormValues): Promise<ActionRe
     if (input.cloaked) {
       assertFeature(context.plan, "cloaking");
     }
+    assertSlugLength({
+      slug: input.slug,
+      plan: context.plan,
+      isSuperadmin: context.isSuperadmin,
+    });
 
     const link = await createLink({
       workspaceId: context.workspace.id,
@@ -102,6 +108,14 @@ export async function updateLinkAction(
     if (input.cloaked) {
       assertFeature(context.plan, "cloaking");
     }
+
+    const existing = await getLink(context.workspace.id, linkId);
+    assertSlugLength({
+      slug: input.slug,
+      plan: context.plan,
+      isSuperadmin: context.isSuperadmin,
+      previous: existing?.slug,
+    });
 
     const link = await updateLink({ workspaceId: context.workspace.id, linkId, input });
 

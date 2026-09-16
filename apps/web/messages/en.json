@@ -220,7 +220,11 @@
     "rewrite_too_many": "Too many links match. Split the update or contact support.",
     "domain_taken": "{host} is already connected to another account.",
     "handle_taken": "The handle /{handle} is already in use.",
-    "portal_failed": "Could not open the billing portal. Try again."
+    "portal_failed": "Could not open the billing portal. Try again.",
+    "slug_too_short": "Custom slugs must be at least 3 characters.",
+    "slug_premium": "Slugs of 3–5 characters need Pro or higher.",
+    "handle_too_short": "Handles must be at least 3 characters.",
+    "handle_premium": "Handles of 3–5 characters need Pro or higher."
   },
   "auth": {
     "signIn": "Sign in",
@@ -522,6 +526,7 @@
     "featureQrLogo": "QR logo",
     "featureWebhooks": "Webhooks",
     "featureApi": "REST API",
+    "featureShortSlugs": "Vanity slugs (3–5 characters)",
     "featureBranding": "No branding",
     "title": "Billing",
     "heroTitle": "Plan and usage",
@@ -889,7 +894,7 @@
     "destinationHint": "Where visitors land when no rule matches",
     "destinationPlaceholder": "https://acme.com/campaign",
     "domain": "Domain",
-    "slugHint": "Leave empty to generate one",
+    "slugHint": "Leave empty to generate one. 3–5 characters need Pro.",
     "slugPlaceholder": "spring-sale",
     "slugAuto": "auto-generated",
     "slugPattern": "Use letters, numbers, dot, dash or underscore",
@@ -1450,7 +1455,7 @@
     "expand": "Expand",
     "noBlocks": "No blocks yet. Add a link button to get started.",
     "handle": "Handle",
-    "handleHint": "Your page will live at {url}",
+    "handleHint": "Your page will live at {url}. 3–5 characters need Pro.",
     "domain": "Domain",
     "domainHint": "Custom domains must be verified first.",
     "displayName": "Display name",

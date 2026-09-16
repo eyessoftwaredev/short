@@ -63,6 +63,7 @@ const FEATURE_ROWS = [
   ["qrLogo", "featureQrLogo"],
   ["webhooks", "featureWebhooks"],
   ["apiAccess", "featureApi"],
+  ["shortSlugs", "featureShortSlugs"],
   ["removeBranding", "featureBranding"],
 ] as const;
 

@@ -66,6 +66,44 @@ export function isReservedSlug(slug: string): boolean {
   return RESERVED_SLUGS.has(slug.toLowerCase());
 }
 
+/** Public floor unless the actor is a platform superadmin. */
+export const MIN_PUBLIC_SLUG_LENGTH = 3;
+/** Inclusive upper bound of the paid vanity band (3–5). */
+export const PAID_VANITY_SLUG_MAX = 5;
+
+export type SlugLengthReason = "too_short" | "premium";
+export type SlugLengthResult = { ok: true } | { ok: false; reason: SlugLengthReason };
+
+/**
+ * Who may pick a *new* custom slug or bio handle.
+ * 1–2: superadmin only. 3–5: paid `shortSlugs`. 6+: anyone.
+ * Keeping the same existing value is always allowed (grandfather).
+ */
+export function evaluateSlugLength(options: {
+  slug: string;
+  shortSlugs: boolean;
+  isSuperadmin: boolean;
+  previous?: string | null;
+}): SlugLengthResult {
+  const slug = options.slug.trim();
+  if (slug === "") {
+    return { ok: true };
+  }
+  if (options.previous != null && options.previous === slug) {
+    return { ok: true };
+  }
+  if (options.isSuperadmin) {
+    return { ok: true };
+  }
+  if (slug.length < MIN_PUBLIC_SLUG_LENGTH) {
+    return { ok: false, reason: "too_short" };
+  }
+  if (slug.length <= PAID_VANITY_SLUG_MAX && !options.shortSlugs) {
+    return { ok: false, reason: "premium" };
+  }
+  return { ok: true };
+}
+
 export type SlugValidation = { ok: true } | { ok: false; reason: "format" | "reserved" };
 
 export function validateSlug(slug: string): SlugValidation {

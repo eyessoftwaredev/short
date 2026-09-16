@@ -12,6 +12,7 @@ import {
   count,
   desc,
   domains,
+  ensurePlatformDomain,
   eq,
   getDb,
   ilike,
@@ -24,6 +25,7 @@ import {
   type DomainRow,
   type LinkRow,
 } from "@short/db";
+import { serverEnv } from "./env";
 import { deleteLinkRecord, putLinkRecord, replaceLinkRecord } from "./kv";
 
 export type LinkWithDomain = LinkRow & { hostname: string };
@@ -359,7 +361,9 @@ export async function listLinks(
 }
 
 export async function listWorkspaceDomains(workspaceId: string): Promise<DomainRow[]> {
-  return getDb()
+  const db = getDb();
+  await ensurePlatformDomain(db, serverEnv().PLATFORM_SHORT_DOMAIN);
+  return db
     .select()
     .from(domains)
     .where(or(eq(domains.workspaceId, workspaceId), eq(domains.isPlatform, true)))

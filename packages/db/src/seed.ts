@@ -5,9 +5,8 @@ import { config as loadEnv } from "dotenv";
 import { PLANS, PLAN_KEYS } from "@short/core";
 import { eq } from "drizzle-orm";
 import { getDb, getSql } from "./client";
+import { ensurePlatformDomain } from "./platform-domain";
 import {
-  domains,
-  organization,
   plans,
   platformSettings,
   subscriptions,
@@ -20,40 +19,13 @@ import {
 // explicitly exported DATABASE_URL still wins over the file.
 loadEnv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
 
-/** Owner of the shared short domain. Not a customer workspace, so it has no members. */
-const PLATFORM_WORKSPACE_ID = "platform";
-
-/**
- * Every link points at a `domains` row, and a brand new install has none, so the
- * platform's own short domain is created here from PLATFORM_SHORT_DOMAIN. Without it
- * the first link create fails with "Domain not found".
- */
 async function seedPlatformDomain(db: ReturnType<typeof getDb>): Promise<void> {
-  const hostname = process.env.PLATFORM_SHORT_DOMAIN;
-  if (!hostname) {
+  const row = await ensurePlatformDomain(db, process.env.PLATFORM_SHORT_DOMAIN);
+  if (!row) {
     console.warn("PLATFORM_SHORT_DOMAIN is not set — skipping platform domain seed");
     return;
   }
-
-  await db
-    .insert(organization)
-    .values({ id: PLATFORM_WORKSPACE_ID, name: "Platform", slug: PLATFORM_WORKSPACE_ID })
-    .onConflictDoNothing();
-
-  await db
-    .insert(domains)
-    .values({
-      workspaceId: PLATFORM_WORKSPACE_ID,
-      hostname,
-      isPlatform: true,
-      isDefault: true,
-      status: "active",
-      sslStatus: "active",
-      verifiedAt: new Date(),
-    })
-    .onConflictDoNothing();
-
-  console.log(`Platform domain ready: ${hostname}`);
+  console.log(`Platform domain ready: ${row.hostname}`);
 }
 
 async function seedPlatformSettings(db: ReturnType<typeof getDb>): Promise<void> {
@@ -110,9 +82,44 @@ async function main(): Promise<void> {
 
   console.log(`Seeded ${PLAN_KEYS.length} plans`);
 
+  await attachLiveStripePrices(db);
   await grantInfinityToSuperadmins(db);
   await seedPlatformDomain(db);
   await seedPlatformSettings(db);
+}
+
+/**
+ * Live Short.ky catalogue. Opt-in so kisa.ly seed does not inherit these ids.
+ * Existing admin-set ids are replaced only when STRIPE_ATTACH_LIVE_PRICES=1.
+ */
+const LIVE_STRIPE_PRICES = {
+  pro: {
+    month: "price_1UGLvrPZFgnTJkfpdQvxuwGN",
+    year: "price_1UGLvrPZFgnTJkfpmTuxhpMk",
+  },
+  business: {
+    month: "price_1UGLvsPZFgnTJkfpVFgshZzH",
+    year: "price_1UGLvtPZFgnTJkfp9YfrgCzt",
+  },
+} as const;
+
+async function attachLiveStripePrices(db: ReturnType<typeof getDb>): Promise<void> {
+  if (process.env.STRIPE_ATTACH_LIVE_PRICES !== "1") {
+    return;
+  }
+
+  for (const [key, ids] of Object.entries(LIVE_STRIPE_PRICES)) {
+    await db
+      .update(plans)
+      .set({
+        stripePriceMonthlyId: ids.month,
+        stripePriceYearlyId: ids.year,
+        updatedAt: new Date(),
+      })
+      .where(eq(plans.key, key as (typeof PLAN_KEYS)[number]));
+  }
+
+  console.log("Attached live Stripe price ids for Pro and Business");
 }
 
 async function grantInfinityToSuperadmins(db: ReturnType<typeof getDb>): Promise<void> {
