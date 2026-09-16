@@ -61,6 +61,15 @@ function isSitePath(pathname: string): boolean {
   return pathname === "/" || SITE_PATHS.has(firstSegment(pathname));
 }
 
+/** Apex marketing HTML plus the Next assets it loads. Must be proxied, not 302'd. */
+function isApexSiteRequest(pathname: string): boolean {
+  return (
+    isSitePath(pathname) ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/api/brand")
+  );
+}
+
 /** `https://app.short.ky` → `short.ky`. Local `app.test` → `test`. */
 function platformApexHost(env: EdgeEnv): string {
   return new URL(env.ORIGIN_URL).hostname.toLowerCase().replace(/^app\./, "");
@@ -329,7 +338,7 @@ export default {
       return redirectPermanent(canonical.toString());
     }
 
-    if (hostname === apex && isSitePath(pathname)) {
+    if (hostname === apex && isApexSiteRequest(pathname)) {
       return proxySite(request, env, url);
     }
 

@@ -4,6 +4,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { CookieBanner } from "@/components/consent/cookie-banner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { FALLBACK_BRAND, getPlatformBrand } from "@/lib/brand";
+import { siteUrl } from "@/lib/env";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -20,12 +21,21 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-mono",
 });
 
+function metadataOrigin(): string {
+  try {
+    return siteUrl();
+  } catch {
+    return process.env.APP_URL || "https://short.ky";
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await getPlatformBrand();
   const title = brand.name || FALLBACK_BRAND.name;
   const description = brand.tagline ?? FALLBACK_BRAND.tagline ?? "";
 
   return {
+    metadataBase: new URL(metadataOrigin()),
     title: { default: title, template: `%s · ${title}` },
     description,
     icons: {

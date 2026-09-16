@@ -366,6 +366,21 @@ describe("apex site vs panel", () => {
     expect(queue.sent).toHaveLength(0);
   });
 
+  it("proxies /_next assets on the apex instead of bouncing them to the panel", async () => {
+    const { env, ctx } = setup({});
+    const fetchMock = vi.fn(
+      async () => new Response("/* css */", { headers: { "content-type": "text/css" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await worker.fetch(edgeRequest("https://test/_next/static/chunk.css"), env, ctx);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("css");
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("https://app.test/_next/static/chunk.css");
+  });
+
   it("301s www to the apex", async () => {
     const { env, ctx } = setup({});
     const response = await worker.fetch(edgeRequest("https://www.test/pricing"), env, ctx);

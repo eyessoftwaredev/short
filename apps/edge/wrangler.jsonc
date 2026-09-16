@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
+  "minify": true,
 
   // Bound to the Cloudflare for SaaS fallback origin so every custom hostname
   // and every platform short domain lands here.
