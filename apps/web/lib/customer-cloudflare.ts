@@ -82,37 +82,31 @@ export async function getCloudflareConnectionPublic(
   return { accountId: row.accountId, accountName: row.accountName };
 }
 
-/** Verifies the token can list zones, then stores it encrypted for this workspace. */
+/** Stores the OAuth access token after the customer approves DNS write in the popup. */
 export async function connectCustomerCloudflare(
   workspaceId: string,
-  token: string,
+  accessToken: string,
 ): Promise<CloudflareConnectionPublic> {
-  const trimmed = token.trim();
+  const trimmed = accessToken.trim();
   if (trimmed.length < 20) {
-    throw new CustomerCloudflareError("Token is too short.", "token");
-  }
-
-  try {
-    await customerCall<{ status: string }>(trimmed, "/user/tokens/verify");
-  } catch {
-    try {
-      await customerCall<CfZone[]>(trimmed, "/zones?per_page=1");
-    } catch {
-      throw new CustomerCloudflareError("Cloudflare rejected this token.", "token");
-    }
+    throw new CustomerCloudflareError("Cloudflare access was not approved.", "token");
   }
 
   let account: CfAccount | undefined;
   try {
     account = (await customerCall<CfAccount[]>(trimmed, "/accounts?per_page=1"))[0];
   } catch {
-    const zone = (await customerCall<CfZone[]>(trimmed, "/zones?per_page=1"))[0];
-    if (zone) {
-      account = { id: zone.account.id, name: zone.account.name };
+    try {
+      const zone = (await customerCall<CfZone[]>(trimmed, "/zones?per_page=1"))[0];
+      if (zone) {
+        account = { id: zone.account.id, name: zone.account.name };
+      }
+    } catch {
+      throw new CustomerCloudflareError("Cloudflare rejected this connection.", "token");
     }
   }
   if (!account) {
-    throw new CustomerCloudflareError("This token cannot see any Cloudflare account.", "token");
+    throw new CustomerCloudflareError("Cloudflare returned no account for this login.", "token");
   }
 
   const encrypted = encryptSecret(trimmed);
@@ -166,11 +160,11 @@ async function upsertDnsRecord(
     token,
     `/zones/${zoneId}/dns_records?${query.toString()}`,
   );
-  const current = existing[0];
-  const same =
-    current &&
-    current.content.replace(/\.$/, "").toLowerCase() === record.content.replace(/\.$/, "").toLowerCase() &&
-    (record.type !== "CNAME" || current.proxied === false);
+  const wanted = record.content.replace(/\.$/, "").toLowerCase();
+  const match = existing.find(
+    (row) => row.content.replace(/\.$/, "").toLowerCase() === wanted,
+  );
+  const same = Boolean(match && (record.type !== "CNAME" || match.proxied === false));
 
   if (same) {
     return "unchanged";
@@ -185,7 +179,8 @@ async function upsertDnsRecord(
     comment: "Short.ky custom hostname",
   };
 
-  if (!current) {
+  // Same name can hold more than one TXT (DCV). Never overwrite a sibling value.
+  if (record.type === "TXT" || !existing[0]) {
     await customerCall<CfDnsRecord>(token, `/zones/${zoneId}/dns_records`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -193,6 +188,7 @@ async function upsertDnsRecord(
     return "created";
   }
 
+  const current = existing[0];
   await customerCall<CfDnsRecord>(token, `/zones/${zoneId}/dns_records/${current.id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -270,4 +266,23 @@ export async function applyCustomerDns(input: {
   }
 
   return { zone: zone.name, created, updated, unchanged };
+}
+
+/** True when the connected Cloudflare zone already has the grey-cloud CNAME we asked for. */
+export async function customerZoneHasCname(
+  workspaceId: string,
+  hostname: string,
+  target: string,
+): Promise<boolean> {
+  const connection = await getCloudflareConnection(workspaceId);
+  if (!connection) {
+    return false;
+  }
+
+  const token = decryptSecret(connection.encryptedToken);
+  const zone = await findZone(token, hostname);
+  const query = new URLSearchParams({ type: "CNAME", name: hostname });
+  const rows = await customerCall<CfDnsRecord[]>(token, `/zones/${zone.id}/dns_records?${query.toString()}`);
+  const wanted = target.replace(/\.$/, "").toLowerCase();
+  return rows.some((row) => row.content.replace(/\.$/, "").toLowerCase() === wanted);
 }

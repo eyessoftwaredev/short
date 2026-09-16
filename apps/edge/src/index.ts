@@ -45,12 +45,25 @@ const PLATFORM_PATHS = new Set([
 
 const PLATFORM_PREFIXES = ["/_next/", "/api/", "/invite/", "/admin/"];
 
+/** Marketing routes on the platform apex. Must not be resolved as slugs or 302'd to the panel. */
+const SITE_PATHS = new Set(["/", "/pricing", "/terms", "/privacy", "/cookies"]);
+
+function firstSegment(pathname: string): string {
+  return `/${pathname.split("/").filter(Boolean)[0] ?? ""}`;
+}
+
 function isPlatformPath(pathname: string): boolean {
-  if (pathname === "/") {
-    return true;
-  }
-  const first = `/${pathname.split("/").filter(Boolean)[0] ?? ""}`;
+  const first = firstSegment(pathname);
   return PLATFORM_PATHS.has(first) || PLATFORM_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isSitePath(pathname: string): boolean {
+  return pathname === "/" || SITE_PATHS.has(firstSegment(pathname));
+}
+
+/** `https://app.short.ky` → `short.ky`. Local `app.test` → `test`. */
+function platformApexHost(env: EdgeEnv): string {
+  return new URL(env.ORIGIN_URL).hostname.toLowerCase().replace(/^app\./, "");
 }
 
 const ROBOTS_BODY = "User-agent: *\nDisallow: /\n";
@@ -72,6 +85,50 @@ const PROXYABLE_HEADERS = [
   "vary",
   "link",
 ];
+
+function redirectPermanent(destination: string): Response {
+  return new Response(null, {
+    status: 301,
+    headers: {
+      location: destination,
+      "cache-control": "public, max-age=86400",
+    },
+  });
+}
+
+/**
+ * Traefik often overwrites `X-Forwarded-Host`, so Next keys off `x-short-surface`
+ * rather than Host when deciding whether `/` is the landing or the panel.
+ */
+async function proxySite(request: Request, env: EdgeEnv, url: URL): Promise<Response> {
+  const target = new URL(url.pathname + url.search, env.ORIGIN_URL);
+  try {
+    const upstream = await fetch(target.toString(), {
+      method: request.method === "HEAD" ? "HEAD" : "GET",
+      headers: {
+        accept: request.headers.get("accept") ?? "text/html",
+        "accept-language": request.headers.get("accept-language") ?? "",
+        "user-agent": request.headers.get("user-agent") ?? "",
+        "x-short-surface": "site",
+        "x-forwarded-host": url.hostname,
+      },
+      redirect: "manual",
+      signal: AbortSignal.timeout(8000),
+    });
+
+    const headers = new Headers();
+    for (const name of PROXYABLE_HEADERS) {
+      const value = upstream.headers.get(name);
+      if (value) {
+        headers.set(name, value);
+      }
+    }
+    headers.set("cache-control", upstream.headers.get("cache-control") ?? "public, max-age=0, s-maxage=60");
+    return new Response(upstream.body, { status: upstream.status, headers });
+  } catch {
+    return new Response("Bad gateway", { status: 502, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+}
 
 function redirect(destination: string, noIndex: boolean): Response {
   const headers = new Headers({
@@ -262,6 +319,18 @@ export default {
     // black-hole the app and let the passthrough below recurse into this worker.
     if (hostname === new URL(env.ORIGIN_URL).hostname) {
       return fetch(request);
+    }
+
+    const apex = platformApexHost(env);
+    if (hostname === `www.${apex}`) {
+      const canonical = new URL(url.toString());
+      canonical.hostname = apex;
+      canonical.protocol = "https:";
+      return redirectPermanent(canonical.toString());
+    }
+
+    if (hostname === apex && isSitePath(pathname)) {
+      return proxySite(request, env, url);
     }
 
     if (isPlatformPath(pathname)) {

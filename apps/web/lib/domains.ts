@@ -13,7 +13,7 @@ import {
 import {
   CloudflareError,
   cloudflareEnabled,
-  createCustomHostname,
+  ensureCustomHostname,
   deleteCustomHostname,
   getCustomHostname,
   toHealth,
@@ -62,13 +62,34 @@ export async function getDomain(workspaceId: string, id: string): Promise<Domain
   return row ?? null;
 }
 
-export async function hostnameExists(hostname: string): Promise<boolean> {
-  const [row] = await getDb()
-    .select({ id: domains.id })
-    .from(domains)
-    .where(eq(domains.hostname, hostname))
-    .limit(1);
-  return row != null;
+export async function getDomainByHostname(hostname: string): Promise<DomainRow | null> {
+  const [row] = await getDb().select().from(domains).where(eq(domains.hostname, hostname)).limit(1);
+  return row ?? null;
+}
+
+/** True when the hostname is already on this account, platform-owned, or DNS-verified elsewhere. */
+export function hostnameReserved(row: DomainRow, workspaceId: string): boolean {
+  if (row.workspaceId === workspaceId || row.isPlatform) {
+    return true;
+  }
+  return row.status === "active" || row.status === "provisioning";
+}
+
+export async function hostnameExists(hostname: string, workspaceId?: string): Promise<boolean> {
+  const row = await getDomainByHostname(hostname);
+  if (!row) {
+    return false;
+  }
+  if (workspaceId) {
+    return hostnameReserved(row, workspaceId);
+  }
+  return true;
+}
+
+/** Drops an unverified claim so another account can register the hostname. Keeps the CF hostname. */
+async function releaseUnverifiedClaim(row: DomainRow): Promise<void> {
+  await getDb().delete(domains).where(eq(domains.id, row.id));
+  await deleteDomainRecord(row.hostname);
 }
 
 /** Only one domain per workspace can be the default; flipping one clears the rest. */
@@ -91,11 +112,19 @@ export async function addDomain(
 ): Promise<AddDomainResult> {
   const db = getDb();
 
+  const existing = await getDomainByHostname(input.hostname);
+  if (existing) {
+    if (hostnameReserved(existing, workspaceId)) {
+      throw new Error("Domain already exists");
+    }
+    await releaseUnverifiedClaim(existing);
+  }
+
   let cfHostnameId: string | null = null;
   let health: HostnameHealth | null = null;
 
   if (cloudflareEnabled()) {
-    const record = await createCustomHostname(input.hostname);
+    const record = await ensureCustomHostname(input.hostname);
     cfHostnameId = record.id;
     health = toHealth(record);
   }

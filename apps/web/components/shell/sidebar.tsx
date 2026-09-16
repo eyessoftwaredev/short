@@ -95,6 +95,7 @@ export function Sidebar({
 
   const personal = session.workspaces.filter((workspace) => workspace.kind === "personal");
   const teams = session.workspaces.filter((workspace) => workspace.kind === "team");
+  const showSwitcher = teams.length > 0;
 
   const workspaceItems: DropdownItem[] = [
     { id: "hdr-personal", label: tc("personal"), disabled: true },
@@ -163,50 +164,51 @@ export function Sidebar({
       </div>
 
       {/*
-        Collapsed keeps the switcher rather than hiding it: which workspace you
-        are in is the one thing that must never become invisible in a
-        multi-tenant panel.
+        Solo accounts only have a personal box — no third noun, no switcher.
+        Once a team exists the menu is Personal + team names.
       */}
-      <div className={cn("border-b border-border p-2", collapsed && "px-2")}>
-        <Dropdown
-          align="start"
-          label={tc("switchWorkspace")}
-          className="w-full"
-          items={workspaceItems}
-          trigger={
-            <button
-              type="button"
-              title={collapsed ? session.workspace.name : undefined}
-              aria-label={tc("workspaceAria", { name: session.workspace.name })}
-              className={cn(
-                "flex w-full min-w-0 items-center rounded-default text-left transition duration-200",
-                collapsed
-                  ? "justify-center px-0 py-1.5 hover:bg-surface"
-                  : "gap-2.5 border border-border-strong bg-bg px-2 py-1.5 hover:bg-surface",
-              )}
-            >
-              <Avatar className="hover:translate-y-0">
-                {initials(session.workspace.name, session.workspace.slug)}
-              </Avatar>
-              {collapsed ? null : (
-                <>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {session.workspace.name}
+      {showSwitcher ? (
+        <div className={cn("border-b border-border p-2", collapsed && "px-2")}>
+          <Dropdown
+            align="start"
+            label={tc("switchWorkspace")}
+            className="w-full"
+            items={workspaceItems}
+            trigger={
+              <button
+                type="button"
+                title={collapsed ? session.workspace.name : undefined}
+                aria-label={tc("workspaceAria", { name: session.workspace.name })}
+                className={cn(
+                  "flex w-full min-w-0 items-center rounded-default text-left transition duration-200",
+                  collapsed
+                    ? "justify-center px-0 py-1.5 hover:bg-surface"
+                    : "gap-2.5 border border-border-strong bg-bg px-2 py-1.5 hover:bg-surface",
+                )}
+              >
+                <Avatar className="hover:translate-y-0">
+                  {initials(session.workspace.name, session.workspace.slug)}
+                </Avatar>
+                {collapsed ? null : (
+                  <>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {session.workspace.name}
+                      </span>
+                      <Badge tone="muted" className="mt-0.5 px-1.5 py-0">
+                        {session.workspace.kind === "personal" ? tc("personal") : tc("team")}
+                        {" · "}
+                        {session.planName}
+                      </Badge>
                     </span>
-                    <Badge tone="muted" className="mt-0.5 px-1.5 py-0">
-                      {session.workspace.kind === "personal" ? tc("personal") : tc("team")}
-                      {" · "}
-                      {session.planName}
-                    </Badge>
-                  </span>
-                  <Icon name="chevron-down" className="shrink-0 text-xs text-fg-subtle" />
-                </>
-              )}
-            </button>
-          }
-        />
-      </div>
+                    <Icon name="chevron-down" className="shrink-0 text-xs text-fg-subtle" />
+                  </>
+                )}
+              </button>
+            }
+          />
+        </div>
+      ) : null}
 
       <nav aria-label={tc("mainNav")} className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
         {groups.map((group, groupIndex) => (

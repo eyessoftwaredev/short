@@ -152,7 +152,7 @@ app.get("/links/:id", async (c) => {
 
   const link = await getLink(workspace.id, id);
   if (!link) {
-    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+    throw new ApiError(404, "not_found", "No link with that id on this account.");
   }
   return c.json({ data: serializeLink(link) });
 });
@@ -163,7 +163,7 @@ app.patch("/links/:id", async (c) => {
 
   const existing = await getLink(context.workspace.id, id);
   if (!existing) {
-    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+    throw new ApiError(404, "not_found", "No link with that id on this account.");
   }
 
   // PATCH semantics: unspecified fields keep their stored value.
@@ -233,7 +233,7 @@ app.delete("/links/:id", async (c) => {
 
   const existing = await getLink(context.workspace.id, id);
   if (!existing) {
-    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+    throw new ApiError(404, "not_found", "No link with that id on this account.");
   }
 
   await deleteLink(context.workspace.id, id);
@@ -262,7 +262,7 @@ app.get("/links/:id/stats", async (c) => {
 
   const link = await getLink(workspace.id, id);
   if (!link) {
-    throw new ApiError(404, "not_found", "No link with that id in this workspace.");
+    throw new ApiError(404, "not_found", "No link with that id on this account.");
   }
 
   const range = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));

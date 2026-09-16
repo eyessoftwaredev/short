@@ -53,11 +53,12 @@ function workspaceRoleLabel(
 export default async function AdminUserDetailPage({ params }: { params: Params }) {
   const context = await requireSuperadmin();
   const { id } = await params;
-  const [detail, t, tNav, tn] = await Promise.all([
+  const [detail, t, tNav, tn, tc] = await Promise.all([
     getAdminUser(id),
     getTranslations("admin.users"),
     getTranslations("admin.nav"),
     getTranslations("nav"),
+    getTranslations("common"),
   ]);
   if (!detail) {
     notFound();
@@ -150,7 +151,12 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
                 <TableRow key={row.id}>
                   <TableCell>
                     <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium">{row.name}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium">{row.name}</span>
+                        <Badge tone="muted">
+                          {row.kind === "team" ? tc("team") : tc("personal")}
+                        </Badge>
+                      </span>
                       <span className="truncate font-mono text-xs text-fg-muted">{row.slug}</span>
                     </span>
                   </TableCell>

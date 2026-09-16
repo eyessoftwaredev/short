@@ -8,7 +8,7 @@ import { getPublicInvite, isInviteUsable, userExistsByEmail } from "@/lib/team";
 import { AuthShell, type AuthHighlight } from "../../_auth/auth-shell";
 import { InviteForm } from "./invite-form";
 
-export const metadata: Metadata = { title: "Workspace invite" };
+export const metadata: Metadata = { title: "Team invite" };
 
 type Params = Promise<{ id: string }>;
 

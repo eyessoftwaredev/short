@@ -40,6 +40,8 @@ export const ERROR_CODES = [
   "invite_invalid",
   "domain_invalid",
   "domain_taken",
+  "rewrite_same",
+  "rewrite_too_many",
   "handle_taken",
   "portal_failed",
 ] as const;

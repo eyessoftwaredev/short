@@ -30,7 +30,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
       title: "Short API",
       version: "1.0.0",
       description:
-        "Workspace-scoped REST API. Authenticate with `x-api-key`. Rate limits follow the workspace plan and are reported in the `x-ratelimit-*` response headers.",
+        "Account-scoped REST API. Authenticate with `x-api-key`. Rate limits follow the account plan and are reported in the `x-ratelimit-*` response headers.",
     },
     servers: [{ url: serverUrl }],
     security: [{ ApiKeyAuth: [] }],
@@ -40,14 +40,14 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
       { name: "Domains" },
       { name: "QR codes" },
       { name: "Bio pages" },
-      { name: "Workspace" },
+      { name: "Account" },
     ],
     paths: {
       "/me": {
         get: {
-          tags: ["Workspace"],
-          summary: "Current workspace, plan and usage",
-          responses: { "200": { description: "Workspace context" }, default: errorResponse },
+          tags: ["Account"],
+          summary: "Current account, plan and usage",
+          responses: { "200": { description: "Account context" }, default: errorResponse },
         },
       },
       "/links": {
@@ -142,7 +142,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
       "/analytics": {
         get: {
           tags: ["Analytics"],
-          summary: "Workspace-wide click summary and time series",
+          summary: "Account-wide click summary and time series",
           parameters: [
             {
               name: "range",
@@ -156,7 +156,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
       "/domains": {
         get: {
           tags: ["Domains"],
-          summary: "List domains available to this workspace",
+          summary: "List domains available to this account",
           responses: { "200": { description: "Domains" }, default: errorResponse },
         },
       },

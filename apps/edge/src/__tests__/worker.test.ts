@@ -320,6 +320,67 @@ describe("biopages", () => {
   });
 });
 
+describe("apex site vs panel", () => {
+  it("proxies / on the platform apex to origin with site surface headers", async () => {
+    const { env, ctx } = setup({});
+    const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
+      new Response("<html>landing</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await worker.fetch(edgeRequest("https://test/"), env, ctx);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("landing");
+    const [url, init = {}] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("https://app.test/");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-short-surface"]).toBe("site");
+    expect(headers["x-forwarded-host"]).toBe("test");
+  });
+
+  it("302s /login to the panel origin", async () => {
+    const { env, ctx } = setup({});
+    const response = await worker.fetch(edgeRequest("https://test/login"), env, ctx);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://app.test/login");
+  });
+
+  it("proxies /pricing on the apex instead of resolving a slug", async () => {
+    const { env, ctx, queue } = setup({
+      ...domainSeed,
+      [keys.linkKey("test", "pricing")]: linkRecord({ hostname: "test", slug: "pricing" }),
+    });
+    const fetchMock = vi.fn(
+      async () => new Response("<html>pricing</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await worker.fetch(edgeRequest("https://test/pricing"), env, ctx);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("pricing");
+    expect(fetchMock).toHaveBeenCalled();
+    await ctx.settled();
+    expect(queue.sent).toHaveLength(0);
+  });
+
+  it("301s www to the apex", async () => {
+    const { env, ctx } = setup({});
+    const response = await worker.fetch(edgeRequest("https://www.test/pricing"), env, ctx);
+
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("https://test/pricing");
+  });
+
+  it("still treats / on a customer hostname as a missing slug", async () => {
+    const { env, ctx } = setup(domainSeed);
+    const response = await worker.fetch(edgeRequest("https://go.test/"), env, ctx);
+    expect(response.headers.get("location")).toBe("https://short.test/404");
+  });
+});
+
 describe("protocol details", () => {
   it("serves a disallow-all robots.txt", async () => {
     const { env, ctx } = setup(domainSeed);

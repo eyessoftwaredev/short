@@ -6,8 +6,9 @@ import { getTopLinks } from "@short/analytics";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, Hero } from "@/components/ui";
 import { listLinks } from "@/lib/links";
-import { requireWorkspace } from "@/lib/session";
+import { hasWorkspaceRole, requireWorkspace } from "@/lib/session";
 import { LinksTable, type LinkListRow } from "./links-table";
+import { RewriteDestinationsButton } from "./rewrite-destinations-dialog";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -81,10 +82,15 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
         title={tn("links")}
         description={t("description")}
         actions={
-          <Button variant="primary" href="/links/new">
-            <Icon name="plus" className="text-sm" />
-            {tc("newLink")}
-          </Button>
+          <>
+            {hasWorkspaceRole(context.role, "admin") || context.isSuperadmin ? (
+              <RewriteDestinationsButton />
+            ) : null}
+            <Button variant="primary" href="/links/new">
+              <Icon name="plus" className="text-sm" />
+              {tc("newLink")}
+            </Button>
+          </>
         }
       />
       <LinksTable

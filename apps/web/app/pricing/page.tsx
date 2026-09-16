@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { PublicChrome } from "@/components/landing/public-chrome";
 import { PricingTable, type PublicPlan } from "@/components/landing/pricing-table";
 import { listPlans } from "@/lib/billing";
+import { panelUrl } from "@/lib/public-url";
 
 export const metadata: Metadata = { title: "Pricing" };
 
@@ -38,7 +39,7 @@ export default async function PricingPage() {
           <h1 className="m-0 text-4xl font-semibold tracking-tight">{t("pricingTitle")}</h1>
           <p className="m-0 max-w-prose text-base text-fg-muted">{t("pricingBody")}</p>
         </header>
-        <PricingTable plans={plans} />
+        <PricingTable plans={plans} registerHref={panelUrl("/register")} />
       </section>
     </PublicChrome>
   );

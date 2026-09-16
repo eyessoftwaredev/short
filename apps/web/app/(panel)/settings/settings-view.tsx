@@ -118,7 +118,7 @@ export function SettingsView({
   const isTeam = workspace.kind === "team";
   const tabs: readonly TabItem<SettingsTabId>[] = [
     { id: "profile", label: t("tabProfile") },
-    { id: "workspace", label: t("tabWorkspace") },
+    { id: "workspace", label: isTeam ? t("tabTeam") : t("tabAccount") },
     ...(isTeam ? [{ id: "members" as const, label: t("tabMembers"), count: members.length }] : []),
     {
       id: "api",
@@ -257,7 +257,7 @@ export function SettingsView({
 
       <TabPanel active={tab === "workspace"}>
         <Section
-          title={t("workspaceTitle")}
+          title={isTeam ? t("teamTitle") : t("workspaceTitle")}
           description={isTeam ? t("workspaceDescription") : t("personalDescription")}
         >
           <div className="flex min-w-0 flex-col gap-4">
@@ -276,22 +276,26 @@ export function SettingsView({
               </Field>
 
               <dl className="m-0 flex min-w-0 flex-col gap-3 border-t border-border pt-4">
-                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                  <dt className="text-sm text-fg-muted">{t("workspaceCode")}</dt>
-                  <dd className="m-0 flex min-w-0 items-center gap-1.5">
-                    <code className="min-w-0 truncate font-mono text-sm">{workspace.slug}</code>
-                    <CopyButton value={workspace.slug} iconOnly label={t("copyWorkspaceCode")} />
-                  </dd>
-                </div>
-                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                  <dt className="text-sm text-fg-muted">{t("workspaceId")}</dt>
-                  <dd className="m-0 flex min-w-0 items-center gap-1.5">
-                    <code className="min-w-0 truncate font-mono text-xs text-fg-muted">
-                      {workspace.id}
-                    </code>
-                    <CopyButton value={workspace.id} iconOnly label={t("copyWorkspaceId")} />
-                  </dd>
-                </div>
+                {isTeam ? (
+                  <>
+                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                      <dt className="text-sm text-fg-muted">{t("workspaceCode")}</dt>
+                      <dd className="m-0 flex min-w-0 items-center gap-1.5">
+                        <code className="min-w-0 truncate font-mono text-sm">{workspace.slug}</code>
+                        <CopyButton value={workspace.slug} iconOnly label={t("copyWorkspaceCode")} />
+                      </dd>
+                    </div>
+                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                      <dt className="text-sm text-fg-muted">{t("workspaceId")}</dt>
+                      <dd className="m-0 flex min-w-0 items-center gap-1.5">
+                        <code className="min-w-0 truncate font-mono text-xs text-fg-muted">
+                          {workspace.id}
+                        </code>
+                        <CopyButton value={workspace.id} iconOnly label={t("copyWorkspaceId")} />
+                      </dd>
+                    </div>
+                  </>
+                ) : null}
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                   <dt className="text-sm text-fg-muted">{t("kind")}</dt>
                   <dd className="m-0">
@@ -306,7 +310,9 @@ export function SettingsView({
                 </div>
               </dl>
 
-              <p className="m-0 text-xs leading-relaxed text-fg-subtle">{t("workspaceCodeHint")}</p>
+              {isTeam ? (
+                <p className="m-0 text-xs leading-relaxed text-fg-subtle">{t("workspaceCodeHint")}</p>
+              ) : null}
             </Card>
 
             <SaveBar

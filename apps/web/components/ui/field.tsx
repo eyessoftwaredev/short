@@ -23,7 +23,15 @@ export function Field({ label, hint, error, children, className }: FieldProps) {
 type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 export function Input({ className, ...props }: InputProps) {
-  return <input className={cn("min-w-0", className)} {...props} />;
+  return (
+    <input
+      className={cn("min-w-0", className)}
+      // Password managers and mailbox extensions rewrite attributes on the
+      // server markup before React hydrates. Without this, the tree mismatches.
+      suppressHydrationWarning
+      {...props}
+    />
+  );
 }
 
 type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;

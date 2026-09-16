@@ -7,11 +7,10 @@ import { recordAudit } from "@/lib/audit";
 import { CloudflareError, type HostnameHealth } from "@/lib/cloudflare";
 import {
   applyCustomerDns,
-  connectCustomerCloudflare,
+  customerZoneHasCname,
   CustomerCloudflareError,
   disconnectCustomerCloudflare,
   type AppliedDns,
-  type CloudflareConnectionPublic,
 } from "@/lib/customer-cloudflare";
 import { probeDomainDns, type DnsProbe } from "@/lib/dns-probe";
 import {
@@ -41,7 +40,7 @@ export async function addDomainAction(hostname: string): Promise<ActionResult<Ad
 
     await assertQuota(context.workspace.id, context.plan, "customDomains");
 
-    if (await hostnameExists(parsed.data)) {
+    if (await hostnameExists(parsed.data, context.workspace.id)) {
       return fail("domain_taken");
     }
 
@@ -63,6 +62,7 @@ export async function addDomainAction(hostname: string): Promise<ActionResult<Ad
     });
 
     revalidatePath("/domains");
+    revalidatePath(`/domains/${result.domain.id}`);
     return ok({
       id: result.domain.id,
       hostname: result.domain.hostname,
@@ -116,6 +116,7 @@ export async function updateDomainAction(
     });
 
     revalidatePath("/domains");
+    revalidatePath(`/domains/${id}`);
     return ok(null);
   } catch (error) {
     return toActionError(error);
@@ -130,6 +131,7 @@ export async function refreshDomainAction(
     const result = await refreshDomain(context.workspace.id, id);
 
     revalidatePath("/domains");
+    revalidatePath(`/domains/${id}`);
     return ok({ status: result.domain.status, health: result.health });
   } catch (error) {
     if (error instanceof CloudflareError) {
@@ -154,6 +156,7 @@ export async function removeDomainAction(id: string): Promise<ActionResult<null>
     });
 
     revalidatePath("/domains");
+    revalidatePath(`/domains/${id}`);
     return ok(null);
   } catch (error) {
     return toActionError(error);
@@ -205,31 +208,23 @@ export async function probeDomainDnsAction(id: string): Promise<ActionResult<Dns
     if (!domain) {
       return fail("not_found");
     }
-    const probe = await probeDomainDns(domain.hostname, domain.validationRecords, cnameTarget());
+    const target = cnameTarget();
+    const probe = await probeDomainDns(domain.hostname, domain.validationRecords, target);
+    const cname = probe.records.find((record) => record.type === "CNAME");
+    if (cname && cname.status !== "ok") {
+      try {
+        if (await customerZoneHasCname(context.workspace.id, domain.hostname, target)) {
+          cname.status = "ok";
+          cname.found = [target];
+          probe.ready = probe.records.every((record) => record.status === "ok");
+        }
+      } catch {
+        // Public DNS remains the source of truth when the zone API is unavailable.
+      }
+    }
     return ok(probe);
   } catch (error) {
     return toActionError(error);
-  }
-}
-
-export async function connectCloudflareAction(
-  token: string,
-): Promise<ActionResult<CloudflareConnectionPublic>> {
-  try {
-    const context = await requireWorkspaceRole("admin");
-    const connection = await connectCustomerCloudflare(context.workspace.id, token);
-    await recordAudit({
-      workspaceId: context.workspace.id,
-      actorId: context.user.id,
-      impersonatorId: context.impersonatedBy,
-      action: "domain.cloudflare.connect",
-      targetType: "workspace",
-      targetId: context.workspace.id,
-    });
-    revalidatePath("/domains");
-    return ok(connection);
-  } catch (error) {
-    return fromCustomerCloudflare(error);
   }
 }
 
@@ -278,6 +273,7 @@ export async function applyCloudflareDnsAction(id: string): Promise<ActionResult
     });
 
     revalidatePath("/domains");
+    revalidatePath(`/domains/${id}`);
     return ok(applied);
   } catch (error) {
     return fromCustomerCloudflare(error);

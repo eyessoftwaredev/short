@@ -109,6 +109,47 @@ export function hostnameOf(raw: string): string {
   }
 }
 
+/** Strips scheme, path and a leading www. so `https://www.acme.com/x` and `acme.com` match. */
+export function normalizeHostInput(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed === "") {
+    return "";
+  }
+  try {
+    const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    return new URL(withScheme).hostname.replace(/^www\./, "");
+  } catch {
+    return trimmed.replace(/^www\./, "").split("/")[0] ?? "";
+  }
+}
+
+/**
+ * Swaps the hostname of an absolute URL. Path, query and hash stay. `www.` is ignored
+ * on both sides so `www.acme.com` and `acme.com` are the same host. Returns `null` when
+ * the input is not a URL; returns the original string when the host does not match.
+ */
+export function rewriteHostname(raw: string, from: string, to: string): string | null {
+  const fromHost = normalizeHostInput(from);
+  const toHost = normalizeHostInput(to);
+  if (fromHost === "" || toHost === "" || !isValidHostname(fromHost) || !isValidHostname(toHost)) {
+    return null;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  if (hostnameOf(raw) !== fromHost) {
+    return raw;
+  }
+
+  url.hostname = toHost;
+  return url.toString();
+}
+
 const HOSTNAME_PATTERN =
   /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/;
 

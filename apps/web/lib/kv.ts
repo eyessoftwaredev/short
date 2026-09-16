@@ -77,9 +77,21 @@ async function deleteKeys(keys: string[]): Promise<void> {
 }
 
 export async function putLinkRecord(record: LinkKvRecord): Promise<void> {
-  await writeBulk([
-    { key: linkKey(record.hostname, record.slug), value: JSON.stringify(record) },
-  ]);
+  await putLinkRecords([record]);
+}
+
+const LINK_WRITE_CHUNK = 500;
+
+export async function putLinkRecords(records: LinkKvRecord[]): Promise<void> {
+  for (let index = 0; index < records.length; index += LINK_WRITE_CHUNK) {
+    const slice = records.slice(index, index + LINK_WRITE_CHUNK);
+    await writeBulk(
+      slice.map((record) => ({
+        key: linkKey(record.hostname, record.slug),
+        value: JSON.stringify(record),
+      })),
+    );
+  }
 }
 
 export async function deleteLinkRecord(hostname: string, slug: string): Promise<void> {

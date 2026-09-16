@@ -24,7 +24,7 @@ export type EmailCopy = {
 const EN: EmailCopy = {
   verifySubject: "Confirm your email",
   verifyHeading: "Confirm your email",
-  verifyBody: "Click the button below to verify your address and finish setting up your workspace.",
+  verifyBody: "Click the button below to verify your address and finish setting up your account.",
   verifyCta: "Verify email",
   verifyFootnote: "This link expires in 1 hour.",
   resetSubject: "Reset your password",
@@ -34,7 +34,7 @@ const EN: EmailCopy = {
   resetFootnote: "This link expires in 1 hour.",
   inviteSubject: "Join {workspace} on {brand}",
   inviteHeading: "Join {workspace}",
-  inviteBody: "{inviter} invited you to collaborate on the {workspace} workspace.",
+  inviteBody: "{inviter} invited you to join the {workspace} team.",
   inviteCta: "Accept invitation",
   pasteHint: "Or paste this link into your browser:",
 };
@@ -42,7 +42,7 @@ const EN: EmailCopy = {
 const TR: EmailCopy = {
   verifySubject: "E-postanı doğrula",
   verifyHeading: "E-postanı doğrula",
-  verifyBody: "Adresini doğrulamak ve çalışma alanını açmak için aşağıdaki düğmeye tıkla.",
+  verifyBody: "Adresini doğrulamak ve hesabını açmak için aşağıdaki düğmeye tıkla.",
   verifyCta: "E-postayı doğrula",
   verifyFootnote: "Bu link 1 saat sonra geçersiz olur.",
   resetSubject: "Parolanı sıfırla",
@@ -50,9 +50,9 @@ const TR: EmailCopy = {
   resetBody: "Parola sıfırlama isteği aldık. Bu sen değilsen bu e-postayı yok say.",
   resetCta: "Yeni parola seç",
   resetFootnote: "Bu link 1 saat sonra geçersiz olur.",
-  inviteSubject: "{brand} üzerinde {workspace} çalışma alanına katıl",
-  inviteHeading: "{workspace} çalışma alanına katıl",
-  inviteBody: "{inviter} seni {workspace} çalışma alanında işbirliğine davet etti.",
+  inviteSubject: "{brand} üzerinde {workspace} takımına katıl",
+  inviteHeading: "{workspace} takımına katıl",
+  inviteBody: "{inviter} seni {workspace} takımına davet etti.",
   inviteCta: "Daveti kabul et",
   pasteHint: "Veya bu linki tarayıcına yapıştır:",
 };

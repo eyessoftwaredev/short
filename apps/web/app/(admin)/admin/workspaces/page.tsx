@@ -40,6 +40,7 @@ export default async function AdminWorkspacesPage({
   const t = await getTranslations("admin.workspaces");
   const tNav = await getTranslations("admin.nav");
   const tn = await getTranslations("nav");
+  const tc = await getTranslations("common");
 
   const planOptions: readonly FilterOption[] = [
     { id: "all", label: t("allPlans") },
@@ -99,7 +100,12 @@ export default async function AdminWorkspacesPage({
                 <TableRow key={row.id}>
                   <TableCell>
                     <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium">{row.name}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium">{row.name}</span>
+                        <Badge tone="muted">
+                          {row.kind === "team" ? tc("team") : tc("personal")}
+                        </Badge>
+                      </span>
                       <span className="truncate font-mono text-xs text-fg-muted">
                         {row.ownerEmail ?? row.slug}
                       </span>

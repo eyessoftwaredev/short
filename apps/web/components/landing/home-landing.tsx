@@ -4,6 +4,7 @@ import { BrandLockup } from "@/components/brand/brand-mark";
 import { LocaleSwitcher } from "@/components/brand/locale-switcher";
 import { ShortenForm } from "@/components/landing/shorten-form";
 import type { PlatformBrand } from "@/lib/brand-fallback";
+import { panelUrl } from "@/lib/public-url";
 import type { getTranslations } from "next-intl/server";
 
 type LandingT = Awaited<ReturnType<typeof getTranslations<"landing">>>;
@@ -11,9 +12,17 @@ type LandingT = Awaited<ReturnType<typeof getTranslations<"landing">>>;
 type HomeLandingProps = {
   brand: PlatformBrand;
   t: LandingT;
+  signedIn?: boolean;
 };
 
-export function HomeLanding({ brand, t }: HomeLandingProps) {
+export function HomeLanding({ brand, t, signedIn = false }: HomeLandingProps) {
+  const loginHref = panelUrl("/login");
+  const registerHref = panelUrl("/register");
+  const panelHref = panelUrl("/dashboard");
+  const signInHref = signedIn ? panelHref : loginHref;
+  const startHref = signedIn ? panelHref : registerHref;
+  const signInLabel = signedIn ? t("openPanel") : t("ctaSecondary");
+  const startLabel = signedIn ? t("openPanel") : t("ctaStart");
   const demoSlug = `${brand.name.toLowerCase()}/app`;
   const features: ReadonlyArray<{
     id: string;
@@ -64,12 +73,20 @@ export function HomeLanding({ brand, t }: HomeLandingProps) {
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             {brand.localeSwitcherEnabled ? <LocaleSwitcher /> : null}
-            <Link className="kit-btn kit-btn--ghost" href="/login">
-              {t("ctaSecondary")}
-            </Link>
-            <Link className="kit-btn kit-btn--primary hidden sm:inline-flex" href="/register">
-              {t("ctaStart")}
-            </Link>
+            {signedIn ? (
+              <Link className="kit-btn kit-btn--primary" href={panelHref}>
+                {t("openPanel")}
+              </Link>
+            ) : (
+              <>
+                <Link className="kit-btn kit-btn--ghost" href={loginHref}>
+                  {t("ctaSecondary")}
+                </Link>
+                <Link className="kit-btn kit-btn--primary hidden sm:inline-flex" href={registerHref}>
+                  {t("ctaStart")}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -139,8 +156,8 @@ export function HomeLanding({ brand, t }: HomeLandingProps) {
                 ))}
               </ul>
               <div>
-                <Link className="kit-btn kit-btn--primary" href="/register">
-                  {t("routeCta")}
+                <Link className="kit-btn kit-btn--primary" href={startHref}>
+                  {signedIn ? t("openPanel") : t("routeCta")}
                 </Link>
               </div>
             </div>
@@ -213,8 +230,8 @@ export function HomeLanding({ brand, t }: HomeLandingProps) {
                 ))}
               </ul>
               <div>
-                <Link className="kit-btn kit-btn--primary" href="/register">
-                  {t("bioCta")}
+                <Link className="kit-btn kit-btn--primary" href={startHref}>
+                  {signedIn ? t("openPanel") : t("bioCta")}
                 </Link>
               </div>
             </div>
@@ -228,8 +245,8 @@ export function HomeLanding({ brand, t }: HomeLandingProps) {
               <h2 className="m-0 text-3xl leading-tight font-semibold tracking-tight">{t("apiTitle")}</h2>
               <p className="m-0 max-w-prose text-base leading-relaxed text-on-inverse-dim">{t("apiBody")}</p>
               <div>
-                <Link className="kit-btn kit-btn--primary" href="/register">
-                  {t("apiCta")}
+                <Link className="kit-btn kit-btn--primary" href={startHref}>
+                  {signedIn ? t("openPanel") : t("apiCta")}
                 </Link>
               </div>
             </div>
@@ -246,12 +263,14 @@ export function HomeLanding({ brand, t }: HomeLandingProps) {
           <h2 className="m-0 max-w-2xl text-3xl leading-tight font-semibold tracking-tight">{t("ctaHeroTitle")}</h2>
           <p className="m-0 max-w-prose text-base leading-relaxed text-fg-muted">{t("ctaHeroDesc")}</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link className="kit-btn kit-btn--primary kit-btn--lg" href="/register">
-              {t("ctaStart")}
+            <Link className="kit-btn kit-btn--primary kit-btn--lg" href={startHref}>
+              {startLabel}
             </Link>
-            <Link className="kit-btn kit-btn--lg" href="/login">
-              {t("ctaSecondary")}
-            </Link>
+            {signedIn ? null : (
+              <Link className="kit-btn kit-btn--lg" href={signInHref}>
+                {signInLabel}
+              </Link>
+            )}
           </div>
         </section>
       </main>
@@ -268,8 +287,14 @@ export function HomeLanding({ brand, t }: HomeLandingProps) {
             <a href="#route">{t("navRoute")}</a>
             <a href="#api">{t("navApi")}</a>
             <Link href="/pricing">{t("navPricing")}</Link>
-            <Link href="/login">{t("ctaSecondary")}</Link>
-            <Link href="/register">{t("ctaStart")}</Link>
+            {signedIn ? (
+              <Link href={panelHref}>{t("openPanel")}</Link>
+            ) : (
+              <>
+                <Link href={loginHref}>{t("ctaSecondary")}</Link>
+                <Link href={registerHref}>{t("ctaStart")}</Link>
+              </>
+            )}
           </div>
           <div className="flex min-w-0 flex-col gap-2 text-sm">
             <span className="font-medium">{t("footerLegal")}</span>

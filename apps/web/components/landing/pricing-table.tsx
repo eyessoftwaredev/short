@@ -8,6 +8,11 @@ import { formatLimit } from "@short/core";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/cx";
 
+type PricingTableProps = {
+  plans: PublicPlan[];
+  registerHref: string;
+};
+
 export type PublicPlan = {
   key: PlanKey;
   name: string;
@@ -48,7 +53,7 @@ const FEATURE_KEYS = [
   ["removeBranding", "featureBranding"],
 ] as const;
 
-export function PricingTable({ plans }: { plans: PublicPlan[] }) {
+export function PricingTable({ plans, registerHref }: PricingTableProps) {
   const t = useTranslations("billing");
   const tc = useTranslations("common");
   const [interval, setInterval] = useState<"month" | "year">("month");
@@ -124,7 +129,7 @@ export function PricingTable({ plans }: { plans: PublicPlan[] }) {
                   plan.features[key] ? <li key={key}>{t(label)}</li> : null,
                 )}
               </ul>
-              <Link className="kit-btn kit-btn--primary mt-auto" href="/register">
+              <Link className="kit-btn kit-btn--primary mt-auto" href={registerHref}>
                 {free ? t("ctaFree") : t("ctaPaid")}
               </Link>
             </article>

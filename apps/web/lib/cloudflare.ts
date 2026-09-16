@@ -46,9 +46,14 @@ export class CloudflareError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly codes: number[] = [],
   ) {
     super(message);
     this.name = "CloudflareError";
+  }
+
+  get isDuplicate(): boolean {
+    return this.codes.includes(1406) || /duplicate custom hostname/i.test(this.message);
   }
 }
 
@@ -69,7 +74,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok || !body.success) {
     const message = body.errors?.map((error) => error.message).join("; ") || response.statusText;
-    throw new CloudflareError(message, response.status);
+    throw new CloudflareError(
+      message,
+      response.status,
+      body.errors?.map((error) => error.code) ?? [],
+    );
   }
 
   return body.result;
@@ -96,6 +105,34 @@ export async function createCustomHostname(hostname: string): Promise<CustomHost
   });
 }
 
+export async function findCustomHostname(hostname: string): Promise<CustomHostname | null> {
+  const query = new URLSearchParams({ hostname, per_page: "5" });
+  const rows = await call<CustomHostname[]>(`${zonePath()}?${query.toString()}`);
+  const needle = hostname.toLowerCase();
+  return rows.find((row) => row.hostname.toLowerCase() === needle) ?? null;
+}
+
+/** Create, or attach the hostname already sitting on this zone from a previous attempt. */
+export async function ensureCustomHostname(hostname: string): Promise<CustomHostname> {
+  const existing = await findCustomHostname(hostname);
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await createCustomHostname(hostname);
+  } catch (error) {
+    if (!(error instanceof CloudflareError) || !error.isDuplicate) {
+      throw error;
+    }
+    const retry = await findCustomHostname(hostname);
+    if (!retry) {
+      throw error;
+    }
+    return retry;
+  }
+}
+
 export async function getCustomHostname(id: string): Promise<CustomHostname> {
   return call<CustomHostname>(`${zonePath()}/${id}`);
 }
@@ -106,6 +143,20 @@ export async function deleteCustomHostname(id: string): Promise<void> {
 
 export type ValidationRecord = { type: "TXT" | "HTTP"; name: string; value: string };
 
+export function uniqueValidationRecords(records: ValidationRecord[]): ValidationRecord[] {
+  const seen = new Set<string>();
+  const unique: ValidationRecord[] = [];
+  for (const record of records) {
+    const key = `${record.type}\0${record.name}\0${record.value}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(record);
+  }
+  return unique;
+}
+
 export type HostnameHealth = {
   status: "pending" | "provisioning" | "active" | "error";
   sslStatus: string;
@@ -114,18 +165,40 @@ export type HostnameHealth = {
   validation: ValidationRecord[];
 };
 
+/** True when Cloudflare is still waiting on CNAME/DCV — expected right after create. */
+export function isExpectedWaitingError(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes("cname") ||
+    text.includes("pending validation") ||
+    text.includes("pending_validation") ||
+    text.includes("initializing") ||
+    text.includes("dcv") ||
+    text.includes("txt record") ||
+    text.includes("http validation") ||
+    text.includes("not known to cloudflare") ||
+    text.includes("awaiting")
+  );
+}
+
+function waitingStatus(sslStatus: string): "pending" | "provisioning" {
+  return sslStatus === "pending_validation" || sslStatus === "initializing" ? "provisioning" : "pending";
+}
+
 /** Collapses Cloudflare's many states into the four the panel's StatusBadge renders. */
 export function toHealth(record: CustomHostname): HostnameHealth {
   const sslStatus = record.ssl?.status ?? "unknown";
-  const validation = (record.ssl?.validation_records ?? []).flatMap<ValidationRecord>((entry) => {
-    if (entry.txt_name && entry.txt_value) {
-      return [{ type: "TXT", name: entry.txt_name, value: entry.txt_value }];
-    }
-    if (entry.http_url && entry.http_body) {
-      return [{ type: "HTTP", name: entry.http_url, value: entry.http_body }];
-    }
-    return [];
-  });
+  const validation = uniqueValidationRecords(
+    (record.ssl?.validation_records ?? []).flatMap<ValidationRecord>((entry) => {
+      if (entry.txt_name && entry.txt_value) {
+        return [{ type: "TXT", name: entry.txt_name, value: entry.txt_value }];
+      }
+      if (entry.http_url && entry.http_body) {
+        return [{ type: "HTTP", name: entry.http_url, value: entry.http_body }];
+      }
+      return [];
+    }),
+  );
 
   const errors = [
     ...(record.verification_errors ?? []),
@@ -145,14 +218,14 @@ export function toHealth(record: CustomHostname): HostnameHealth {
     };
   }
 
-  if (errors.length > 0) {
+  if (errors.length > 0 && !errors.every(isExpectedWaitingError)) {
     return { status: "error", sslStatus, message: errors[0] ?? null, validation };
   }
 
   return {
-    status: sslStatus === "pending_validation" || sslStatus === "initializing" ? "provisioning" : "pending",
+    status: waitingStatus(sslStatus),
     sslStatus,
-    message: null,
+    message: errors[0] ?? null,
     validation,
   };
 }

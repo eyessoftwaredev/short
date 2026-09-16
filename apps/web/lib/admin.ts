@@ -230,6 +230,7 @@ export type AdminWorkspaceRow = {
   id: string;
   name: string;
   slug: string;
+  kind: "personal" | "team";
   createdAt: Date;
   planKey: PlanKey;
   planName: string;
@@ -267,6 +268,7 @@ export async function listWorkspaces(options: {
         id: organization.id,
         name: organization.name,
         slug: organization.slug,
+        kind: organization.kind,
         createdAt: organization.createdAt,
         planKey: subscriptions.planKey,
         planName: plans.name,
@@ -327,6 +329,7 @@ export async function listWorkspaces(options: {
       id: row.id,
       name: row.name,
       slug: row.slug,
+      kind: row.kind,
       createdAt: row.createdAt,
       planKey: row.planKey ?? "free",
       planName: row.planName ?? "Free",
@@ -539,6 +542,7 @@ export type AdminUserWorkspace = {
   id: string;
   name: string;
   slug: string;
+  kind: "personal" | "team";
   role: string;
   planKey: PlanKey;
   planName: string;
@@ -633,6 +637,7 @@ export async function getAdminUser(id: string): Promise<AdminUserDetail | null> 
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
+      kind: organization.kind,
       role: member.role,
       createdAt: organization.createdAt,
     })
@@ -829,6 +834,7 @@ export async function getAdminUser(id: string): Promise<AdminUserDetail | null> 
       id: row.id,
       name: row.name,
       slug: row.slug,
+      kind: row.kind,
       role: row.role,
       planKey: billedByWorkspace.get(row.id)?.planKey ?? "free",
       planName: billedByWorkspace.get(row.id)?.planName ?? "Free",

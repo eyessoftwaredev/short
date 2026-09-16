@@ -9,7 +9,7 @@ import { firstWinPath } from "@/lib/draft-link";
 import { requireSession } from "@/lib/session";
 import { OnboardingForm } from "./onboarding-form";
 
-export const metadata: Metadata = { title: "Create your workspace" };
+export const metadata: Metadata = { title: "Create your account" };
 
 export default async function OnboardingPage() {
   const [context, brand, t] = await Promise.all([

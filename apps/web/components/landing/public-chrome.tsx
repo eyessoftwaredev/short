@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { BrandLockup } from "@/components/brand/brand-mark";
 import { LocaleSwitcher } from "@/components/brand/locale-switcher";
 import { getPlatformBrand } from "@/lib/brand";
+import { panelUrl } from "@/lib/public-url";
 
 export async function PublicChrome({ children }: { children: ReactNode }) {
   const [brand, t] = await Promise.all([getPlatformBrand(), getTranslations("landing")]);
@@ -15,10 +16,10 @@ export async function PublicChrome({ children }: { children: ReactNode }) {
           <BrandLockup name={brand.name} href="/" />
           <div className="flex min-w-0 items-center gap-2.5">
             {brand.localeSwitcherEnabled ? <LocaleSwitcher /> : null}
-            <Link className="kit-btn kit-btn--ghost" href="/login">
+            <Link className="kit-btn kit-btn--ghost" href={panelUrl("/login")}>
               {t("ctaSecondary")}
             </Link>
-            <Link className="kit-btn kit-btn--primary hidden sm:inline-flex" href="/register">
+            <Link className="kit-btn kit-btn--primary hidden sm:inline-flex" href={panelUrl("/register")}>
               {t("ctaStart")}
             </Link>
           </div>
@@ -45,7 +46,7 @@ export async function PublicFooter() {
           <Link href="/#features">{t("navFeatures")}</Link>
           <Link href="/#route">{t("navRoute")}</Link>
           <Link href="/pricing">{t("navPricing")}</Link>
-          <Link href="/login">{t("ctaSecondary")}</Link>
+          <Link href={panelUrl("/login")}>{t("ctaSecondary")}</Link>
         </div>
         <div className="flex min-w-0 flex-col gap-2 text-sm">
           <span className="font-medium">{t("footerLegal")}</span>

@@ -27,6 +27,9 @@
   --accent-tint: #f7fbfa;
   --accent-bright: #7fd1c4;
   --on-accent: #ffffff;
+  --cloudflare: #f6821f;
+  --cloudflare-hover: #d96e12;
+  --on-cloudflare: #ffffff;
   --danger: #b42318;
   --danger-hover: #911a12;
   --danger-surface: #fef3f2;
@@ -128,6 +131,9 @@
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.7);
 
   --accent-on-surface: #7fd1c4;
+  --cloudflare: #f6821f;
+  --cloudflare-hover: #ff9a3d;
+  --on-cloudflare: #171717;
 
   --row-hover: #191919;
   --row-selected: #13302d;
@@ -167,6 +173,9 @@
   --color-accent-bright: var(--accent-bright);
   --color-accent-on-surface: var(--accent-on-surface);
   --color-on-accent: var(--on-accent);
+  --color-cloudflare: var(--cloudflare);
+  --color-cloudflare-hover: var(--cloudflare-hover);
+  --color-on-cloudflare: var(--on-cloudflare);
   --color-row-hover: var(--row-hover);
   --color-row-selected: var(--row-selected);
   --color-danger: var(--danger);

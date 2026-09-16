@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cx";
 
-type ButtonVariant = "default" | "primary" | "ghost" | "danger";
+type ButtonVariant = "default" | "primary" | "ghost" | "danger" | "cloudflare";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -35,6 +35,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   ghost: "border-transparent bg-transparent hover:bg-surface hover:-translate-y-px",
   danger:
     "border-danger bg-danger-surface text-danger hover:border-danger-hover hover:bg-danger hover:text-on-accent hover:-translate-y-px",
+  cloudflare:
+    "border-cloudflare bg-cloudflare text-on-cloudflare hover:border-cloudflare-hover hover:bg-cloudflare-hover hover:-translate-y-px",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -18,7 +18,8 @@ Create a **Docker Compose** resource pointing at this repository with
 
 | Variable | Notes |
 | --- | --- |
-| `APP_URL` | Public panel URL, e.g. `https://app.short.app`. Also used as `BETTER_AUTH_URL`. |
+| `APP_URL` | Public panel URL, e.g. `https://app.short.ky`. Also used as `BETTER_AUTH_URL`. |
+| `SITE_URL` | Optional marketing origin. Defaults to `APP_URL` with the `app.` prefix stripped. |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 48` |
 | `SECRET_ENCRYPTION_KEY` | `openssl rand -base64 48`. Decrypts Stripe and Cloudflare secrets stored in Postgres. |
 | `PLATFORM_SHORT_DOMAIN` | Default short domain, e.g. `sho.rt` |
