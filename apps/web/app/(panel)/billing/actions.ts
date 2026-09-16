@@ -74,6 +74,9 @@ export async function startCheckoutAction(
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       allow_promotion_codes: true,
+      // Hosted Checkout shows a USD / local-currency toggle at the price
+      // (IP-based). Settlement stays in the price currency (USD).
+      adaptive_pricing: { enabled: true },
       automatic_tax: { enabled: true },
       billing_address_collection: "required",
       customer_update: { address: "auto", name: "auto" },
