@@ -1,7 +1,9 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { isWithinLimit } from "@short/core";
+import { getLocale, getTranslations } from "next-intl/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BarChart3, Globe2, Link2, MousePointerClick, Plus, Users } from "lucide-react";
 import { RangePicker } from "@/components/charts/range-picker";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -26,9 +28,20 @@ import { formatDateTime, formatNumber, parseClickhouseDate, truncateMiddle } fro
 import { cn } from "@/lib/cx";
 import { getWorkspaceUsage } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
-import { countryName, deltaPercent, formatDelta, resolveRange, titleCase } from "@/lib/stats";
+import { readDraftDestination } from "@/lib/draft-link";
+import {
+  countryName,
+  deltaPercent,
+  formatDelta,
+  localizedRangeLabel,
+  resolveRange,
+  titleCase,
+} from "@/lib/stats";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("panel");
+  return { title: t("dashboard") };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -47,41 +60,56 @@ function trendOf(current: number, previous: number): "up" | "down" | "neutral" {
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   const context = await requireWorkspace();
   const raw = await searchParams;
-  const range = resolveRange(raw.range);
+  const locale = await getLocale();
+  const range = resolveRange(raw.range, raw.from, raw.to, locale);
 
   const scope = { workspaceId: context.workspace.id, from: range.from, to: range.to };
 
-  const [summary, series, topLinks, recent, usage] = await Promise.all([
+  const [summary, series, topLinks, recent, usage, draft, t, tc, ts] = await Promise.all([
     loadSummary(scope),
     loadTimeseries(scope, range.granularity),
     loadTopLinks(scope, 8),
     loadRecentEvents(scope, 8),
     getWorkspaceUsage(context.workspace.id),
+    readDraftDestination(),
+    getTranslations("panel"),
+    getTranslations("common"),
+    getTranslations("stats"),
   ]);
+  const rangeLabel = localizedRangeLabel(range, ts);
+  const unknown = ts("unknown");
+  const noneDelta = ts("deltaNone");
 
   const linkLimit = context.plan.limits.links;
   const overQuota = !isWithinLimit(linkLimit, usage.links);
   const nearQuota =
     !overQuota && linkLimit !== -1 && usage.links / Math.max(linkLimit, 1) >= 0.85;
   const hasLinks = usage.links > 0;
+  if (!hasLinks && draft) {
+    redirect("/links/new");
+  }
   const peakClicks = series.reduce((acc, point) => Math.max(acc, point.clicks), 0);
 
   return (
     <PanelShell
-      title="Dashboard"
+      title={t("dashboard")}
       crumbs={[{ label: context.workspace.name }]}
       topbarActions={
         <Button variant="primary" size="sm" href="/links/new">
-          <Plus className="size-4" />
-          New link
+          <Icon name="plus" className="text-sm" />
+          {tc("newLink")}
         </Button>
       }
     >
       <Hero
         variant="compact"
-        eyebrow={`${context.plan.name} plan`}
+        eyebrow={t("planLabel", { name: context.plan.name })}
         title={context.workspace.name}
-        description={`Clicks, visitors and destinations across the last ${range.label}.`}
+        description={
+          range.comparePrevious
+            ? t("dashboardDesc", { range: rangeLabel })
+            : t("dashboardDescAll", { range: rangeLabel })
+        }
         actions={<RangePicker value={range.key} />}
       />
 
@@ -102,66 +130,78 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         >
           <span className="min-w-0 text-sm">
             {overQuota
-              ? `You have used all ${formatNumber(linkLimit)} links on the ${context.plan.name} plan. Archive a link or upgrade to create more.`
-              : `You are close to the ${formatNumber(linkLimit)} link limit on the ${context.plan.name} plan.`}
+              ? t("quotaOver", { limit: formatNumber(linkLimit), plan: context.plan.name })
+              : t("quotaNear", { limit: formatNumber(linkLimit), plan: context.plan.name })}
           </span>
           <Button size="sm" href="/billing">
-            View plans
+            {t("viewPlans")}
           </Button>
         </div>
       ) : null}
 
       <Grid columns={4}>
         <Card
-          icon={<MousePointerClick className="size-4" />}
-          label="Clicks"
+          icon={<Icon name="arrow-pointer" className="text-sm" />}
+          label={ts("clicks")}
           value={formatNumber(summary.clicks)}
           trend={trendOf(summary.clicks, summary.previousClicks)}
           href="/analytics"
           delta={
             <>
-              {formatDelta(summary.clicks, summary.previousClicks)}{" "}
-              <span className="text-fg-subtle">vs previous {range.label}</span>
+              {range.comparePrevious ? (
+                <>
+                  {formatDelta(summary.clicks, summary.previousClicks, noneDelta)}{" "}
+                  <span className="text-fg-subtle">{t("vsPrevious", { range: rangeLabel })}</span>
+                </>
+              ) : (
+                <span className="text-fg-subtle">{rangeLabel}</span>
+              )}
             </>
           }
         />
         <Card
-          icon={<Users className="size-4" />}
-          label="Unique visitors"
+          icon={<Icon name="users" className="text-sm" />}
+          label={t("uniqueVisitors")}
           value={formatNumber(summary.visitors)}
           trend={trendOf(summary.visitors, summary.previousVisitors)}
           href="/analytics"
           delta={
             <>
-              {formatDelta(summary.visitors, summary.previousVisitors)}{" "}
-              <span className="text-fg-subtle">vs previous {range.label}</span>
+              {range.comparePrevious ? (
+                <>
+                  {formatDelta(summary.visitors, summary.previousVisitors, noneDelta)}{" "}
+                  <span className="text-fg-subtle">{t("vsPrevious", { range: rangeLabel })}</span>
+                </>
+              ) : (
+                <span className="text-fg-subtle">{rangeLabel}</span>
+              )}
             </>
           }
         />
         <Card
-          icon={<Globe2 className="size-4" />}
-          label="Countries"
+          icon={<Icon name="earth" className="text-sm" />}
+          label={ts("countries")}
           value={formatNumber(summary.countries)}
-          delta="reached in this range"
+          delta={t("countriesReached")}
         />
-        <Card staticHover icon={<Link2 className="size-4" />} label="Links">
-          <QuotaMeter label="Links used" used={usage.links} limit={linkLimit} />
+        <Card staticHover icon={<Icon name="link" className="text-sm" />} label={t("link")}>
+          <QuotaMeter label={t("linksUsed")} used={usage.links} limit={linkLimit} />
         </Card>
       </Grid>
 
       <Section
-        title="Click trend"
-        description={`${range.granularity === "hour" ? "Hourly" : "Daily"} clicks and unique visitors.`}
+        title={t("clickTrend")}
+        description={range.granularity === "hour" ? t("clickTrendDescHour") : t("clickTrendDescDay")}
         meta={
           series.length > 0 ? (
             <span className="numeric font-mono">
-              peak {formatNumber(peakClicks)} / {range.granularity}
+              {t("peak", { value: formatNumber(peakClicks), granularity: range.granularity })}
             </span>
           ) : null
         }
         actions={
           <Link href="/analytics" className="text-sm text-accent-ink">
-            Full analytics
+            {t("fullAnalytics")}
           </Link>
         }
       >
@@ -170,18 +210,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <EmptyState
               size="sm"
               tone={hasLinks ? "default" : "first-run"}
-              icon={<BarChart3 className="size-4" />}
-              title={hasLinks ? "No clicks in this range" : "No clicks yet"}
-              description={
-                hasLinks
-                  ? "Nothing was recorded between these dates. Try a wider range."
-                  : "Create a short link and share it — the first click shows up here within seconds."
-              }
+              icon={<Icon name="chart-line" className="text-sm" />}
+              title={hasLinks ? t("noClicksRange") : t("noClicksYet")}
+              description={hasLinks ? t("noClicksRangeBody") : t("noClicksYetBody")}
               actions={
                 hasLinks ? null : (
                   <Button variant="primary" href="/links/new">
-                    <Plus className="size-4" />
-                    Create your first link
+                    <Icon name="plus" className="text-sm" />
+                    {t("createFirstLink")}
                   </Button>
                 )
               }
@@ -195,11 +231,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-pill bg-chart-1" aria-hidden="true" />
-                  Clicks
+                  {ts("clicks")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-pill bg-chart-2" aria-hidden="true" />
-                  Unique visitors
+                  {t("uniqueVisitors")}
                 </span>
               </div>
               <TimeseriesChart data={series} granularity={range.granularity} />
@@ -210,11 +246,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
       <Grid columns={2}>
         <Section
-          title="Top links"
-          description="Ranked by clicks in the selected range."
+          title={t("topLinks")}
+          description={t("topLinksDesc")}
           actions={
             <Link href="/analytics" className="text-sm text-accent-ink">
-              All analytics
+              {t("allAnalytics")}
             </Link>
           }
         >
@@ -222,27 +258,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <EmptyState
               size="sm"
               tone={hasLinks ? "default" : "first-run"}
-              icon={<Link2 className="size-4" />}
-              title={hasLinks ? "No traffic yet" : "No links yet"}
-              description={
-                hasLinks
-                  ? "Your links have not been clicked in this range."
-                  : "Short links, QR codes and bio pages all report here once they start collecting clicks."
-              }
+              icon={<Icon name="link" className="text-sm" />}
+              title={hasLinks ? t("noTraffic") : t("noLinks")}
+              description={hasLinks ? t("noTrafficBody") : t("noLinksBody")}
               actions={
                 <Button variant="primary" href="/links/new">
-                  <Plus className="size-4" />
-                  {hasLinks ? "New link" : "Create a link"}
+                  <Icon name="plus" className="text-sm" />
+                  {hasLinks ? tc("newLink") : t("createALink")}
                 </Button>
               }
             />
           ) : (
-            <Table density="compact" label="Top links by clicks">
+            <Table density="compact" label={t("topLinks")}>
               <TableHead>
                 <TableRow>
-                  <TableHeaderCell>Link</TableHeaderCell>
-                  <TableHeaderCell numeric>Clicks</TableHeaderCell>
-                  <TableHeaderCell numeric>Visitors</TableHeaderCell>
+                  <TableHeaderCell>{t("link")}</TableHeaderCell>
+                  <TableHeaderCell numeric>{ts("clicks")}</TableHeaderCell>
+                  <TableHeaderCell numeric>{ts("visitors")}</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -268,16 +300,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         </Section>
 
         <Section
-          title="Latest clicks"
-          description="Most recent events, newest first."
-          meta={recent.length > 0 ? <Badge tone="accent" dot>Live</Badge> : null}
+          title={t("latestClicks")}
+          description={t("latestClicksDesc")}
+          meta={recent.length > 0 ? <Badge tone="accent" dot>{t("live")}</Badge> : null}
         >
           {recent.length === 0 ? (
             <EmptyState
               size="sm"
-              icon={<MousePointerClick className="size-4" />}
-              title="Nothing yet"
-              description="Events appear here within seconds of the first click."
+              icon={<Icon name="arrow-pointer" className="text-sm" />}
+              title={t("nothingYet")}
+              description={t("nothingYetBody")}
             />
           ) : (
             <ol className="m-0 flex list-none flex-col gap-3.5 rounded-default border border-border bg-bg p-5">
@@ -289,9 +321,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                   />
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate text-sm">
-                      {countryName(event.country)}
-                      {event.city ? ` · ${event.city}` : ""} · {titleCase(event.device)} ·{" "}
-                      {titleCase(event.browser)}
+                      {countryName(event.country, locale, unknown)}
+                      {event.city ? ` · ${event.city}` : ""} · {titleCase(event.device, unknown)} ·{" "}
+                      {titleCase(event.browser, unknown)}
                     </span>
                     <span className="truncate font-mono text-xs text-fg-subtle">
                       {formatDateTime(parseClickhouseDate(event.ts))} ·{" "}

@@ -1,38 +1,41 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { KeyRound, MailCheck, ShieldCheck } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { AuthShell, type AuthHighlight } from "../_auth/auth-shell";
 import { ForgotForm } from "./forgot-form";
 
 export const metadata: Metadata = { title: "Reset password" };
 
-const HIGHLIGHTS: readonly AuthHighlight[] = [
-  {
-    id: "link",
-    icon: <MailCheck className="size-4" />,
-    title: "One link, sent to your inbox",
-    body: "Open it and choose a new password. The link expires after a short while.",
-  },
-  {
-    id: "safe",
-    icon: <ShieldCheck className="size-4" />,
-    title: "Your links keep working",
-    body: "Resetting a password never interrupts redirects or analytics collection.",
-  },
-  {
-    id: "quiet",
-    icon: <KeyRound className="size-4" />,
-    title: "Nothing is revealed",
-    body: "We answer the same way whether or not an account exists for an address.",
-  },
-];
+export default async function ForgotPage() {
+  const t = await getTranslations("auth");
 
-export default function ForgotPage() {
+  const highlights: readonly AuthHighlight[] = [
+    {
+      id: "link",
+      icon: <Icon name="envelope-circle-check" className="text-sm" />,
+      title: t("forgotHighlightLinkTitle"),
+      body: t("forgotHighlightLinkBody"),
+    },
+    {
+      id: "safe",
+      icon: <Icon name="shield" className="text-sm" />,
+      title: t("forgotHighlightSafeTitle"),
+      body: t("forgotHighlightSafeBody"),
+    },
+    {
+      id: "quiet",
+      icon: <Icon name="key" className="text-sm" />,
+      title: t("forgotHighlightQuietTitle"),
+      body: t("forgotHighlightQuietBody"),
+    },
+  ];
+
   return (
     <AuthShell
-      railTitle="Locked out? This takes a minute."
-      railBody="Give us the address on the account and we will send a link to set a new password."
-      highlights={HIGHLIGHTS}
-      crossLink={{ prompt: "Remembered it?", label: "Back to sign in", href: "/login" }}
+      railTitle={t("forgotRailTitle")}
+      railBody={t("forgotRailBody")}
+      highlights={highlights}
+      crossLink={{ prompt: t("forgotRemembered"), label: t("verifyBackToSignIn"), href: "/login" }}
     >
       <ForgotForm />
     </AuthShell>

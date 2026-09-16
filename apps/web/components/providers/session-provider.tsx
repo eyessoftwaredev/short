@@ -14,6 +14,7 @@ export type SessionWorkspace = {
   id: string;
   name: string;
   slug: string;
+  kind: "personal" | "team";
 };
 
 export type PanelSession = {
@@ -25,7 +26,10 @@ export type PanelSession = {
   isSuperadmin: boolean;
   impersonatedBy: string | null;
   planName: string;
+  canCreateTeam: boolean;
   shortDomain: string;
+  brandName: string;
+  localeSwitcherEnabled: boolean;
 };
 
 const SessionContext = createContext<PanelSession | null>(null);

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Skeleton, SkeletonTable } from "@/components/ui";
 
@@ -7,9 +8,10 @@ import { Skeleton, SkeletonTable } from "@/components/ui";
  * filter row and table chrome exactly, which keeps the page from reflowing
  * when the rows arrive.
  */
-export default function LinksLoading() {
+export default async function LinksLoading() {
+  const tn = await getTranslations("nav");
   return (
-    <PanelShell title="Links" searchable={false}>
+    <PanelShell title={tn("links")} searchable={false}>
       <div
         className="flex min-w-0 flex-wrap items-start justify-between gap-5 rounded-default border border-border bg-bg px-6 py-5"
         aria-hidden="true"

@@ -1,35 +1,17 @@
-import {
-  AtSign,
-  Briefcase,
-  Camera,
-  Code2,
-  Globe,
-  Hash,
-  Mail,
-  MessageCircle,
-  Music2,
-  Send,
-  Users,
-  Video,
-  type LucideIcon,
-} from "lucide-react";
+import type { IconName } from "@/components/kit/icon";
 
-/**
- * Lucide dropped brand marks, and pulling in a brand-icon package for ten glyphs is not
- * worth the weight. These are category icons; the accessible name carries the platform.
- */
-export const SOCIAL_ICONS: Record<string, LucideIcon> = {
-  x: Hash,
-  instagram: Camera,
-  youtube: Video,
-  tiktok: Music2,
-  linkedin: Briefcase,
-  github: Code2,
-  facebook: Users,
-  whatsapp: MessageCircle,
-  telegram: Send,
-  email: Mail,
-  website: Globe,
+export const SOCIAL_ICONS: Record<string, IconName> = {
+  x: "x-twitter",
+  instagram: "instagram",
+  youtube: "youtube",
+  tiktok: "tiktok",
+  linkedin: "linkedin",
+  github: "github",
+  facebook: "facebook",
+  whatsapp: "whatsapp",
+  telegram: "telegram",
+  email: "envelope",
+  website: "globe",
 };
 
 export const SOCIAL_LABELS: Record<string, string> = {
@@ -46,8 +28,8 @@ export const SOCIAL_LABELS: Record<string, string> = {
   website: "Website",
 };
 
-export function socialIcon(platform: string): LucideIcon {
-  return SOCIAL_ICONS[platform] ?? AtSign;
+export function socialIcon(platform: string): IconName {
+  return SOCIAL_ICONS[platform] ?? "at";
 }
 
 /** `mailto:` and `https://wa.me/` need building from a raw handle or address. */

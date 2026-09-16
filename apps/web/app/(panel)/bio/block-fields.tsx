@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { SOCIAL_PLATFORMS, type BioBlock } from "@short/core";
-import { Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { SOCIAL_LABELS } from "@/components/bio/bio-icons";
 
@@ -10,26 +12,41 @@ type BlockFieldsProps = {
   onChange: (next: BioBlock) => void;
 };
 
+function platformLabel(
+  platform: string,
+  t: (key: string) => string,
+): string {
+  if (platform === "email") {
+    return t("socialEmail");
+  }
+  if (platform === "website") {
+    return t("socialWebsite");
+  }
+  return SOCIAL_LABELS[platform] ?? platform;
+}
+
 /** Per-type editor body. The wrapper row owns reordering, visibility and deletion. */
 export function BlockFields({ block, onChange }: BlockFieldsProps) {
+  const t = useTranslations("bio");
+
   if (block.type === "link") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Label">
+        <Field label={t("label")}>
           <Input
             value={block.label}
             maxLength={120}
             onChange={(event) => onChange({ ...block, label: event.target.value })}
           />
         </Field>
-        <Field label="Destination">
+        <Field label={t("destination")}>
           <Input
             value={block.destination}
             placeholder="https://acme.com/shop"
             onChange={(event) => onChange({ ...block, destination: event.target.value })}
           />
         </Field>
-        <Field label="Icon URL" hint="Optional 24px square image shown before the label.">
+        <Field label={t("iconUrl")} hint={t("iconHint")}>
           <Input
             value={block.iconUrl ?? ""}
             placeholder="https://cdn.acme.com/icon.png"
@@ -38,15 +55,15 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             }
           />
         </Field>
-        <Field label="Emphasis">
+        <Field label={t("emphasis")}>
           <Select
             value={block.highlighted ? "highlight" : "normal"}
             onChange={(event) =>
               onChange({ ...block, highlighted: event.target.value === "highlight" })
             }
           >
-            <option value="normal">Normal</option>
-            <option value="highlight">Highlighted</option>
+            <option value="normal">{t("normal")}</option>
+            <option value="highlight">{t("highlighted")}</option>
           </Select>
         </Field>
       </div>
@@ -58,7 +75,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
       <div className="flex flex-col gap-3">
         {block.items.map((item, index) => (
           <div key={`${item.platform}-${index}`} className="flex flex-wrap items-end gap-2">
-            <Field label={index === 0 ? "Platform" : undefined} className="w-40">
+            <Field label={index === 0 ? t("platform") : undefined} className="w-40">
               <Select
                 value={item.platform}
                 onChange={(event) => {
@@ -72,19 +89,15 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
               >
                 {SOCIAL_PLATFORMS.map((platform) => (
                   <option key={platform} value={platform}>
-                    {SOCIAL_LABELS[platform] ?? platform}
+                    {platformLabel(platform, t)}
                   </option>
                 ))}
               </Select>
             </Field>
             <Field
-              label={index === 0 ? "URL or handle" : undefined}
+              label={index === 0 ? t("urlOrHandle") : undefined}
               className="min-w-48 flex-1"
-              hint={
-                index === 0
-                  ? "Email addresses and phone numbers are turned into mailto: and wa.me links."
-                  : undefined
-              }
+              hint={index === 0 ? t("urlOrHandleHint") : undefined}
             >
               <Input
                 value={item.url}
@@ -98,13 +111,13 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             <Button
               size="sm"
               icon
-              aria-label="Remove profile"
+              aria-label={t("removeProfile")}
               disabled={block.items.length <= 1}
               onClick={() =>
                 onChange({ ...block, items: block.items.filter((_, i) => i !== index) })
               }
             >
-              <Trash2 className="size-4" />
+              <Icon name="trash" className="text-sm" />
             </Button>
           </div>
         ))}
@@ -117,8 +130,8 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             onChange({ ...block, items: [...block.items, { platform: "website", url: "" }] })
           }
         >
-          <Plus className="size-4" />
-          Add profile
+          <Icon name="plus" className="text-sm" />
+          {t("addProfile")}
         </Button>
       </div>
     );
@@ -127,7 +140,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "text") {
     return (
       <div className="flex flex-col gap-4">
-        <Field label="Body">
+        <Field label={t("body")}>
           <Textarea
             rows={4}
             maxLength={2000}
@@ -135,15 +148,15 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             onChange={(event) => onChange({ ...block, body: event.target.value })}
           />
         </Field>
-        <Field label="Alignment" className="max-w-40">
+        <Field label={t("alignment")} className="max-w-40">
           <Select
             value={block.align}
             onChange={(event) =>
               onChange({ ...block, align: event.target.value as "left" | "center" })
             }
           >
-            <option value="center">Center</option>
-            <option value="left">Left</option>
+            <option value="center">{t("alignCenter")}</option>
+            <option value="left">{t("alignLeft")}</option>
           </Select>
         </Field>
       </div>
@@ -152,7 +165,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
 
   if (block.type === "header") {
     return (
-      <Field label="Heading">
+      <Field label={t("heading")}>
         <Input
           value={block.text}
           maxLength={120}
@@ -165,21 +178,21 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "image") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Image URL">
+        <Field label={t("imageUrl")}>
           <Input
             value={block.url}
             placeholder="https://cdn.acme.com/banner.jpg"
             onChange={(event) => onChange({ ...block, url: event.target.value })}
           />
         </Field>
-        <Field label="Alt text" hint="Describe the image for screen readers.">
+        <Field label={t("altText")} hint={t("altHint")}>
           <Input
             value={block.alt}
             maxLength={255}
             onChange={(event) => onChange({ ...block, alt: event.target.value })}
           />
         </Field>
-        <Field label="Links to" className="sm:col-span-2" hint="Leave empty for a plain image.">
+        <Field label={t("linksTo")} className="sm:col-span-2" hint={t("linksToHint")}>
           <Input
             value={block.href ?? ""}
             placeholder="https://acme.com/campaign"
@@ -195,7 +208,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "embed") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Provider">
+        <Field label={t("provider")}>
           <Select
             value={block.provider}
             onChange={(event) =>
@@ -210,7 +223,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             <option value="vimeo">Vimeo</option>
           </Select>
         </Field>
-        <Field label="Share URL" hint="Paste the normal watch or track link.">
+        <Field label={t("shareUrl")} hint={t("shareUrlHint")}>
           <Input
             value={block.url}
             onChange={(event) => onChange({ ...block, url: event.target.value })}
@@ -220,5 +233,5 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
     );
   }
 
-  return <p className="m-0 text-sm text-fg-muted">A divider has no settings.</p>;
+  return <p className="m-0 text-sm text-fg-muted">{t("dividerNoSettings")}</p>;
 }

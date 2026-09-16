@@ -13,7 +13,7 @@ import { z } from "zod";
 export const bioFormSchema = z.object({
   handle: handleSchema,
   domainId: z.string(),
-  displayName: z.string().trim().min(1, "A display name is required").max(80),
+  displayName: z.string().trim().min(1, "displayNameRequired").max(80),
   bio: z.string().trim().max(500),
   avatarUrl: z.string().trim().max(2048),
   theme: z.enum(BIOPAGE_THEMES),
@@ -56,32 +56,6 @@ export function toBiopageInput(values: BioFormValues): BiopageInput {
   });
 }
 
-export const BLOCK_LABELS: Record<BioBlockType, string> = {
-  link: "Link button",
-  social: "Social row",
-  text: "Text",
-  header: "Section heading",
-  image: "Image",
-  embed: "Embed",
-  divider: "Divider",
-};
-
-export const THEME_LABELS: Record<(typeof BIOPAGE_THEMES)[number], string> = {
-  minimal: "Minimal",
-  midnight: "Midnight",
-  sunset: "Sunset",
-  forest: "Forest",
-  mono: "Mono",
-  candy: "Candy",
-};
-
-export const BUTTON_STYLE_LABELS: Record<(typeof BIOPAGE_BUTTON_STYLES)[number], string> = {
-  solid: "Solid",
-  outline: "Outline",
-  soft: "Soft",
-  pill: "Pill",
-};
-
 /** Sensible starting config per block type, so a freshly added block already renders. */
 export function newBlock(type: BioBlockType, position: number): BioBlock {
   const id = crypto.randomUUID();
@@ -92,7 +66,7 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
         id,
         position,
         type: "link",
-        label: "New link",
+        label: "",
         destination: "https://",
         iconUrl: null,
         highlighted: false,
@@ -109,32 +83,12 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
     case "text":
       return { id, position, type: "text", body: "", align: "center", visible: true };
     case "header":
-      return { id, position, type: "header", text: "Section", visible: true };
+      return { id, position, type: "header", text: "", visible: true };
     case "image":
       return { id, position, type: "image", url: "https://", alt: "", href: null, visible: true };
     case "embed":
       return { id, position, type: "embed", provider: "youtube", url: "https://", visible: true };
     default:
       return { id, position, type: "divider", visible: true };
-  }
-}
-
-/** Short one-line summary used as the collapsed row title in the builder. */
-export function describeBlock(block: BioBlock): string {
-  switch (block.type) {
-    case "link":
-      return block.label || "Untitled link";
-    case "social":
-      return `${block.items.length} profile${block.items.length === 1 ? "" : "s"}`;
-    case "text":
-      return block.body.slice(0, 48) || "Empty text";
-    case "header":
-      return block.text || "Untitled heading";
-    case "image":
-      return block.alt || block.url;
-    case "embed":
-      return `${block.provider} · ${block.url}`;
-    default:
-      return "Divider";
   }
 }

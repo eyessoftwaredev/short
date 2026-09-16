@@ -1,10 +1,13 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Check, ExternalLink, Minus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { PlanFeatures, PlanKey } from "@short/core";
 import { formatLimit } from "@short/core";
 import { Badge, Button, Chip } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/cx";
 import { ManageBillingButton } from "./manage-billing-button";
@@ -17,6 +20,7 @@ export type PlanLimitsView = {
   biopages: number;
   qrCodes: number;
   members: number;
+  teams: number;
   retentionDays: number;
 };
 
@@ -40,34 +44,27 @@ type PlanPickerProps = {
   stripeConfigured: boolean;
 };
 
-const LIMIT_ROWS: Array<{
-  key: keyof PlanLimitsView;
-  label: string;
-  format?: (value: number) => string;
-}> = [
-  { key: "links", label: "Links" },
-  { key: "clicksPerMonth", label: "Clicks / mo" },
-  { key: "customDomains", label: "Domains" },
-  { key: "biopages", label: "Bio pages" },
-  { key: "qrCodes", label: "QR codes" },
-  { key: "members", label: "Members" },
-  {
-    key: "retentionDays",
-    label: "History",
-    format: (value) => (value === -1 ? "Unlimited" : `${value} days`),
-  },
-];
+const LIMIT_ROWS = [
+  ["links", "limitLinks"],
+  ["clicksPerMonth", "limitClicks"],
+  ["customDomains", "limitDomains"],
+  ["biopages", "limitBio"],
+  ["qrCodes", "limitQr"],
+  ["members", "limitMembers"],
+  ["teams", "limitTeams"],
+  ["retentionDays", "limitHistory"],
+] as const;
 
-const FEATURE_ROWS: Array<{ key: keyof PlanFeatures; label: string }> = [
-  { key: "targeting", label: "Geo & device targeting" },
-  { key: "abTesting", label: "A/B testing" },
-  { key: "passwordProtection", label: "Password protection" },
-  { key: "cloaking", label: "Link cloaking" },
-  { key: "qrLogo", label: "QR logo" },
-  { key: "webhooks", label: "Webhooks" },
-  { key: "apiAccess", label: "REST API" },
-  { key: "removeBranding", label: "No branding" },
-];
+const FEATURE_ROWS = [
+  ["targeting", "featureTargeting"],
+  ["abTesting", "featureAb"],
+  ["passwordProtection", "featurePassword"],
+  ["cloaking", "featureCloak"],
+  ["qrLogo", "featureQrLogo"],
+  ["webhooks", "featureWebhooks"],
+  ["apiAccess", "featureApi"],
+  ["removeBranding", "featureBranding"],
+] as const;
 
 /** `-1` means unlimited, which ranks above every finite limit. */
 function rank(limit: number): number {
@@ -82,6 +79,9 @@ export function PlanPicker({
   hasBillingAccount,
   stripeConfigured,
 }: PlanPickerProps) {
+  const t = useTranslations("billing");
+  const tc = useTranslations("common");
+  const actionMessage = useActionMessage();
   const [interval, setInterval] = useState<"month" | "year">(currentInterval);
   const [pendingPlan, setPendingPlan] = useState<PlanKey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,14 +106,14 @@ export function PlanPicker({
     try {
       const result = await startCheckoutAction(planKey, interval);
       if (!result.ok) {
-        setError(result.error);
+        setError(actionMessage(result.error));
         setPendingPlan(null);
         return;
       }
       // Leaves the button in its pending state — the tab is navigating to Stripe.
       window.location.href = result.data.url;
     } catch {
-      setError("Could not start checkout. Try again.");
+      setError(actionMessage("generic"));
       setPendingPlan(null);
     }
   }
@@ -124,21 +124,21 @@ export function PlanPicker({
         <div
           className="flex flex-wrap items-center gap-2"
           role="group"
-          aria-label="Billing interval"
+          aria-label={t("billingInterval")}
         >
           <Chip
             active={interval === "month"}
             aria-pressed={interval === "month"}
             onClick={() => setInterval("month")}
           >
-            Monthly
+            {tc("monthly")}
           </Chip>
           <Chip
             active={interval === "year"}
             aria-pressed={interval === "year"}
             onClick={() => setInterval("year")}
           >
-            Yearly
+            {tc("yearly")}
             {bestDiscount > 0 ? (
               <span className="font-mono text-xs tabular-nums">−{bestDiscount}%</span>
             ) : null}
@@ -147,8 +147,9 @@ export function PlanPicker({
 
         {current ? (
           <p className="m-0 min-w-0 text-sm text-fg-muted">
-            You are on <span className="font-medium text-ink">{current.name}</span>, billed{" "}
-            {currentInterval === "year" ? "yearly" : "monthly"}.
+            {currentInterval === "year"
+              ? t("youAreOnYearly", { name: current.name })
+              : t("youAreOnMonthly", { name: current.name })}
           </p>
         ) : null}
       </div>
@@ -160,15 +161,11 @@ export function PlanPicker({
       ) : null}
 
       {stripeConfigured ? null : (
-        <p className="m-0 text-sm text-fg-muted">
-          Billing is not configured on this deployment — plans are shown for reference only.
-        </p>
+        <p className="m-0 text-sm text-fg-muted">{t("plansReferenceOnly")}</p>
       )}
 
       {canManage ? null : (
-        <p className="m-0 text-sm text-fg-muted">
-          Only the workspace owner can change the plan. Ask them to review the options below.
-        </p>
+        <p className="m-0 text-sm text-fg-muted">{t("ownerChangePlan")}</p>
       )}
 
       <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -202,47 +199,49 @@ export function PlanPicker({
                   {plan.name}
                 </span>
                 {isCurrent ? (
-                  <Badge tone="accent">Current</Badge>
+                  <Badge tone="accent">{tc("current")}</Badge>
                 ) : isRecommended ? (
-                  <Badge tone="inverse">Recommended</Badge>
+                  <Badge tone="inverse">{tc("recommended")}</Badge>
                 ) : null}
               </div>
 
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
                   <span className="text-3xl leading-tight font-semibold tracking-tight tabular-nums">
-                    {free ? "Free" : formatCurrency(price, plan.currency)}
+                    {free ? tc("free") : formatCurrency(price, plan.currency)}
                   </span>
                   {free ? null : (
                     <span className="text-sm text-fg-muted">
-                      / {interval === "year" ? "yr" : "mo"}
+                      {interval === "year" ? t("perYear") : t("perMonth")}
                     </span>
                   )}
                 </span>
                 <span className="text-xs text-fg-subtle tabular-nums">
                   {free
-                    ? "No card required"
+                    ? t("noCardRequired")
                     : interval === "year" && saving > 0
-                      ? `Saves ${formatCurrency(saving, plan.currency)} a year`
-                      : `Billed ${interval === "year" ? "yearly" : "monthly"}`}
+                      ? t("savesYear", { amount: formatCurrency(saving, plan.currency) })
+                      : interval === "year"
+                        ? t("billedYearlyCaption")
+                        : t("billedMonthly")}
                 </span>
               </div>
 
               <div className="min-w-0">
                 {isCurrent ? (
                   <Button size="sm" className="w-full" disabled>
-                    Your plan
+                    {t("currentPlan")}
                   </Button>
                 ) : free ? (
                   canManage && hasBillingAccount ? (
                     <ManageBillingButton
-                      label="Downgrade to Free"
+                      label={t("downgradeFree")}
                       withIcon={false}
                       className="w-full"
                     />
                   ) : (
                     <Button size="sm" className="w-full" disabled>
-                      Downgrade to Free
+                      {t("downgradeFree")}
                     </Button>
                   )
                 ) : plan.hasPrice ? (
@@ -256,29 +255,35 @@ export function PlanPicker({
                     }}
                   >
                     {busy
-                      ? "Opening checkout…"
+                      ? t("openingCheckout")
                       : higher
-                        ? `Upgrade to ${plan.name}`
-                        : `Switch to ${plan.name}`}
+                        ? t("upgradeTo", { name: plan.name })
+                        : t("switchTo", { name: plan.name })}
                   </Button>
                 ) : (
                   <Button size="sm" className="w-full" href="mailto:sales@short.app">
-                    <ExternalLink className="size-4" aria-hidden="true" />
-                    Contact sales
+                    <Icon name="external-link" className="text-sm" aria-hidden="true" />
+                    {t("contactSales")}
                   </Button>
                 )}
               </div>
 
               <dl className="m-0 grid min-w-0 grid-cols-1 gap-1.5 border-t border-border pt-4 text-sm">
-                {LIMIT_ROWS.map((row) => {
-                  const value = plan.limits[row.key];
-                  const mine = current?.limits[row.key];
+                {LIMIT_ROWS.map(([key, label]) => {
+                  const value = plan.limits[key];
+                  const mine = current?.limits[key];
                   const better = mine != null && !isCurrent && rank(value) > rank(mine);
                   const worse = mine != null && !isCurrent && rank(value) < rank(mine);
+                  const formatted =
+                    key === "retentionDays"
+                      ? value === -1
+                        ? tc("unlimited")
+                        : tc("days", { count: value })
+                      : formatLimit(value);
 
                   return (
-                    <div key={row.key} className="flex min-w-0 items-center justify-between gap-2">
-                      <dt className="min-w-0 truncate text-fg-muted">{row.label}</dt>
+                    <div key={key} className="flex min-w-0 items-center justify-between gap-2">
+                      <dt className="min-w-0 truncate text-fg-muted">{t(label)}</dt>
                       <dd
                         className={cn(
                           "m-0 flex shrink-0 items-center gap-1 font-mono tabular-nums",
@@ -287,12 +292,12 @@ export function PlanPicker({
                         )}
                       >
                         {better ? (
-                          <ArrowUp className="size-3 shrink-0" aria-label="more than your plan" />
+                          <Icon name="arrow-up" className="text-xs shrink-0" aria-label={t("moreThanPlan")} />
                         ) : null}
                         {worse ? (
-                          <ArrowDown className="size-3 shrink-0" aria-label="less than your plan" />
+                          <Icon name="arrow-down" className="text-xs shrink-0" aria-label={t("lessThanPlan")} />
                         ) : null}
-                        {row.format ? row.format(value) : formatLimit(value)}
+                        {formatted}
                       </dd>
                     </div>
                   );
@@ -300,13 +305,13 @@ export function PlanPicker({
               </dl>
 
               <ul className="m-0 mt-auto flex list-none flex-col gap-1 border-t border-border p-0 pt-4 text-sm">
-                {FEATURE_ROWS.map((row) => {
-                  const on = plan.features[row.key];
-                  const gained = on && !isCurrent && current != null && !current.features[row.key];
+                {FEATURE_ROWS.map(([key, label]) => {
+                  const on = plan.features[key];
+                  const gained = on && !isCurrent && current != null && !current.features[key];
 
                   return (
                     <li
-                      key={row.key}
+                      key={key}
                       className={cn(
                         "flex min-w-0 items-center gap-2",
                         !on && "text-fg-disabled",
@@ -315,17 +320,15 @@ export function PlanPicker({
                       )}
                     >
                       {on ? (
-                        <Check
-                          className={cn(
+                        <Icon name="check" className={cn(
                             "size-3.5 shrink-0",
                             gained ? "text-accent-ink" : "text-fg-subtle",
                           )}
-                          aria-hidden="true"
-                        />
+                          aria-hidden="true" />
                       ) : (
-                        <Minus className="size-3.5 shrink-0" aria-hidden="true" />
+                        <Icon name="minus" className="text-xs shrink-0" aria-hidden="true" />
                       )}
-                      <span className="min-w-0 truncate">{row.label}</span>
+                      <span className="min-w-0 truncate">{t(label)}</span>
                     </li>
                   );
                 })}
@@ -335,11 +338,7 @@ export function PlanPicker({
         })}
       </div>
 
-      <p className="m-0 text-xs leading-relaxed text-fg-subtle">
-        Bold values and arrows compare each plan against your current one. Downgrades keep every
-        link, QR code and bio page you already created — anything above the new limit simply stops
-        accepting additions.
-      </p>
+      <p className="m-0 text-xs leading-relaxed text-fg-subtle">{t("compareHint")}</p>
     </div>
   );
 }

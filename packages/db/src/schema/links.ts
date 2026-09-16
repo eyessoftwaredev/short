@@ -11,6 +11,12 @@ import {
 } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth";
 
+export type DomainValidationRecord = {
+  type: "TXT" | "HTTP";
+  name: string;
+  value: string;
+};
+
 export const domains = pgTable(
   "domains",
   {
@@ -30,6 +36,11 @@ export const domains = pgTable(
     notFoundDestination: text("not_found_destination"),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    /** SSL TXT/HTTP records from Cloudflare for SaaS — kept so the panel survives a reload. */
+    validationRecords: jsonb("validation_records")
+      .$type<DomainValidationRecord[]>()
+      .notNull()
+      .default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

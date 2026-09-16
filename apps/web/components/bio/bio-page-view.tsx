@@ -1,4 +1,5 @@
 import type { BioBlock, BiopageTheme } from "@short/core";
+import { Icon } from "@/components/kit/icon";
 import { cn } from "@/lib/cx";
 import { socialHref, socialIcon, SOCIAL_LABELS } from "./bio-icons";
 
@@ -18,6 +19,7 @@ type BioPageViewProps = {
   /** The builder preview renders inert blocks; the public page renders real anchors. */
   interactive?: boolean;
   showBranding?: boolean;
+  branding?: { name: string; href: string };
   className?: string;
 };
 
@@ -73,6 +75,7 @@ export function BioPageView({
   page,
   interactive = true,
   showBranding = true,
+  branding,
   className,
 }: BioPageViewProps) {
   const buttonClass = BUTTON_STYLES[page.buttonStyle] ?? BUTTON_STYLES.solid;
@@ -160,7 +163,7 @@ export function BioPageView({
               return (
                 <div key={block.id} className="flex flex-wrap justify-center gap-2.5 py-1">
                   {block.items.map((item) => {
-                    const Icon = socialIcon(item.platform);
+                    const mark = socialIcon(item.platform);
                     const label = SOCIAL_LABELS[item.platform] ?? item.platform;
                     const classes =
                       "flex size-11 items-center justify-center rounded-pill border border-bio-border bg-bio-card text-bio-fg no-underline transition duration-200 hover:border-bio-accent hover:text-bio-accent";
@@ -176,7 +179,7 @@ export function BioPageView({
                         rel="noopener noreferrer nofollow"
                         data-bio-block={block.id}
                       >
-                        <Icon className="size-5" />
+                        <Icon name={mark} className="text-lg" />
                       </a>
                     ) : (
                       <span
@@ -185,7 +188,7 @@ export function BioPageView({
                         title={label}
                         className={classes}
                       >
-                        <Icon className="size-5" />
+                        <Icon name={mark} className="text-lg" />
                       </span>
                     );
                   })}
@@ -273,14 +276,14 @@ export function BioPageView({
           })}
         </div>
 
-        {showBranding ? (
+        {showBranding && branding ? (
           <a
-            href="https://short.app"
+            href={branding.href}
             className="mt-4 font-mono text-xs text-bio-fg-muted no-underline"
             target="_blank"
             rel="noopener noreferrer"
           >
-            short.app
+            {branding.name}
           </a>
         ) : null}
       </div>

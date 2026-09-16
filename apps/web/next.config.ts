@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingRoot: repoRoot,
   serverExternalPackages: ["sharp", "ioredis", "postgres"],
+  // Loading the dev panel over the loopback IP instead of `localhost` otherwise has its
+  // /_next/* requests blocked, which leaves the page rendered but never hydrated.
+  allowedDevOrigins: ["127.0.0.1", "[::1]"],
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },

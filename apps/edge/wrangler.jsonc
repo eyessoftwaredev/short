@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "short-edge",
+  "name": "short-ky-edge",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
@@ -18,7 +18,7 @@
   ],
 
   "queues": {
-    "producers": [{ "binding": "CLICK_QUEUE", "queue": "short-clicks" }]
+    "producers": [{ "binding": "CLICK_QUEUE", "queue": "short-ky-clicks" }]
   },
 
   "vars": {

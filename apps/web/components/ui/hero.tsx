@@ -18,7 +18,7 @@ export function Hero({ eyebrow, title, description, actions, variant = "default"
         "flex flex-wrap items-start justify-between gap-5 rounded-default border bg-bg transition duration-200",
         variant === "default" && "border-border p-7",
         variant === "compact" && "border-border px-6 py-5",
-        variant === "inverse" && "border-on-inverse-border bg-inverse text-on-inverse",
+        variant === "inverse" && "border-on-inverse-border bg-inverse p-7 text-on-inverse",
       )}
     >
       <div className="flex min-w-0 flex-col gap-2">

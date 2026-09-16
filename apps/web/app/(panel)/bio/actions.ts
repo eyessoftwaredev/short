@@ -20,9 +20,7 @@ export async function createBiopageAction(
     await assertQuota(context.workspace.id, context.plan, "biopages");
 
     if (await handleTaken(input.handle, input.domainId)) {
-      return fail(`The handle /${input.handle} is already in use.`, {
-        handle: ["This handle is taken"],
-      });
+      return fail("handle_taken");
     }
 
     const row = await createBiopage(context.workspace.id, input);
@@ -53,9 +51,7 @@ export async function updateBiopageAction(
     const input = toBiopageInput(values);
 
     if (await handleTaken(input.handle, input.domainId, id)) {
-      return fail(`The handle /${input.handle} is already in use.`, {
-        handle: ["This handle is taken"],
-      });
+      return fail("handle_taken");
     }
 
     const row = await updateBiopage(context.workspace.id, id, input);

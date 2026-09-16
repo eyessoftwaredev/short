@@ -1,8 +1,10 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { UserCog } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { usePanelSession } from "@/components/providers/session-provider";
 import { Button } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
@@ -13,6 +15,7 @@ import { authClient } from "@/lib/auth-client";
  */
 export function ImpersonationBanner() {
   const session = usePanelSession();
+  const t = useTranslations("panel");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -38,13 +41,13 @@ export function ImpersonationBanner() {
       className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-default border border-warn-border bg-warn-surface px-4 py-2.5 text-warn-ink"
     >
       <span className="flex min-w-0 items-center gap-2 text-sm">
-        <UserCog className="size-4 shrink-0" />
+        <Icon name="user-gear" className="text-sm shrink-0" />
         <span className="min-w-0 truncate">
-          Viewing as <strong>{session.user.email}</strong> · {session.workspace.name}
+          {t("viewingAs", { email: session.user.email, workspace: session.workspace.name })}
         </span>
       </span>
       <Button size="sm" disabled={pending} onClick={stop}>
-        End session
+        {t("endSession")}
       </Button>
     </div>
   );

@@ -1,6 +1,7 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Globe2, MousePointerClick, Plus, Repeat2, Users } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
 import { RangePicker } from "@/components/charts/range-picker";
 import { StatsBreakdowns } from "@/components/charts/stats-breakdowns";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
@@ -23,9 +24,12 @@ import {
 import { loadBreakdownSet, loadSummary, loadTimeseries, loadTopLinks } from "@/lib/analytics";
 import { formatNumber } from "@/lib/format";
 import { requireWorkspace } from "@/lib/session";
-import { deltaPercent, formatDelta, resolveRange } from "@/lib/stats";
+import { deltaPercent, formatDelta, localizedRangeLabel, resolveRange } from "@/lib/stats";
 
-export const metadata: Metadata = { title: "Analytics" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("nav");
+  return { title: t("analytics") };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -40,83 +44,107 @@ function trendOf(current: number, previous: number): "up" | "down" | "neutral" {
 export default async function AnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   const context = await requireWorkspace();
   const raw = await searchParams;
-  const range = resolveRange(raw.range);
+  const locale = await getLocale();
+  const range = resolveRange(raw.range, raw.from, raw.to, locale);
 
   const scope = { workspaceId: context.workspace.id, from: range.from, to: range.to };
 
-  const [summary, series, breakdowns, topLinks] = await Promise.all([
+  const [summary, series, breakdowns, topLinks, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),
     loadTimeseries(scope, range.granularity),
     loadBreakdownSet(scope, 12),
     loadTopLinks(scope, 15),
+    getTranslations("panel"),
+    getTranslations("common"),
+    getTranslations("stats"),
+    getTranslations("nav"),
   ]);
+
+  const rangeLabel = localizedRangeLabel(range, ts);
+  const noneDelta = ts("deltaNone");
+  const granularityLabel = range.granularity === "hour" ? ts("hour") : ts("day");
 
   const retentionNote =
     context.plan.limits.retentionDays === -1
-      ? "Unlimited retention"
-      : `${context.plan.limits.retentionDays} day retention on ${context.plan.name}`;
+      ? ts("unlimitedRetention")
+      : ts("retentionDays", { days: context.plan.limits.retentionDays, plan: context.plan.name });
 
   const hasTraffic = summary.clicks > 0 || series.length > 0;
   const peakClicks = series.reduce((acc, point) => Math.max(acc, point.clicks), 0);
-  // One bucket draws no line, so the chart is labelled rather than left looking broken.
   const singleBucket = series.length === 1;
 
   return (
-    <PanelShell title="Analytics" crumbs={[{ label: context.workspace.name }]}>
+    <PanelShell title={tn("analytics")} crumbs={[{ label: context.workspace.name }]}>
       <Hero
         variant="compact"
         eyebrow={retentionNote}
-        title="Workspace analytics"
-        description={`Every link, QR code and bio page in ${context.workspace.name}, over the last ${range.label}.`}
+        title={ts("workspaceAnalytics")}
+        description={
+          range.comparePrevious
+            ? ts("analyticsDesc", { workspace: context.workspace.name, range: rangeLabel })
+            : ts("analyticsDescAll", { workspace: context.workspace.name, range: rangeLabel })
+        }
         actions={<RangePicker value={range.key} />}
       />
 
       <Grid columns={4}>
         <Card
-          icon={<MousePointerClick className="size-4" />}
-          label="Clicks"
+          icon={<Icon name="arrow-pointer" className="text-sm" />}
+          label={ts("clicks")}
           value={formatNumber(summary.clicks)}
           trend={trendOf(summary.clicks, summary.previousClicks)}
           delta={
             <>
-              {formatDelta(summary.clicks, summary.previousClicks)}{" "}
-              <span className="text-fg-subtle">vs previous {range.label}</span>
+              {range.comparePrevious ? (
+                <>
+                  {formatDelta(summary.clicks, summary.previousClicks, noneDelta)}{" "}
+                  <span className="text-fg-subtle">{t("vsPrevious", { range: rangeLabel })}</span>
+                </>
+              ) : (
+                <span className="text-fg-subtle">{rangeLabel}</span>
+              )}
             </>
           }
         />
         <Card
-          icon={<Users className="size-4" />}
-          label="Unique visitors"
+          icon={<Icon name="users" className="text-sm" />}
+          label={t("uniqueVisitors")}
           value={formatNumber(summary.visitors)}
           trend={trendOf(summary.visitors, summary.previousVisitors)}
           delta={
             <>
-              {formatDelta(summary.visitors, summary.previousVisitors)}{" "}
-              <span className="text-fg-subtle">vs previous {range.label}</span>
+              {range.comparePrevious ? (
+                <>
+                  {formatDelta(summary.visitors, summary.previousVisitors, noneDelta)}{" "}
+                  <span className="text-fg-subtle">{t("vsPrevious", { range: rangeLabel })}</span>
+                </>
+              ) : (
+                <span className="text-fg-subtle">{rangeLabel}</span>
+              )}
             </>
           }
         />
         <Card
-          icon={<Repeat2 className="size-4" />}
-          label="Clicks per visitor"
+          icon={<Icon name="repeat" className="text-sm" />}
+          label={ts("clicksPerVisitor")}
           value={summary.visitors === 0 ? "0.0" : (summary.clicks / summary.visitors).toFixed(1)}
-          delta="average in range"
+          delta={ts("averageInRange")}
         />
         <Card
-          icon={<Globe2 className="size-4" />}
-          label="Countries"
+          icon={<Icon name="earth" className="text-sm" />}
+          label={ts("countries")}
           value={formatNumber(summary.countries)}
-          delta="distinct countries"
+          delta={ts("distinctCountries")}
         />
       </Grid>
 
       <Section
-        title="Traffic over time"
-        description={`${range.granularity === "hour" ? "Hourly" : "Daily"} clicks and unique visitors.`}
+        title={ts("trafficOverTime")}
+        description={range.granularity === "hour" ? ts("trafficOverTimeHour") : ts("trafficOverTimeDay")}
         meta={
           series.length > 0 ? (
             <span className="numeric font-mono">
-              peak {formatNumber(peakClicks)} / {range.granularity}
+              {t("peak", { value: formatNumber(peakClicks), granularity: granularityLabel })}
             </span>
           ) : null
         }
@@ -126,13 +154,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             <EmptyState
               size="sm"
               tone="first-run"
-              icon={<BarChart3 className="size-4" />}
-              title="No clicks in this range"
-              description="Pick a wider range, or share a link to start collecting data."
+              icon={<Icon name="chart-line" className="text-sm" />}
+              title={t("noClicksRange")}
+              description={t("noClicksRangeBody")}
               actions={
                 <Button variant="primary" href="/links/new">
-                  <Plus className="size-4" />
-                  New link
+                  <Icon name="plus" className="text-sm" />
+                  {tc("newLink")}
                 </Button>
               }
             />
@@ -141,15 +169,15 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
               <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-pill bg-chart-1" aria-hidden="true" />
-                  Clicks
+                  {ts("clicks")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-pill bg-chart-2" aria-hidden="true" />
-                  Unique visitors
+                  {t("uniqueVisitors")}
                 </span>
                 {singleBucket ? (
                   <span className="ml-auto text-fg-subtle">
-                    Only one {range.granularity} of data in this range.
+                    {ts("singleBucket", { granularity: granularityLabel })}
                   </span>
                 ) : null}
               </div>
@@ -159,56 +187,50 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
         </Card>
       </Section>
 
-      <Section
-        title="Breakdown"
-        description="Audience, platform and acquisition detail."
-        headingLevel={2}
-      >
+      <Section title={ts("breakdown")} description={ts("breakdownDesc")} headingLevel={2}>
         {hasTraffic ? (
           <StatsBreakdowns data={breakdowns} />
         ) : (
           <EmptyState
             size="sm"
-            icon={<Globe2 className="size-4" />}
-            title="Nothing to break down yet"
-            description="Country, device and referrer splits appear once this workspace records its first click."
+            icon={<Icon name="earth" className="text-sm" />}
+            title={ts("nothingToBreakDown")}
+            description={ts("nothingToBreakDownBody")}
           />
         )}
       </Section>
 
       <Section
-        title="Top links"
-        description="Ranked by clicks in the selected range."
+        title={t("topLinks")}
+        description={t("topLinksDesc")}
         meta={
           topLinks.length > 0 ? (
-            <span className="numeric font-mono">{topLinks.length} shown</span>
+            <span className="numeric font-mono">{ts("shownCount", { count: topLinks.length })}</span>
           ) : null
         }
       >
         {topLinks.length === 0 ? (
           <EmptyState
             size="sm"
-            icon={<BarChart3 className="size-4" />}
-            title="No link traffic in this range"
-            description="Links that were clicked between these dates will be ranked here."
+            icon={<Icon name="chart-line" className="text-sm" />}
+            title={ts("noLinkTraffic")}
+            description={ts("noLinkTrafficBody")}
           />
         ) : (
-          <Table label="Top links by clicks">
+          <Table label={ts("tableTopLinks")}>
             <TableHead>
               <TableRow>
                 <TableHeaderCell numeric className="w-12">
                   #
                 </TableHeaderCell>
-                <TableHeaderCell>Link</TableHeaderCell>
+                <TableHeaderCell>{t("link")}</TableHeaderCell>
                 <TableHeaderCell numeric className="w-28">
-                  Clicks
+                  {ts("clicks")}
                 </TableHeaderCell>
                 <TableHeaderCell numeric className="w-28">
-                  Visitors
+                  {ts("visitors")}
                 </TableHeaderCell>
-                {/* The bar makes the long tail legible at a glance; the figure
-                    beside it keeps the exact value available. */}
-                <TableHeaderCell className="w-44">Share of clicks</TableHeaderCell>
+                <TableHeaderCell className="w-44">{ts("shareOfClicks")}</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>

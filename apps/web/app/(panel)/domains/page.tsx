@@ -1,17 +1,29 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { formatLimit } from "@short/core";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Hero } from "@/components/ui";
 import { cloudflareEnabled } from "@/lib/cloudflare";
+import { getCloudflareConnectionPublic } from "@/lib/customer-cloudflare";
 import { cnameTarget, listDomains } from "@/lib/domains";
 import { hasWorkspaceRole, requireWorkspace } from "@/lib/session";
 import { DomainsManager, type DomainRowView } from "./domains-manager";
 
-export const metadata: Metadata = { title: "Domains" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("domains");
+  return { title: t("title") };
+}
 
 export default async function DomainsPage() {
-  const context = await requireWorkspace();
-  const domains = await listDomains(context.workspace.id);
+  const [context, t, tc] = await Promise.all([
+    requireWorkspace(),
+    getTranslations("domains"),
+    getTranslations("common"),
+  ]);
+  const [domains, cloudflareAccount] = await Promise.all([
+    listDomains(context.workspace.id),
+    getCloudflareConnectionPublic(context.workspace.id),
+  ]);
 
   const rows: DomainRowView[] = domains.map((domain) => ({
     id: domain.id,
@@ -24,17 +36,19 @@ export default async function DomainsPage() {
     notFoundDestination: domain.notFoundDestination,
     linkCount: domain.linkCount,
     lastCheckedAt: domain.lastCheckedAt?.toISOString() ?? null,
+    validationRecords: domain.validationRecords,
   }));
 
   const custom = rows.filter((row) => !row.isPlatform).length;
   const limit = context.plan.limits.customDomains;
+  const limitLabel = limit === -1 ? tc("unlimited") : formatLimit(limit);
 
   return (
-    <PanelShell title="Domains" crumbs={[{ label: context.workspace.name }]}>
+    <PanelShell title={t("title")} crumbs={[{ label: context.workspace.name }]}>
       <Hero
-        eyebrow={`${custom} of ${formatLimit(limit)} custom domains`}
-        title="Branded short domains"
-        description="Point a subdomain at the redirect edge and every link you create can use it. Certificates are issued and renewed automatically."
+        eyebrow={t("customCount", { used: custom, limit: limitLabel })}
+        title={t("heroTitle")}
+        description={t("heroDesc")}
       />
 
       <DomainsManager
@@ -42,6 +56,7 @@ export default async function DomainsPage() {
         cnameTarget={cnameTarget()}
         canManage={hasWorkspaceRole(context.role, "admin") || context.isSuperadmin}
         cloudflareConfigured={cloudflareEnabled()}
+        cloudflareAccount={cloudflareAccount}
       />
     </PanelShell>
   );

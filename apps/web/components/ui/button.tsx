@@ -1,7 +1,8 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cx";
 
@@ -43,9 +44,9 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const spinnerSize: Record<ButtonSize, string> = {
-  sm: "size-3.5",
-  md: "size-4",
-  lg: "size-4",
+  sm: "text-xs",
+  md: "text-sm",
+  lg: "text-sm",
 };
 
 export function Button({
@@ -72,7 +73,7 @@ export function Button({
     className,
   );
 
-  const spinner = <Loader2 className={cn(spinnerSize[size], "animate-spin")} aria-hidden="true" />;
+  const spinner = <Icon name="spinner" className={spinnerSize[size]} />;
   // An icon-only button has no room for a spinner beside its glyph, so the
   // spinner takes the glyph's place instead of crowding it.
   const content = loading ? (

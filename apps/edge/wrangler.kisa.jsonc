@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kisa-ly-edge",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  "routes": [
+    { "pattern": "kisa.ly/*", "zone_name": "kisa.ly" },
+    { "pattern": "fallback.kisa.ly/*", "zone_name": "kisa.ly" },
+    { "pattern": "cname.kisa.ly/*", "zone_name": "kisa.ly" }
+  ],
+
+  "kv_namespaces": [
+    { "binding": "LINKS", "id": "a1c7520cb0704a348b90cdc6a5b94ff6", "preview_id": "e09245c6c3ad43c3bd7a939658a9d4a4" }
+  ],
+
+  "queues": {
+    "producers": [{ "binding": "CLICK_QUEUE", "queue": "kisa-ly-clicks" }]
+  },
+
+  "vars": {
+    "ORIGIN_URL": "https://app.kisa.ly",
+    "DEFAULT_NOT_FOUND": "https://app.kisa.ly/404",
+    "KV_TTL_SECONDS": "3600"
+  }
+
+  // Secrets (wrangler secret put): INTERNAL_TOKEN, VISITOR_SALT
+}

@@ -1,9 +1,12 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Avatar, Button, Card, Chip, Field, Input } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { createFirstWorkspace } from "./actions";
 
 const MIN_NAME = 2;
@@ -23,12 +26,14 @@ function initialsOf(value: string): string {
 
 export function OnboardingForm({ suggestion }: { suggestion: string }) {
   const router = useRouter();
+  const t = useTranslations("onboarding");
+  const actionMessage = useActionMessage();
   const [name, setName] = useState(suggestion);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const trimmed = name.trim();
-  const presets = [suggestion, "Personal", "Marketing"].filter(
+  const presets = [suggestion, t("personal"), t("marketing")].filter(
     (preset, index, all) => preset.length > 0 && all.indexOf(preset) === index,
   );
 
@@ -40,13 +45,13 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
     try {
       const result = await createFirstWorkspace(name);
       if (!result.ok) {
-        setError(result.error);
+        setError(actionMessage(result.error));
         return;
       }
-      router.push("/dashboard");
+      router.push(result.data.href);
       router.refresh();
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(actionMessage("generic"));
     } finally {
       setPending(false);
     }
@@ -66,19 +71,19 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
             role="alert"
             className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3"
           >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+            <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
             <p className="m-0 min-w-0 text-sm text-fg-muted">{error}</p>
           </div>
         ) : null}
 
-        <Field label="Workspace name">
+        <Field label={t("nameLabel")}>
           <Input
             name="name"
             required
             autoFocus
             minLength={MIN_NAME}
             maxLength={MAX_NAME}
-            placeholder="Acme marketing"
+            placeholder={t("namePlaceholder")}
             aria-invalid={error ? true : undefined}
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -87,7 +92,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
 
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="shrink-0 text-xs text-fg-subtle">Try</span>
+            <span className="shrink-0 text-xs text-fg-subtle">{t("try")}</span>
             {presets.map((preset) => (
               <Chip
                 key={preset}
@@ -106,7 +111,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
 
         <div className="flex min-w-0 flex-col gap-2 rounded-default border border-border bg-surface-subtle p-4">
           <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            How it will appear
+            {t("preview")}
           </span>
           <span className="flex min-w-0 items-center gap-3">
             <Avatar size="lg" aria-hidden="true">
@@ -114,9 +119,9 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
             </Avatar>
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-medium">
-                {trimmed.length > 0 ? trimmed : "Your workspace"}
+                {trimmed.length > 0 ? trimmed : t("yourWorkspace")}
               </span>
-              <span className="truncate text-xs text-fg-subtle">Owner · Free plan</span>
+              <span className="truncate text-xs text-fg-subtle">{t("ownerFree")}</span>
             </span>
           </span>
         </div>
@@ -128,12 +133,12 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
           className="w-full"
           disabled={pending}
         >
-          {pending ? "Creating workspace…" : "Create workspace"}
-          {pending ? null : <ArrowRight className="size-4" aria-hidden="true" />}
+          {pending ? t("creating") : t("submit")}
+          {pending ? null : <Icon name="arrow-right" className="text-sm" aria-hidden="true" />}
         </Button>
 
         <p className="m-0 text-xs text-fg-subtle">
-          Between {MIN_NAME} and {MAX_NAME} characters. You can rename it any time in Settings.
+          {t("hint", { min: MIN_NAME, max: MAX_NAME })}
         </p>
       </form>
     </Card>

@@ -10,12 +10,12 @@ import { z } from "zod";
 const hexColor = z
   .string()
   .trim()
-  .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Use a hex color like #0f766e");
+  .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "hexColor");
 
 /** Flat, form-friendly mirror of `qrInputSchema`; `toQrInput` bridges the two. */
 export const qrFormSchema = z.object({
-  name: z.string().trim().min(1, "Give the code a name").max(120),
-  linkId: z.string().min(1, "Pick a link"),
+  name: z.string().trim().min(1, "nameRequired").max(120),
+  linkId: z.string().min(1, "linkRequired"),
   foreground: hexColor,
   background: hexColor,
   useCustomCorners: z.boolean(),
@@ -87,16 +87,3 @@ export function toQrForm(name: string, linkId: string, style: QrStyle): QrFormVa
     caption: style.caption,
   };
 }
-
-export const DOT_STYLE_LABELS: Record<(typeof QR_DOT_STYLES)[number], string> = {
-  square: "Square",
-  rounded: "Rounded",
-  dots: "Dots",
-};
-
-export const ERROR_LEVEL_LABELS: Record<(typeof QR_ERROR_LEVELS)[number], string> = {
-  L: "L · 7% recovery",
-  M: "M · 15% recovery",
-  Q: "Q · 25% recovery",
-  H: "H · 30% recovery",
-};

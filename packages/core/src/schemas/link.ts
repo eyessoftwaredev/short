@@ -7,8 +7,8 @@ export const destinationSchema = safeDestinationSchema;
 export const slugSchema = z
   .string()
   .trim()
-  .regex(SLUG_PATTERN, { message: "Use letters, numbers, dot, dash or underscore" })
-  .refine((slug) => !isReservedSlug(slug), { message: "This slug is reserved" });
+  .regex(SLUG_PATTERN, { message: "slugPattern" })
+  .refine((slug) => !isReservedSlug(slug), { message: "slugReserved" });
 
 export const utmSchema = z.object({
   utm_source: z.string().trim().max(255).optional(),

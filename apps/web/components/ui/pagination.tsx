@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cx";
 
@@ -30,6 +32,7 @@ export function Pagination({
   pending = false,
   className,
 }: PaginationProps) {
+  const t = useTranslations("common");
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   if (total === 0) {
     return null;
@@ -40,25 +43,25 @@ export function Pagination({
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t("pagination")}
       className={cn("flex flex-wrap items-center justify-between gap-4", className)}
     >
       <p className="m-0 text-xs text-fg-subtle">
         <span className="numeric font-mono text-fg-muted">
           {numberFormat.format(first)}–{numberFormat.format(last)}
         </span>{" "}
-        of <span className="numeric font-mono text-fg-muted">{numberFormat.format(total)}</span>
+        {t("of")} <span className="numeric font-mono text-fg-muted">{numberFormat.format(total)}</span>
         {itemLabel ? ` ${itemLabel}` : null}
       </p>
       <div className="flex items-center gap-2">
         <Button
           size="sm"
           icon
-          aria-label="Previous page"
+          aria-label={t("previousPage")}
           disabled={page <= 1 || pending}
           onClick={() => onPageChange(page - 1)}
         >
-          <ChevronLeft className="size-4" />
+          <Icon name="chevron-left" className="text-sm" />
         </Button>
         {/* Live so a screen reader hears the new position after the arrows move. */}
         <span className="numeric font-mono text-xs text-fg-muted" aria-live="polite">
@@ -67,11 +70,11 @@ export function Pagination({
         <Button
           size="sm"
           icon
-          aria-label="Next page"
+          aria-label={t("nextPage")}
           disabled={page >= pageCount || pending}
           onClick={() => onPageChange(page + 1)}
         >
-          <ChevronRight className="size-4" />
+          <Icon name="chevron-right" className="text-sm" />
         </Button>
       </div>
     </nav>

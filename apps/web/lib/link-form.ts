@@ -7,9 +7,9 @@ import { z } from "zod";
  * dates, nulls and arrays — `toLinkInput` bridges the two.
  */
 export const linkFormSchema = z.object({
-  domainId: z.string().min(1, "Pick a domain"),
+  domainId: z.string().min(1, "pickDomain"),
   slug: z.string().trim(),
-  destination: z.string().trim().min(1, "Destination is required"),
+  destination: z.string().trim().min(1, "destinationRequired"),
   title: z.string().trim().max(255),
   description: z.string().trim().max(1024),
   image: z.string().trim().max(2048),

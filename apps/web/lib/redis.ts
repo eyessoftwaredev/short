@@ -3,6 +3,10 @@ import { features, serverEnv } from "./env";
 
 const globalForRedis = globalThis as unknown as { __shortRedis?: Redis };
 
+function redisKey(suffix: string): string {
+  return `${serverEnv().REDIS_KEY_PREFIX}${suffix}`;
+}
+
 export function getRedis(): Redis | null {
   if (!features().redis) {
     return null;
@@ -43,7 +47,7 @@ export async function rateLimit(
   }
 
   try {
-    const windowKey = `rl:${key}:${Math.floor(Date.now() / 1000 / windowSeconds)}`;
+    const windowKey = redisKey(`rl:${key}:${Math.floor(Date.now() / 1000 / windowSeconds)}`);
     const count = await redis.incr(windowKey);
     if (count === 1) {
       await redis.expire(windowKey, windowSeconds);
@@ -61,7 +65,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
     return null;
   }
   try {
-    const raw = await redis.get(`c:${key}`);
+    const raw = await redis.get(redisKey(`c:${key}`));
     return raw ? (JSON.parse(raw) as T) : null;
   } catch {
     return null;
@@ -74,7 +78,7 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
     return;
   }
   try {
-    await redis.set(`c:${key}`, JSON.stringify(value), "EX", ttlSeconds);
+    await redis.set(redisKey(`c:${key}`), JSON.stringify(value), "EX", ttlSeconds);
   } catch {
     // Cache writes are best-effort.
   }
@@ -86,7 +90,7 @@ export async function cacheDelete(key: string): Promise<void> {
     return;
   }
   try {
-    await redis.del(`c:${key}`);
+    await redis.del(redisKey(`c:${key}`));
   } catch {
     // Same as writes: losing an invalidation only costs one TTL of staleness.
   }

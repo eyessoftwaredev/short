@@ -1,5 +1,6 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { Link2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, EmptyState, Hero } from "@/components/ui";
 import { listLinks, shortUrl } from "@/lib/links";
@@ -7,12 +8,15 @@ import { emptyQrForm } from "@/lib/qr-form";
 import { requireWorkspace } from "@/lib/session";
 import { QrDesigner, type QrLinkOption } from "../qr-designer";
 
-export const metadata: Metadata = { title: "New QR code" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("qr");
+  return { title: t("newTitle") };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function NewQrPage({ searchParams }: { searchParams: SearchParams }) {
-  const context = await requireWorkspace();
+  const [context, t] = await Promise.all([requireWorkspace(), getTranslations("qr")]);
   const raw = await searchParams;
   const preselect = Array.isArray(raw.linkId) ? raw.linkId[0] : raw.linkId;
 
@@ -32,16 +36,16 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
   if (options.length === 0) {
     return (
       <PanelShell
-        title="New QR code"
-        crumbs={[{ label: context.workspace.name }, { label: "QR codes", href: "/qr" }]}
+        title={t("newTitle")}
+        crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
       >
         <EmptyState
-          icon={<Link2 className="size-5" />}
-          title="Create a link first"
-          description="A QR code always points at one of your short links, so the printed code can be re-targeted later."
+          icon={<Icon name="link" className="text-lg" />}
+          title={t("needLinkTitle")}
+          description={t("needLinkDesc")}
           actions={
             <Button variant="primary" href="/links/new">
-              Create a link
+              {t("createLink")}
             </Button>
           }
         />
@@ -53,14 +57,14 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
 
   return (
     <PanelShell
-      title="New QR code"
-      crumbs={[{ label: context.workspace.name }, { label: "QR codes", href: "/qr" }]}
+      title={t("newTitle")}
+      crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
     >
       <Hero
         variant="compact"
-        eyebrow="QR designer"
-        title="Design a QR code"
-        description="The code encodes the short link, so you can change where it goes without reprinting."
+        eyebrow={t("designer")}
+        title={t("designTitle")}
+        description={t("designDesc")}
       />
       <QrDesigner
         mode="create"

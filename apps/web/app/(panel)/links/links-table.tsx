@@ -1,6 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import {
@@ -9,20 +12,6 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Archive,
-  ArchiveRestore,
-  BarChart3,
-  Clock,
-  ExternalLink,
-  KeyRound,
-  Link2,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  SlidersHorizontal,
-  Trash2,
-} from "lucide-react";
 import { StatusBadge } from "@/components/shell/status-badge";
 import {
   Badge,
@@ -60,17 +49,7 @@ export type LinkListRow = {
 
 type StatusFilter = "all" | "active" | "archived" | "expired";
 
-const STATUS_OPTIONS: FilterOption<StatusFilter>[] = [
-  { id: "all", label: "All" },
-  { id: "active", label: "Active" },
-  { id: "archived", label: "Archived" },
-  { id: "expired", label: "Expired" },
-];
-
 const columnHelper = createColumnHelper<LinkListRow>();
-
-const numberFormat = new Intl.NumberFormat("en-US");
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
 /**
  * Explicit widths on the fixed-size columns leave the remainder to the two
@@ -106,11 +85,29 @@ export function LinksTable({
   status,
   canDelete,
 }: LinksTableProps) {
+  const t = useTranslations("links");
+  const tc = useTranslations("common");
+  const ts = useTranslations("stats");
+  const tn = useTranslations("nav");
+  const locale = useLocale();
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [searchDraft, setSearchDraft] = useState(search);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+
+  const numberFormat = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const dateFormat = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }),
+    [locale],
+  );
+
+  const statusOptions: FilterOption<StatusFilter>[] = [
+    { id: "all", label: t("statusAll") },
+    { id: "active", label: t("statusActive") },
+    { id: "archived", label: t("statusArchived") },
+    { id: "expired", label: t("statusExpired") },
+  ];
 
   /** Every filter lives in the URL so the list is shareable and survives a refresh. */
   const navigate = useCallback(
@@ -136,29 +133,29 @@ export function LinksTable({
       const items: DropdownItem[] = [
         {
           id: "edit",
-          label: "Edit",
-          icon: <Pencil className="size-4" />,
+          label: tc("edit"),
+          icon: <Icon name="pen" className="text-sm" />,
           href: `/links/${row.id}`,
         },
         {
           id: "stats",
-          label: "Statistics",
-          icon: <BarChart3 className="size-4" />,
+          label: ts("statistics"),
+          icon: <Icon name="chart-line" className="text-sm" />,
           href: `/links/${row.id}/stats`,
         },
         {
           id: "open",
-          label: "Open destination",
-          icon: <ExternalLink className="size-4" />,
+          label: t("openDestination"),
+          icon: <Icon name="external-link" className="text-sm" />,
           href: row.destination,
         },
         {
           id: "archive",
-          label: row.archived ? "Restore" : "Archive",
+          label: row.archived ? tc("restore") : tc("archive"),
           icon: row.archived ? (
-            <ArchiveRestore className="size-4" />
+            <Icon name="archive-restore" className="text-sm" />
           ) : (
-            <Archive className="size-4" />
+            <Icon name="archive" className="text-sm" />
           ),
           separated: true,
           onSelect: () => {
@@ -166,9 +163,14 @@ export function LinksTable({
             // the table-wide pending state alone reads as the page freezing.
             setBusyRowId(row.id);
             startTransition(async () => {
-              await archiveLinkAction(row.id, !row.archived);
-              router.refresh();
-              setBusyRowId(null);
+              try {
+                await archiveLinkAction(row.id, !row.archived);
+                router.refresh();
+              } catch (error) {
+                console.error("failed to archive link", error);
+              } finally {
+                setBusyRowId(null);
+              }
             });
           },
         },
@@ -177,18 +179,23 @@ export function LinksTable({
       if (canDelete) {
         items.push({
           id: "delete",
-          label: "Delete",
-          icon: <Trash2 className="size-4" />,
+          label: tc("delete"),
+          icon: <Icon name="trash" className="text-sm" />,
           danger: true,
           onSelect: () => {
-            if (!window.confirm(`Delete /${row.slug}? This cannot be undone.`)) {
+            if (!window.confirm(t("deleteConfirm", { slug: row.slug }))) {
               return;
             }
             setBusyRowId(row.id);
             startTransition(async () => {
-              await deleteLinkAction(row.id);
-              router.refresh();
-              setBusyRowId(null);
+              try {
+                await deleteLinkAction(row.id);
+                router.refresh();
+              } catch (error) {
+                console.error("failed to delete link", error);
+              } finally {
+                setBusyRowId(null);
+              }
             });
           },
         });
@@ -196,13 +203,13 @@ export function LinksTable({
 
       return items;
     },
-    [canDelete, router],
+    [canDelete, router, t, tc, ts],
   );
 
   const columns = useMemo(
     () => [
       columnHelper.accessor("slug", {
-        header: "Short link",
+        header: t("shortLink"),
         cell: (info) => {
           const row = info.row.original;
           const url = `https://${row.hostname}/${row.slug}`;
@@ -215,13 +222,13 @@ export function LinksTable({
                 <span className="text-fg-subtle">{row.hostname}/</span>
                 <span className="font-medium">{row.slug}</span>
               </Link>
-              <CopyButton value={url} label="Copy short link" iconOnly />
+              <CopyButton value={url} label={t("copyShortLink")} iconOnly />
             </div>
           );
         },
       }),
       columnHelper.accessor("destination", {
-        header: "Destination",
+        header: ts("destination"),
         cell: (info) => {
           const row = info.row.original;
           return (
@@ -244,21 +251,20 @@ export function LinksTable({
           return (
             <div className="flex items-center gap-1.5">
               {row.hasRules ? (
-                <SlidersHorizontal
-                  className="size-3.5 text-fg-subtle"
-                  aria-label="Has targeting rules"
-                />
+                <Icon name="sliders" className="text-xs text-fg-subtle" aria-label={t("flagRules")} />
               ) : null}
               {row.hasPassword ? (
-                <KeyRound className="size-3.5 text-fg-subtle" aria-label="Password protected" />
+                <Icon name="key" className="text-xs text-fg-subtle" aria-label={t("flagPassword")} />
               ) : null}
-              {row.expired ? <Clock className="size-3.5 text-warn" aria-label="Expired" /> : null}
+              {row.expired ? (
+                <Icon name="clock" className="text-xs text-warn" aria-label={t("flagExpired")} />
+              ) : null}
             </div>
           );
         },
       }),
       columnHelper.accessor("tags", {
-        header: "Tags",
+        header: t("colTags"),
         cell: (info) => {
           const tags = info.getValue();
           if (tags.length === 0) {
@@ -284,7 +290,7 @@ export function LinksTable({
         },
       }),
       columnHelper.accessor("clicks", {
-        header: "Clicks",
+        header: ts("clicks"),
         cell: (info) => {
           const value = info.getValue();
           return (
@@ -295,7 +301,7 @@ export function LinksTable({
         },
       }),
       columnHelper.accessor("archived", {
-        header: "Status",
+        header: t("colStatus"),
         cell: (info) => (
           <StatusBadge
             status={
@@ -305,7 +311,7 @@ export function LinksTable({
         ),
       }),
       columnHelper.accessor("createdAt", {
-        header: "Created",
+        header: t("colCreated"),
         cell: (info) => (
           <span className="numeric whitespace-nowrap text-fg-muted">
             {dateFormat.format(new Date(info.getValue()))}
@@ -317,23 +323,23 @@ export function LinksTable({
         header: "",
         cell: (info) => (
           <Dropdown
-            label={`Actions for ${info.row.original.slug}`}
+            label={t("rowActions", { slug: info.row.original.slug })}
             items={rowActions(info.row.original)}
             trigger={
               <Button
                 variant="ghost"
                 icon
-                aria-label={`Actions for ${info.row.original.slug}`}
+                aria-label={t("rowActions", { slug: info.row.original.slug })}
                 loading={busyRowId === info.row.original.id}
               >
-                <MoreHorizontal className="size-4" />
+                <Icon name="ellipsis" className="text-sm" />
               </Button>
             }
           />
         ),
       }),
     ],
-    [rowActions, busyRowId],
+    [busyRowId, dateFormat, numberFormat, rowActions, t, ts],
   );
 
   const table = useReactTable({
@@ -349,19 +355,19 @@ export function LinksTable({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <FilterBar
-        options={STATUS_OPTIONS}
+        options={statusOptions}
         value={status}
         pending={pending}
         onChange={(next) => navigate({ status: next === "all" ? null : next })}
         search={searchDraft}
         onSearchChange={setSearchDraft}
         onSearchSubmit={(value) => navigate({ search: value || null })}
-        searchLabel="Search links"
-        searchPlaceholder="Search slug, title or destination"
+        searchLabel={tc("searchLinks")}
+        searchPlaceholder={t("searchPlaceholder")}
         actions={
           <Button size="sm" variant="primary" onClick={() => router.push("/links/new")}>
-            <Plus className="size-4" />
-            New link
+            <Icon name="plus" className="text-sm" />
+            {tc("newLink")}
           </Button>
         }
       />
@@ -369,9 +375,9 @@ export function LinksTable({
       {rows.length === 0 ? (
         filtered ? (
           <EmptyState
-            icon={<Link2 className="size-5" />}
-            title="No links match these filters"
-            description="Nothing in this workspace matches the current search and status. Widen the filters to see more."
+            icon={<Icon name="link" className="text-lg" />}
+            title={t("emptyFilteredTitle")}
+            description={t("emptyFilteredBody")}
             actions={
               <Button
                 onClick={() => {
@@ -379,23 +385,23 @@ export function LinksTable({
                   navigate({ search: null, status: null });
                 }}
               >
-                Clear filters
+                {t("clearFilters")}
               </Button>
             }
           />
         ) : (
           <EmptyState
             tone="first-run"
-            icon={<Link2 className="size-5" />}
-            title="Turn a long URL into a link worth sharing"
-            description="Short links track every click, and can send visitors to different destinations by country, device or language."
+            icon={<Icon name="link" className="text-lg" />}
+            title={t("emptyTitle")}
+            description={t("emptyBody")}
             actions={
               <Button variant="primary" onClick={() => router.push("/links/new")}>
-                <Plus className="size-4" />
-                Create your first link
+                <Icon name="plus" className="text-sm" />
+                {t("createFirst")}
               </Button>
             }
-            hint="You can add a custom domain later without breaking links you have already shared."
+            hint={t("emptyHint")}
           />
         )
       ) : (
@@ -404,7 +410,7 @@ export function LinksTable({
             Sticky header: the column a figure belongs to has to stay on screen
             when a full page of 25 rows scrolls past it.
           */}
-          <Table stickyHeader pending={pending} label="Links">
+          <Table stickyHeader pending={pending} label={tn("links")}>
             <TableHead sticky>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
@@ -442,7 +448,7 @@ export function LinksTable({
             pageSize={pageSize}
             total={total}
             pending={pending}
-            itemLabel="links"
+            itemLabel={t("itemLabel")}
             onPageChange={(next) => navigate({ page: String(next) })}
           />
         </>

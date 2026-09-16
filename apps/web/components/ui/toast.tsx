@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cx";
 
@@ -18,6 +19,7 @@ type ToastStackProps = {
 };
 
 export function ToastStack({ toasts, onDismiss, className }: ToastStackProps) {
+  const t = useTranslations("common");
   return (
     <div className={cn("pointer-events-none fixed right-5 bottom-5 z-toast flex flex-col items-end gap-2.5", className)}>
       {toasts.map((toast) => (
@@ -43,7 +45,7 @@ export function ToastStack({ toasts, onDismiss, className }: ToastStackProps) {
             type="button"
             className="shrink-0 text-fg-subtle hover:text-ink"
             onClick={() => onDismiss(toast.id)}
-            aria-label="Dismiss"
+            aria-label={t("dismiss")}
           >
             ×
           </button>

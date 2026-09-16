@@ -1,5 +1,8 @@
+"use client";
+
+import { Icon } from "@/components/kit/icon";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-import { Lock } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/cx";
 
@@ -20,10 +23,12 @@ export function Paywall({
   title,
   description,
   preview,
-  actionLabel = "See plans",
+  actionLabel,
   href = "/billing",
   className,
 }: PaywallProps) {
+  const t = useTranslations("common");
+  const resolvedAction = actionLabel ?? t("seePlans");
   return (
     <div
       className={cn(
@@ -41,13 +46,13 @@ export function Paywall({
 
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/60 p-6 text-center">
         <span className="flex size-9 items-center justify-center rounded-default border border-warn-border bg-warn-surface text-warn-ink">
-          <Lock className="size-4" />
+          <Icon name="lock" className="text-sm" />
         </span>
         <span className="font-mono text-xs tracking-widest text-accent-ink uppercase">{plan}</span>
         <span className="text-base font-semibold">{title}</span>
         <p className="m-0 max-w-[36ch] text-sm text-fg-muted">{description}</p>
         <Button variant="primary" size="sm" href={href} className="mt-1">
-          {actionLabel}
+          {resolvedAction}
         </Button>
       </div>
     </div>

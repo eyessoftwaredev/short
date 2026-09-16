@@ -1,6 +1,12 @@
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { config as loadEnv } from "dotenv";
 import { createClient } from "@clickhouse/client";
 import { DDL_STATEMENTS } from "./ddl";
+
+// Same reason as packages/db: cwd is this package, but .env lives at the repo root.
+loadEnv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
 
 /**
  * Replays the whole DDL list. Every statement is `IF NOT EXISTS`, so this is safe to

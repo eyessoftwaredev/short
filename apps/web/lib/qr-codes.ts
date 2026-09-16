@@ -12,6 +12,8 @@ import {
 } from "@short/db";
 import { shortUrl } from "./links";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export type QrCodeWithTarget = QrCodeRow & {
   hostname: string;
   slug: string;
@@ -63,6 +65,12 @@ export async function getQrCode(
   workspaceId: string,
   id: string,
 ): Promise<QrCodeWithTarget | null> {
+  // The column is a uuid, so a hand-typed id would fail the cast in Postgres instead of
+  // reaching the caller's "not found" branch.
+  if (!UUID.test(id)) {
+    return null;
+  }
+
   const db = getDb();
   const [row] = await db
     .select(selection())

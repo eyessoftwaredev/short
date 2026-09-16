@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Grid, Skeleton, SkeletonCard, SkeletonChart, SkeletonTable } from "@/components/ui";
 
@@ -6,9 +7,10 @@ import { Grid, Skeleton, SkeletonCard, SkeletonChart, SkeletonTable } from "@/co
  * and a top-links ranking. The placeholder reserves the full shape up front so
  * the page settles once rather than in four separate jolts.
  */
-export default function AnalyticsLoading() {
+export default async function AnalyticsLoading() {
+  const t = await getTranslations("nav");
   return (
-    <PanelShell title="Analytics">
+    <PanelShell title={t("analytics")}>
       <div
         className="flex min-w-0 flex-wrap items-start justify-between gap-5 rounded-default border border-border bg-bg px-6 py-5"
         aria-hidden="true"

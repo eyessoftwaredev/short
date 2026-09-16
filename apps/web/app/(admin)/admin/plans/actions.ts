@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { PLAN_KEYS } from "@short/core";
+import { isInternalPlan, PLAN_KEYS } from "@short/core";
 import { eq, getDb, plans } from "@short/db";
-import { fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
+import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { recordAudit } from "@/lib/audit";
 import { requireSuperadmin } from "@/lib/session";
 
@@ -26,6 +26,7 @@ const planUpdateSchema = z.object({
     biopages: limitSchema,
     qrCodes: limitSchema,
     members: limitSchema,
+    teams: limitSchema,
     retentionDays: z.number().int().min(1),
     apiRequestsPerHour: limitSchema,
   }),
@@ -55,6 +56,9 @@ export async function updatePlanAction(values: PlanUpdateInput): Promise<ActionR
       return fromZodError(parsed.error);
     }
     const input = parsed.data;
+    if (isInternalPlan(input.key) && input.visible) {
+      return fail("infinity_hidden");
+    }
 
     await getDb()
       .update(plans)
@@ -85,6 +89,7 @@ export async function updatePlanAction(values: PlanUpdateInput): Promise<ActionR
 
     revalidatePath("/admin/plans");
     revalidatePath("/billing");
+    revalidatePath("/pricing");
     return ok(null);
   } catch (error) {
     return toActionError(error);

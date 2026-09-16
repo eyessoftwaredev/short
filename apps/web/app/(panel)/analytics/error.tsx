@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
-import { RotateCw, TriangleAlert } from "lucide-react";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, EmptyState } from "@/components/ui";
 
@@ -12,29 +14,31 @@ export default function AnalyticsError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("panel");
+  const tc = useTranslations("common");
+  const tn = useTranslations("nav");
+
   useEffect(() => {
     console.error("analytics failed to render", error);
   }, [error]);
 
   return (
-    <PanelShell title="Analytics">
+    <PanelShell title={tn("analytics")}>
       <EmptyState
-        icon={<TriangleAlert className="size-5" />}
-        eyebrow={error.digest ? `Ref ${error.digest}` : undefined}
-        title="Analytics could not be loaded"
-        // Click ingestion is independent of this page, so nothing is lost
-        // while the report is unavailable — worth saying explicitly.
-        description="We could not build this report. Clicks are still being recorded and will be included once it loads."
+        icon={<Icon name="warning" className="text-lg" />}
+        eyebrow={error.digest ? tc("errorRef", { digest: error.digest }) : undefined}
+        title={t("analyticsLoadError")}
+        description={t("analyticsLoadErrorBody")}
         actions={
           <>
             <Button variant="primary" onClick={reset}>
-              <RotateCw className="size-4" />
-              Try again
+              <Icon name="rotate-right" className="text-sm" />
+              {tc("tryAgain")}
             </Button>
-            <Button href="/dashboard">Back to dashboard</Button>
+            <Button href="/dashboard">{tc("goToDashboard")}</Button>
           </>
         }
-        hint="If this keeps happening, quote the reference above to support."
+        hint={t("loadErrorHint")}
       />
     </PanelShell>
   );

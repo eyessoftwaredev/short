@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { BioPageView } from "@/components/bio/bio-page-view";
 import { BioTracker } from "@/components/bio/bio-tracker";
-import { getPublishedBiopage } from "@/lib/biopages";
+import { getPublishedBiopage, platformHostname } from "@/lib/biopages";
+import { getPlatformBrand } from "@/lib/brand";
 import { serverEnv } from "@/lib/env";
 
 /**
@@ -32,7 +33,13 @@ function isPanelHost(hostname: string): boolean {
 
 async function load(handle: string) {
   const hostname = await requestHostname();
-  if (hostname === "" || isPanelHost(hostname)) {
+  if (hostname === "") {
+    return null;
+  }
+  // Locally the panel and the platform short domain are the same host, so rejecting the
+  // panel host outright would mean no bio page ever resolves in development. Real routes
+  // still win over this catch-all, so only a non-short-domain panel host is refused.
+  if (isPanelHost(hostname) && hostname !== platformHostname()) {
     return null;
   }
   return getPublishedBiopage(hostname, handle);
@@ -70,6 +77,9 @@ export default async function BiopagePage({ params }: { params: Params }) {
     notFound();
   }
 
+  const brand = await getPlatformBrand();
+  const appUrl = serverEnv().APP_URL.replace(/\/$/, "");
+
   return (
     <main className="min-h-screen">
       <BioPageView
@@ -84,6 +94,7 @@ export default async function BiopagePage({ params }: { params: Params }) {
           blocks: page.blocks,
         }}
         showBranding={!page.removeBranding}
+        branding={{ name: brand.name, href: appUrl }}
       />
       <BioTracker
         biopageId={page.id}

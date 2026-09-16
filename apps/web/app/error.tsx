@@ -1,10 +1,12 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
-import Link from "next/link";
-import { RotateCw, TriangleAlert } from "lucide-react";
+import { BrandLockup } from "@/components/brand/brand-mark";
 import { Button, EmptyState } from "@/components/ui";
-import { brandName } from "@/lib/nav";
+import { FALLBACK_BRAND } from "@/lib/brand-fallback";
 
 export default function AppError({
   error,
@@ -13,6 +15,9 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("errors");
+  const tc = useTranslations("common");
+
   useEffect(() => {
     console.error("app render failed", error);
   }, [error]);
@@ -20,37 +25,26 @@ export default function AppError({
   return (
     <div className="flex min-h-screen min-w-0 flex-col bg-bg">
       <header className="flex min-w-0 items-center justify-between gap-4 border-b border-border px-6 py-4">
-        <Link
-          href="/"
-          className="inline-flex min-w-0 items-center gap-2.5 text-ink no-underline hover:no-underline"
-        >
-          <span
-            className="flex size-8 shrink-0 items-center justify-center rounded-default bg-inverse font-mono text-sm font-semibold text-on-inverse"
-            aria-hidden="true"
-          >
-            S
-          </span>
-          <span className="truncate text-base font-semibold tracking-tight">{brandName}</span>
-        </Link>
+        <BrandLockup name={FALLBACK_BRAND.name} href="/" />
       </header>
 
       <main className="flex min-w-0 flex-1 items-center justify-center px-6 py-16">
         <EmptyState
           className="w-full max-w-lg"
-          icon={<TriangleAlert className="size-5" />}
-          eyebrow={error.digest ? `Ref ${error.digest}` : "Error"}
-          title="Something went wrong"
-          description="This screen failed to render. Your links and click data are unaffected."
+          icon={<Icon name="warning" className="text-lg" />}
+          eyebrow={error.digest ? tc("errorRef", { digest: error.digest }) : tc("error")}
+          title={t("pageError")}
+          description={t("pageErrorBody")}
           actions={
             <>
               <Button variant="primary" onClick={reset}>
-                <RotateCw className="size-4" />
-                Try again
+                <Icon name="rotate-right" className="text-sm" />
+                {tc("tryAgain")}
               </Button>
-              <Button href="/dashboard">Go to dashboard</Button>
+              <Button href="/dashboard">{tc("goToDashboard")}</Button>
             </>
           }
-          hint="If this keeps happening, quote the reference above to support."
+          hint={t("pageErrorHint")}
         />
       </main>
     </div>

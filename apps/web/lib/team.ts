@@ -1,4 +1,17 @@
-import { and, apikey, asc, desc, eq, getDb, invitation, member, organization, user } from "@short/db";
+import {
+  and,
+  apikey,
+  asc,
+  desc,
+  eq,
+  getDb,
+  gte,
+  invitation,
+  member,
+  organization,
+  sql,
+  user,
+} from "@short/db";
 
 export type TeamMember = {
   id: string;
@@ -95,6 +108,35 @@ export type PublicInvite = {
   workspaceId: string;
   workspaceName: string;
 };
+
+export function isInviteUsable(invite: Pick<PublicInvite, "status" | "expiresAt">): boolean {
+  return invite.status === "pending" && invite.expiresAt.getTime() >= Date.now();
+}
+
+export async function userExistsByEmail(email: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, email.trim().toLowerCase()))
+    .limit(1);
+  return Boolean(row);
+}
+
+/** True when a still-open invite was sent to this inbox — that click already proved ownership. */
+export async function hasPendingInviteForEmail(email: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: invitation.id })
+    .from(invitation)
+    .where(
+      and(
+        sql`lower(${invitation.email}) = ${email.trim().toLowerCase()}`,
+        eq(invitation.status, "pending"),
+        gte(invitation.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
 
 /** Safe to show on the public /invite/[id] page — no inviter identity beyond the workspace name. */
 export async function getPublicInvite(id: string): Promise<PublicInvite | null> {

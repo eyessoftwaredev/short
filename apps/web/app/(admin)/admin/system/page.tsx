@@ -1,42 +1,55 @@
 import type { Metadata } from "next";
-import { Activity, CheckCircle2, CircleSlash, TriangleAlert, XCircle } from "lucide-react";
+import { getTranslations } from "next-intl/server";
+import { Icon, type IconName } from "@/components/kit/icon";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Badge, Card, Grid, Hero, Section } from "@/components/ui";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import { getIngestLag, runHealthChecks, type HealthCheck, type HealthState } from "@/lib/health";
+import {
+  HEALTH_STATUS_KEYS,
+  getIngestLag,
+  runHealthChecks,
+  type HealthCheck,
+  type HealthState,
+} from "@/lib/health";
 import { requireSuperadmin } from "@/lib/session";
+import { getStripeStatus } from "@/lib/stripe";
+import { StripeSettings } from "./stripe-settings";
 
-export const metadata: Metadata = { title: "System · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.system");
+  return { title: t("metaTitle") };
+}
 
 /** Probes run on every request; caching them would defeat the purpose. */
 export const dynamic = "force-dynamic";
 
-const STATE_META: Record<
-  HealthState,
-  { tone: "accent" | "warn" | "danger" | "muted"; label: string; icon: typeof CheckCircle2 }
-> = {
-  ok: { tone: "accent", label: "Healthy", icon: CheckCircle2 },
-  degraded: { tone: "warn", label: "Slow", icon: TriangleAlert },
-  down: { tone: "danger", label: "Down", icon: XCircle },
-  disabled: { tone: "muted", label: "Not configured", icon: CircleSlash },
+const STATE_META: Record<HealthState, { tone: "accent" | "warn" | "danger" | "muted"; icon: IconName }> = {
+  ok: { tone: "accent", icon: "circle-check" },
+  degraded: { tone: "warn", icon: "warning" },
+  down: { tone: "danger", icon: "circle-xmark" },
+  disabled: { tone: "muted", icon: "ban" },
 };
 
 export default async function AdminSystemPage() {
   await requireSuperadmin();
+  const t = await getTranslations("admin.system");
+  const tNav = await getTranslations("admin.nav");
+  const tn = await getTranslations("nav");
 
-  const [checks, lag] = await Promise.all([runHealthChecks(), getIngestLag()]);
+  const [checks, lag, stripeStatus] = await Promise.all([
+    runHealthChecks(),
+    getIngestLag(),
+    getStripeStatus(),
+  ]);
 
   const down = checks.filter((check) => check.state === "down").length;
   const degraded = checks.filter((check) => check.state === "degraded").length;
   const lagTone = lag.lagSeconds === null ? "muted" : lag.lagSeconds > 300 ? "warn" : "accent";
+  const healthyCount = checks.filter((check) => check.state === "ok").length;
 
   return (
-    <PanelShell title="System" crumbs={[{ label: "Admin" }, { label: "System" }]}>
-      <Hero
-        eyebrow="Live probes"
-        title="System status"
-        description="Each dependency is probed when this page loads. Anything marked as not configured is optional and degrades gracefully."
-      />
+    <PanelShell title={tn("admin-system")} crumbs={[{ label: tNav("admin") }, { label: tn("admin-system") }]}>
+      <Hero eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
 
       {down > 0 || degraded > 0 ? (
         <Card
@@ -47,71 +60,71 @@ export default async function AdminSystemPage() {
               : "flex-row items-center gap-3 border-warn-border bg-warn-surface"
           }
         >
-          <TriangleAlert className={down > 0 ? "size-4 text-danger" : "size-4 text-warn-ink"} />
+          <Icon name="warning" className={down > 0 ? "text-sm text-danger" : "text-sm text-warn-ink"} />
           <span className="text-sm">
-            {down > 0
-              ? `${down} dependenc${down === 1 ? "y is" : "ies are"} unreachable.`
-              : `${degraded} dependenc${degraded === 1 ? "y is" : "ies are"} responding slowly.`}
+            {down > 0 ? t("downAlert", { count: down }) : t("slowAlert", { count: degraded })}
           </span>
         </Card>
       ) : null}
 
       <Grid columns={3}>
         <Card
-          label="Ingest lag"
+          label={t("ingestLag")}
           value={lag.lagSeconds === null ? "—" : `${formatNumber(lag.lagSeconds)}s`}
           delta={
-            lag.lastEventAt ? `Last event ${formatDateTime(lag.lastEventAt)}` : "No events recorded"
+            lag.lastEventAt
+              ? t("lastEvent", { when: formatDateTime(lag.lastEventAt) })
+              : t("noEvents")
           }
           staticHover
           className={lagTone === "warn" ? "border-warn-border" : undefined}
         />
         <Card
-          label="Events / hour"
+          label={t("eventsHour")}
           value={formatNumber(lag.eventsLastHour)}
-          delta="Worker → Queue → ClickHouse"
+          delta={t("eventsHourDelta")}
           staticHover
         />
         <Card
-          label="Dependencies"
-          value={`${checks.filter((check) => check.state === "ok").length}/${checks.length}`}
-          delta="Healthy"
+          label={t("dependencies")}
+          value={`${healthyCount}/${checks.length}`}
+          delta={t("healthy")}
           staticHover
         />
       </Grid>
 
-      <Section title="Dependencies" description="Round-trip latency measured from the panel.">
+      <StripeSettings status={stripeStatus} />
+
+      <Section title={t("dependencies")} description={t("dependenciesDesc")}>
         <div className="flex min-w-0 flex-col gap-3">
           {checks.map((check) => (
-            <HealthRow key={check.id} check={check} />
+            <HealthRow
+              key={check.id}
+              check={check}
+              statusLabel={t(HEALTH_STATUS_KEYS[check.state])}
+              latencyLabel={
+                check.latencyMs === null ? null : t("latencyMs", { ms: check.latencyMs })
+              }
+            />
           ))}
         </div>
       </Section>
 
-      <Section
-        title="Edge components"
-        description="The redirect worker and queue consumer are deployed with Wrangler and report through the ingest lag above."
-      >
+      <Section title={t("edge")} description={t("edgeDesc")}>
         <Grid columns={2}>
           <Card staticHover className="gap-2">
             <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              <Activity className="size-3.5" />
-              Redirect worker
+              <Icon name="pulse" className="text-xs" />
+              {t("redirectWorker")}
             </span>
-            <span className="text-sm text-fg-muted">
-              Reads `link:{"{hostname}"}:{"{slug}"}` from KV and falls back to
-              `/api/internal/resolve` on a miss, so a stale namespace still resolves.
-            </span>
+            <span className="text-sm text-fg-muted">{t("redirectWorkerBody")}</span>
           </Card>
           <Card staticHover className="gap-2">
             <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              <Activity className="size-3.5" />
-              Ingest consumer
+              <Icon name="pulse" className="text-xs" />
+              {t("ingestConsumer")}
             </span>
-            <span className="text-sm text-fg-muted">
-              Batches 100 events or 5 seconds into ClickHouse. A growing ingest lag points at
-              this worker or the queue rather than the panel.
-            </span>
+            <span className="text-sm text-fg-muted">{t("ingestConsumerBody")}</span>
           </Card>
         </Grid>
       </Section>
@@ -119,22 +132,30 @@ export default async function AdminSystemPage() {
   );
 }
 
-function HealthRow({ check }: { check: HealthCheck }) {
+function HealthRow({
+  check,
+  statusLabel,
+  latencyLabel,
+}: {
+  check: HealthCheck;
+  statusLabel: string;
+  latencyLabel: string | null;
+}) {
   const meta = STATE_META[check.state];
-  const Icon = meta.icon;
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-default border border-border px-4 py-3">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-default bg-surface">
         <Icon
+          name={meta.icon}
           className={
             check.state === "ok"
-              ? "size-4 text-accent-ink"
+              ? "text-sm text-accent-ink"
               : check.state === "down"
-                ? "size-4 text-danger"
+                ? "text-sm text-danger"
                 : check.state === "degraded"
-                  ? "size-4 text-warn-ink"
-                  : "size-4 text-fg-subtle"
+                  ? "text-sm text-warn-ink"
+                  : "text-sm text-fg-subtle"
           }
         />
       </span>
@@ -142,10 +163,10 @@ function HealthRow({ check }: { check: HealthCheck }) {
         <span className="truncate text-sm font-medium">{check.label}</span>
         <span className="truncate text-xs text-fg-muted">{check.detail}</span>
       </span>
-      {check.latencyMs === null ? null : (
-        <span className="shrink-0 font-mono text-xs text-fg-subtle">{check.latencyMs}ms</span>
-      )}
-      <Badge tone={meta.tone}>{meta.label}</Badge>
+      {latencyLabel ? (
+        <span className="shrink-0 font-mono text-xs text-fg-subtle">{latencyLabel}</span>
+      ) : null}
+      <Badge tone={meta.tone}>{statusLabel}</Badge>
     </div>
   );
 }

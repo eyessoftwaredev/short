@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   BROWSER_VALUES,
   DEVICE_VALUES,
@@ -11,19 +13,79 @@ import {
 } from "@short/core";
 import { Badge, Button, Card, Chip, EmptyState, Field, Input, Select } from "@/components/ui";
 
-const CONDITION_TYPES: Array<{ value: Condition["type"]; label: string }> = [
-  { value: "country", label: "Country" },
-  { value: "continent", label: "Continent" },
-  { value: "region", label: "Region" },
-  { value: "device", label: "Device" },
-  { value: "os", label: "Operating system" },
-  { value: "browser", label: "Browser" },
-  { value: "language", label: "Language" },
-  { value: "referrer", label: "Referrer" },
-  { value: "schedule", label: "Schedule" },
+const CONDITION_TYPES: Array<Condition["type"]> = [
+  "country",
+  "continent",
+  "region",
+  "device",
+  "os",
+  "browser",
+  "language",
+  "referrer",
+  "schedule",
 ];
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+function conditionLabel(
+  type: Condition["type"],
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (type) {
+    case "country":
+      return t("condition.country");
+    case "continent":
+      return t("condition.continent");
+    case "region":
+      return t("condition.region");
+    case "device":
+      return t("condition.device");
+    case "os":
+      return t("condition.os");
+    case "browser":
+      return t("condition.browser");
+    case "language":
+      return t("condition.language");
+    case "referrer":
+      return t("condition.referrer");
+    case "schedule":
+      return t("condition.schedule");
+  }
+}
+
+function weekdayLabel(index: number, t: ReturnType<typeof useTranslations>): string {
+  switch (index) {
+    case 0:
+      return t("weekday.sun");
+    case 1:
+      return t("weekday.mon");
+    case 2:
+      return t("weekday.tue");
+    case 3:
+      return t("weekday.wed");
+    case 4:
+      return t("weekday.thu");
+    case 5:
+      return t("weekday.fri");
+    case 6:
+      return t("weekday.sat");
+    default:
+      return WEEKDAY_KEYS[index] ?? "";
+  }
+}
+
+function deviceLabel(value: string, t: ReturnType<typeof useTranslations>): string {
+  switch (value) {
+    case "mobile":
+      return t("device.mobile");
+    case "tablet":
+      return t("device.tablet");
+    case "desktop":
+      return t("device.desktop");
+    default:
+      return value;
+  }
+}
 
 function newCondition(type: Condition["type"]): Condition {
   switch (type) {
@@ -48,18 +110,34 @@ function newCondition(type: Condition["type"]): Condition {
   }
 }
 
-function describeCondition(condition: Condition): string {
+function describeCondition(
+  condition: Condition,
+  t: ReturnType<typeof useTranslations>,
+): string {
   switch (condition.type) {
     case "referrer":
-      return condition.op === "empty"
-        ? "no referrer"
-        : condition.op === "not_empty"
-          ? "any referrer"
-          : `referrer ${condition.op} ${condition.value ?? ""}`;
+      if (condition.op === "empty") {
+        return t("descNoReferrer");
+      }
+      if (condition.op === "not_empty") {
+        return t("descAnyReferrer");
+      }
+      return t("descReferrer", {
+        op: condition.op === "equals" ? t("opEquals") : t("opContains"),
+        value: condition.value ?? "",
+      });
     case "schedule":
       return `${condition.from}–${condition.to} ${condition.timezone}`;
-    default:
-      return `${condition.type} ${condition.op === "not_in" ? "not in" : "in"} ${condition.values.join(", ")}`;
+    default: {
+      const values = condition.values
+        .map((value) => (condition.type === "device" ? deviceLabel(value, t) : value))
+        .join(", ");
+      return t("descSet", {
+        type: conditionLabel(condition.type, t),
+        op: condition.op === "not_in" ? t("opNotInShort") : t("opInShort"),
+        values,
+      });
+    }
   }
 }
 
@@ -95,9 +173,10 @@ type OptionChipsProps = {
   options: readonly string[];
   values: string[];
   onChange: (values: string[]) => void;
+  formatOption?: (option: string) => string;
 };
 
-function OptionChips({ label, options, values, onChange }: OptionChipsProps) {
+function OptionChips({ label, options, values, onChange, formatOption }: OptionChipsProps) {
   return (
     <Field label={label}>
       <div className="flex flex-wrap gap-2 pt-1">
@@ -113,7 +192,7 @@ function OptionChips({ label, options, values, onChange }: OptionChipsProps) {
                 )
               }
             >
-              {option}
+              {formatOption ? formatOption(option) : option}
             </Chip>
           );
         })}
@@ -131,24 +210,26 @@ function ConditionEditor({
   onChange: (next: Condition) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations("links");
+
   return (
     <div className="flex flex-col gap-3 rounded-default border border-border bg-surface-subtle p-4">
       <div className="flex items-end gap-2">
-        <Field label="When" className="flex-1">
+        <Field label={t("when")} className="flex-1">
           <Select
             value={condition.type}
             onChange={(event) => onChange(newCondition(event.target.value as Condition["type"]))}
           >
             {CONDITION_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
+              <option key={type} value={type}>
+                {conditionLabel(type, t)}
               </option>
             ))}
           </Select>
         </Field>
 
         {condition.type !== "schedule" ? (
-          <Field label="Operator" className="w-40">
+          <Field label={t("operator")} className="w-40">
             <Select
               value={condition.op}
               onChange={(event) =>
@@ -157,30 +238,30 @@ function ConditionEditor({
             >
               {condition.type === "referrer" ? (
                 <>
-                  <option value="contains">contains</option>
-                  <option value="equals">equals host</option>
-                  <option value="empty">is empty</option>
-                  <option value="not_empty">is not empty</option>
+                  <option value="contains">{t("opContains")}</option>
+                  <option value="equals">{t("opEquals")}</option>
+                  <option value="empty">{t("opEmpty")}</option>
+                  <option value="not_empty">{t("opNotEmpty")}</option>
                 </>
               ) : (
                 <>
-                  <option value="in">is one of</option>
-                  <option value="not_in">is not one of</option>
+                  <option value="in">{t("opIn")}</option>
+                  <option value="not_in">{t("opNotIn")}</option>
                 </>
               )}
             </Select>
           </Field>
         ) : null}
 
-        <Button variant="ghost" icon aria-label="Remove condition" onClick={onRemove}>
-          <Trash2 className="size-4 text-danger" />
+        <Button variant="ghost" icon aria-label={t("removeCondition")} onClick={onRemove}>
+          <Icon name="trash" className="text-sm text-danger" />
         </Button>
       </div>
 
       {condition.type === "country" ? (
         <TokenList
-          label="Countries"
-          hint="ISO 3166-1 alpha-2 codes, e.g. TR, DE, US"
+          label={t("countries")}
+          hint={t("countriesHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
         />
@@ -188,8 +269,8 @@ function ConditionEditor({
 
       {condition.type === "continent" ? (
         <TokenList
-          label="Continents"
-          hint="EU, NA, SA, AS, AF, OC, AN"
+          label={t("continents")}
+          hint={t("continentsHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
         />
@@ -197,8 +278,8 @@ function ConditionEditor({
 
       {condition.type === "region" ? (
         <TokenList
-          label="Regions"
-          hint="Region names as reported by Cloudflare, e.g. Istanbul"
+          label={t("regions")}
+          hint={t("regionsHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
         />
@@ -206,8 +287,8 @@ function ConditionEditor({
 
       {condition.type === "language" ? (
         <TokenList
-          label="Languages"
-          hint="Primary subtags, e.g. tr, en, de"
+          label={t("languages")}
+          hint={t("languagesHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
         />
@@ -215,9 +296,10 @@ function ConditionEditor({
 
       {condition.type === "device" ? (
         <OptionChips
-          label="Devices"
+          label={t("devices")}
           options={DEVICE_VALUES}
           values={condition.values}
+          formatOption={(option) => deviceLabel(option, t)}
           onChange={(values) =>
             onChange({ ...condition, values: values as typeof condition.values })
           }
@@ -226,7 +308,7 @@ function ConditionEditor({
 
       {condition.type === "os" ? (
         <OptionChips
-          label="Operating systems"
+          label={t("operatingSystems")}
           options={OS_VALUES}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
@@ -235,7 +317,7 @@ function ConditionEditor({
 
       {condition.type === "browser" ? (
         <OptionChips
-          label="Browsers"
+          label={t("browsers")}
           options={BROWSER_VALUES}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
@@ -243,10 +325,10 @@ function ConditionEditor({
       ) : null}
 
       {condition.type === "referrer" && condition.op !== "empty" && condition.op !== "not_empty" ? (
-        <Field label="Value" hint="A domain or a fragment of the referring URL">
+        <Field label={t("value")} hint={t("valueHint")}>
           <Input
             value={condition.value ?? ""}
-            placeholder="google.com"
+            placeholder={t("referrerPlaceholder")}
             onChange={(event) => onChange({ ...condition, value: event.target.value })}
           />
         </Field>
@@ -255,30 +337,30 @@ function ConditionEditor({
       {condition.type === "schedule" ? (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-3">
-            <Field label="From" className="w-28">
+            <Field label={t("from")} className="w-28">
               <Input
                 type="time"
                 value={condition.from}
                 onChange={(event) => onChange({ ...condition, from: event.target.value })}
               />
             </Field>
-            <Field label="To" className="w-28">
+            <Field label={t("to")} className="w-28">
               <Input
                 type="time"
                 value={condition.to}
                 onChange={(event) => onChange({ ...condition, to: event.target.value })}
               />
             </Field>
-            <Field label="Timezone" className="flex-1" hint="IANA name, e.g. Europe/Istanbul">
+            <Field label={t("timezone")} className="flex-1" hint={t("timezoneHint")}>
               <Input
                 value={condition.timezone}
                 onChange={(event) => onChange({ ...condition, timezone: event.target.value })}
               />
             </Field>
           </div>
-          <Field label="Days">
+          <Field label={t("days")}>
             <div className="flex flex-wrap gap-2 pt-1">
-              {WEEKDAYS.map((day, index) => {
+              {WEEKDAY_KEYS.map((day, index) => {
                 const active = condition.days.includes(index);
                 return (
                   <Chip
@@ -293,7 +375,7 @@ function ConditionEditor({
                       })
                     }
                   >
-                    {day}
+                    {weekdayLabel(index, t)}
                   </Chip>
                 );
               })}
@@ -312,6 +394,8 @@ type RuleBuilderProps = {
 };
 
 export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderProps) {
+  const t = useTranslations("links");
+
   const addRule = (): void => {
     onChange([
       ...rules,
@@ -331,12 +415,12 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
   if (disabled) {
     return (
       <EmptyState
-        eyebrow="Pro"
-        title="Targeting is a paid feature"
-        description="Route visitors by country, device, OS, browser, language, referrer or schedule on the Pro plan and above."
+        eyebrow={t("paywallEyebrow")}
+        title={t("paywallTitle")}
+        description={t("paywallBody")}
         actions={
           <Button variant="primary" onClick={() => window.location.assign("/billing")}>
-            See plans
+            {t("seePlans")}
           </Button>
         }
       />
@@ -345,19 +429,16 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="m-0 text-sm text-fg-muted">
-        Rules run in priority order and the first match wins. A rule matches only when every
-        one of its conditions matches. Visitors matching nothing get the default destination.
-      </p>
+      <p className="m-0 text-sm text-fg-muted">{t("rulesIntro")}</p>
 
       {rules.length === 0 ? (
         <EmptyState
-          title="No targeting rules"
-          description="Add a rule to send specific audiences somewhere else."
+          title={t("noRulesTitle")}
+          description={t("noRulesBody")}
           actions={
             <Button variant="primary" onClick={addRule}>
-              <Plus className="size-4" />
-              Add rule
+              <Icon name="plus" className="text-sm" />
+              {t("addRule")}
             </Button>
           }
         />
@@ -367,15 +448,15 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
         <Card key={rule.id} staticHover className="gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Badge tone="muted">Priority {rule.priority}</Badge>
+              <Badge tone="muted">{t("priorityBadge", { priority: rule.priority })}</Badge>
               {rule.conditions.length > 0 ? (
                 <span className="font-mono text-xs text-fg-subtle">
-                  {rule.conditions.map(describeCondition).join(" AND ")}
+                  {rule.conditions.map((condition) => describeCondition(condition, t)).join(` ${t("and")} `)}
                 </span>
               ) : null}
             </div>
             <div className="flex items-center gap-2">
-              <Field label="Priority" className="w-24">
+              <Field label={t("priority")} className="w-24">
                 <Input
                   type="number"
                   min={0}
@@ -389,10 +470,10 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
               <Button
                 variant="ghost"
                 icon
-                aria-label="Remove rule"
+                aria-label={t("removeRule")}
                 onClick={() => onChange(rules.filter((_, position) => position !== index))}
               >
-                <Trash2 className="size-4 text-danger" />
+                <Icon name="trash" className="text-sm text-danger" />
               </Button>
             </div>
           </div>
@@ -424,15 +505,15 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
                 patchRule(index, { conditions: [...rule.conditions, newCondition("device")] })
               }
             >
-              <Plus className="size-4" />
-              Add condition
+              <Icon name="plus" className="text-sm" />
+              {t("addCondition")}
             </Button>
           </div>
 
-          <Field label="Send matching visitors to">
+          <Field label={t("sendTo")}>
             <Input
               value={rule.destination}
-              placeholder="https://acme.com/tr"
+              placeholder={t("ruleDestinationPlaceholder")}
               onChange={(event) => patchRule(index, { destination: event.target.value })}
             />
           </Field>
@@ -441,8 +522,8 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
 
       {rules.length > 0 ? (
         <Button onClick={addRule}>
-          <Plus className="size-4" />
-          Add rule
+          <Icon name="plus" className="text-sm" />
+          {t("addRule")}
         </Button>
       ) : null}
     </div>

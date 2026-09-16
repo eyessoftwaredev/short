@@ -1,5 +1,6 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { ScrollText } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -15,7 +16,10 @@ import { ADMIN_PAGE_SIZE, listAuditActionGroups, listAuditLogs } from "@/lib/adm
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Audit log · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.audit");
+  return { title: t("metaTitle") };
+}
 
 type SearchParams = Promise<{ status?: string; workspace?: string; page?: string }>;
 
@@ -33,19 +37,17 @@ function toneFor(action: string): TimelineItem["tone"] {
   return "muted";
 }
 
-function describe(action: string, targetType: string, targetId: string | null): string {
-  const target = targetId ? `${targetType} ${targetId.slice(0, 8)}` : targetType;
-  return `${action} · ${target}`;
-}
-
 export default async function AdminAuditPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSuperadmin();
   const { status, workspace, page } = await searchParams;
+  const t = await getTranslations("admin.audit");
+  const tNav = await getTranslations("admin.nav");
+  const tn = await getTranslations("nav");
 
   const current = Math.max(1, Number(page ?? 1) || 1);
   const groups = await listAuditActionGroups();
   const options: readonly FilterOption[] = [
-    { id: "all", label: "All" },
+    { id: "all", label: tNav("all") },
     ...groups.map((group) => ({ id: group, label: group })),
   ];
   const actionValue = options.some((option) => option.id === status) ? status : "all";
@@ -56,43 +58,55 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
     page: current,
   });
 
-  const entries: TimelineItem[] = items.map((row) => ({
-    id: row.id,
-    title: describe(row.action, row.targetType, row.targetId),
-    body: (
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate">
-          {row.actorEmail ?? "system"}
-          {row.workspaceName ? ` · ${row.workspaceName}` : ""}
-          {row.impersonatorId ? " · while impersonating" : ""}
-        </span>
-        {Object.keys(row.metadata).length > 0 ? (
-          <span className="truncate font-mono text-xs text-fg-subtle">
-            {JSON.stringify(row.metadata)}
+  const entries: TimelineItem[] = items.map((row) => {
+    const target = row.targetId
+      ? t("target", { type: row.targetType, id: row.targetId.slice(0, 8) })
+      : row.targetType;
+    const actor = row.actorEmail ?? t("system");
+    const workspaceLabel = row.workspaceName ? ` · ${row.workspaceName}` : "";
+    const impersonating = row.impersonatorId ? ` · ${t("impersonating")}` : "";
+
+    return {
+      id: row.id,
+      title: `${row.action} · ${target}`,
+      body: (
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate">
+            {actor}
+            {workspaceLabel}
+            {impersonating}
           </span>
-        ) : null}
-      </span>
-    ),
-    when: `${formatDateTime(row.createdAt)}${row.ipAddress ? ` · ${row.ipAddress}` : ""}`,
-    tone: toneFor(row.action),
-  }));
+          {Object.keys(row.metadata).length > 0 ? (
+            <span className="truncate font-mono text-xs text-fg-subtle">
+              {JSON.stringify(row.metadata)}
+            </span>
+          ) : null}
+        </span>
+      ),
+      when: `${formatDateTime(row.createdAt)}${row.ipAddress ? ` · ${row.ipAddress}` : ""}`,
+      tone: toneFor(row.action),
+    };
+  });
 
   return (
-    <PanelShell title="Audit log" crumbs={[{ label: "Admin" }, { label: "Audit" }]}>
+    <PanelShell
+      title={tn("admin-audit")}
+      crumbs={[{ label: tNav("admin") }, { label: tn("admin-audit") }]}
+    >
       <Hero
-        eyebrow={`${formatNumber(total)} entries`}
-        title="Audit log"
-        description="Append-only record of every mutation, including the superadmin who took it and whether it happened during impersonation."
+        eyebrow={t("entries", { count: formatNumber(total) })}
+        title={t("title")}
+        description={t("description")}
       />
 
       <QueryFilterBar options={options} value={actionValue} searchable={false} />
 
       {entries.length === 0 ? (
         <EmptyState
-          icon={<ScrollText className="size-5" />}
-          eyebrow="Audit"
-          title="Nothing recorded yet"
-          description="Entries appear as soon as someone creates, edits or removes something."
+          icon={<Icon name="scroll" className="text-lg" />}
+          eyebrow={tn("admin-audit")}
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
         />
       ) : (
         <>

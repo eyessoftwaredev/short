@@ -1,5 +1,6 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { Link2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -9,13 +10,10 @@ import { formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
 import { LinksModeration, type AdminLinkView } from "./links-moderation";
 
-export const metadata: Metadata = { title: "All links · Admin" };
-
-const STATUS_OPTIONS: readonly FilterOption[] = [
-  { id: "all", label: "All" },
-  { id: "flagged", label: "Flagged" },
-  { id: "disabled", label: "Disabled" },
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.links");
+  return { title: t("metaTitle") };
+}
 
 type SearchParams = Promise<{
   q?: string;
@@ -27,9 +25,18 @@ type SearchParams = Promise<{
 export default async function AdminLinksPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSuperadmin();
   const { q, status, workspace, page } = await searchParams;
+  const t = await getTranslations("admin.links");
+  const tNav = await getTranslations("admin.nav");
+  const tn = await getTranslations("nav");
+
+  const statusOptions: readonly FilterOption[] = [
+    { id: "all", label: tNav("all") },
+    { id: "flagged", label: t("filterFlagged") },
+    { id: "disabled", label: t("filterDisabled") },
+  ];
 
   const current = Math.max(1, Number(page ?? 1) || 1);
-  const statusValue = STATUS_OPTIONS.some((option) => option.id === status) ? status : "all";
+  const statusValue = statusOptions.some((option) => option.id === status) ? status : "all";
 
   const { items, total } = await searchLinks({
     search: q,
@@ -51,26 +58,29 @@ export default async function AdminLinksPage({ searchParams }: { searchParams: S
   }));
 
   return (
-    <PanelShell title="All links" crumbs={[{ label: "Admin" }, { label: "Links" }]}>
+    <PanelShell
+      title={tn("admin-links")}
+      crumbs={[{ label: tNav("admin") }, { label: tn("links") }]}
+    >
       <Hero
-        eyebrow={`${formatNumber(total)} links`}
-        title="Global link search"
-        description="Search across every workspace by slug, hostname or destination. Flagging a link disables it at the edge within seconds."
+        eyebrow={t("count", { count: formatNumber(total) })}
+        title={t("title")}
+        description={t("description")}
       />
 
       <QueryFilterBar
-        options={STATUS_OPTIONS}
+        options={statusOptions}
         value={statusValue}
         searchValue={q ?? ""}
-        searchPlaceholder="Search slug, hostname or destination"
+        searchPlaceholder={t("searchPlaceholder")}
       />
 
       {rows.length === 0 ? (
         <EmptyState
-          icon={<Link2 className="size-5" />}
-          eyebrow="Links"
-          title="No links match"
-          description="Search by slug, destination URL or hostname."
+          icon={<Icon name="link" className="text-lg" />}
+          eyebrow={tn("links")}
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
         />
       ) : (
         <>

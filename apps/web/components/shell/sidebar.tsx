@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, LogOut, UserCog } from "lucide-react";
+import { Icon } from "@/components/kit/icon";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dropdown, type DropdownItem } from "@/components/ui/dropdown";
+import { useTranslations } from "next-intl";
 import { initials, usePanelSession } from "@/components/providers/session-provider";
 import { cn } from "@/lib/cx";
 import { getNavForRole, type NavGroup } from "@/lib/nav";
@@ -17,6 +18,7 @@ type SidebarProps = {
   collapsed?: boolean;
   onToggle?: () => void;
   onSwitchWorkspace: (workspaceId: string) => void;
+  onCreateTeam: () => void;
   onSignOut: () => void;
 };
 
@@ -40,7 +42,7 @@ function activeHref(pathname: string, groups: NavGroup[]): string | null {
 function SidebarNavItem({
   href,
   label,
-  icon: Icon,
+  icon,
   count,
   active,
   collapsed,
@@ -67,7 +69,7 @@ function SidebarNavItem({
           : "text-fg-muted",
       )}
     >
-      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <Icon name={icon} className="shrink-0 text-sm" />
       <span className={cn("min-w-0 truncate", collapsed && "sr-only")}>{label}</span>
       {count && !collapsed ? (
         <span className="numeric ml-auto font-mono text-xs text-fg-subtle">{count}</span>
@@ -81,29 +83,53 @@ export function Sidebar({
   collapsed = false,
   onToggle,
   onSwitchWorkspace,
+  onCreateTeam,
   onSignOut,
 }: SidebarProps) {
   const pathname = usePathname();
   const session = usePanelSession();
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
   const groups = getNavForRole(session.role);
   const current = useMemo(() => activeHref(pathname, groups), [pathname, groups]);
 
+  const personal = session.workspaces.filter((workspace) => workspace.kind === "personal");
+  const teams = session.workspaces.filter((workspace) => workspace.kind === "team");
+
   const workspaceItems: DropdownItem[] = [
-    ...session.workspaces.map((workspace) => ({
+    { id: "hdr-personal", label: tc("personal"), disabled: true },
+    ...personal.map((workspace) => ({
       id: workspace.id,
       label: workspace.name,
       icon:
         workspace.id === session.workspace.id ? (
-          <Check className="size-4 text-accent" />
+          <Icon name="check" className="text-sm text-accent" />
+        ) : undefined,
+      onSelect: () => onSwitchWorkspace(workspace.id),
+    })),
+    { id: "hdr-teams", label: tc("teams"), disabled: true, separated: true },
+    ...teams.map((workspace) => ({
+      id: workspace.id,
+      label: workspace.name,
+      icon:
+        workspace.id === session.workspace.id ? (
+          <Icon name="check" className="text-sm text-accent" />
         ) : undefined,
       onSelect: () => onSwitchWorkspace(workspace.id),
     })),
     {
-      id: "workspace-settings",
-      label: "Workspace settings",
-      href: "/settings?tab=workspace",
-      icon: <UserCog className="size-4" />,
+      id: "create-team",
+      label: session.canCreateTeam ? tc("createTeam") : tc("createTeamUpgrade"),
+      icon: <Icon name="plus" className="text-sm" />,
+      onSelect: onCreateTeam,
+      disabled: !session.canCreateTeam,
       separated: true,
+    },
+    {
+      id: "workspace-settings",
+      label: tc("workspaceSettings"),
+      href: "/settings?tab=workspace",
+      icon: <Icon name="user-gear" className="text-sm" />,
     },
   ];
 
@@ -127,11 +153,11 @@ export function Sidebar({
           <Button
             variant="ghost"
             icon
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? tc("expandSidebar") : tc("collapseSidebar")}
             aria-expanded={!collapsed}
             onClick={onToggle}
           >
-            {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            {collapsed ? <Icon name="chevron-right" className="text-sm" /> : <Icon name="chevron-left" className="text-sm" />}
           </Button>
         ) : null}
       </div>
@@ -141,37 +167,40 @@ export function Sidebar({
         are in is the one thing that must never become invisible in a
         multi-tenant panel.
       */}
-      <div className={cn("border-b border-border py-2", collapsed ? "px-2" : "px-2")}>
+      <div className={cn("border-b border-border p-2", collapsed && "px-2")}>
         <Dropdown
           align="start"
-          label="Switch workspace"
-          className={collapsed ? "w-full justify-center" : "w-full"}
+          label={tc("switchWorkspace")}
+          className="w-full"
           items={workspaceItems}
           trigger={
             <button
               type="button"
               title={collapsed ? session.workspace.name : undefined}
-              aria-label={`Workspace: ${session.workspace.name}. Switch workspace`}
+              aria-label={tc("workspaceAria", { name: session.workspace.name })}
               className={cn(
-                "flex w-full min-w-0 items-center gap-2 rounded-default text-left transition duration-200 hover:bg-surface",
-                collapsed ? "justify-center px-0 py-1.5" : "px-2 py-2",
+                "flex w-full min-w-0 items-center rounded-default text-left transition duration-200",
+                collapsed
+                  ? "justify-center px-0 py-1.5 hover:bg-surface"
+                  : "gap-2.5 border border-border-strong bg-bg px-2 py-1.5 hover:bg-surface",
               )}
             >
-              {collapsed ? (
-                <Avatar className="hover:translate-y-0">
-                  {initials(session.workspace.name, session.workspace.slug)}
-                </Avatar>
-              ) : (
+              <Avatar className="hover:translate-y-0">
+                {initials(session.workspace.name, session.workspace.slug)}
+              </Avatar>
+              {collapsed ? null : (
                 <>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
                       {session.workspace.name}
                     </span>
-                    <span className="block truncate text-xs text-fg-subtle">
+                    <Badge tone="muted" className="mt-0.5 px-1.5 py-0">
+                      {session.workspace.kind === "personal" ? tc("personal") : tc("team")}
+                      {" · "}
                       {session.planName}
-                    </span>
+                    </Badge>
                   </span>
-                  <ChevronsUpDown className="size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+                  <Icon name="chevron-down" className="shrink-0 text-xs text-fg-subtle" />
                 </>
               )}
             </button>
@@ -179,7 +208,7 @@ export function Sidebar({
         />
       </div>
 
-      <nav aria-label="Main" className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
+      <nav aria-label={tc("mainNav")} className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
         {groups.map((group, groupIndex) => (
           <div key={group.label} className="flex flex-col gap-1">
             {collapsed ? (
@@ -190,18 +219,18 @@ export function Sidebar({
               ) : null
             ) : (
               <div className="px-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-                {group.label}
+                {t(group.label.toLowerCase() as "overview")}
               </div>
             )}
             <ul
               className="m-0 flex list-none flex-col gap-0.5 p-0"
-              aria-label={collapsed ? group.label : undefined}
+              aria-label={collapsed ? t(group.label.toLowerCase() as "overview") : undefined}
             >
               {group.items.map((item) => (
                 <li key={item.id} className="min-w-0">
                   <SidebarNavItem
                     href={item.href}
-                    label={item.label}
+                    label={t(item.id as "dashboard")}
                     icon={item.icon}
                     count={item.count}
                     collapsed={collapsed}
@@ -217,7 +246,7 @@ export function Sidebar({
       <div className={cn("border-t border-border p-3", collapsed && "px-2")}>
         {session.impersonatedBy && !collapsed ? (
           <Badge tone="warn" dot className="mb-3 w-full justify-center">
-            Impersonating
+            {tc("impersonating")}
           </Badge>
         ) : null}
         <div
@@ -236,8 +265,8 @@ export function Sidebar({
             <div className="truncate text-xs text-fg-subtle">{session.user.email}</div>
           </div>
           {/* Previously dropped entirely when collapsed, stranding the user. */}
-          <Button variant="ghost" icon aria-label="Sign out" onClick={onSignOut}>
-            <LogOut className="size-4" />
+          <Button variant="ghost" icon aria-label={tc("signOut")} onClick={onSignOut}>
+            <Icon name="right-from-bracket" className="text-sm" />
           </Button>
         </div>
       </div>

@@ -2,6 +2,7 @@ export { Avatar } from "./avatar";
 export { Badge } from "./badge";
 export { BreakdownList, type BreakdownRow as BreakdownListRow } from "./breakdown-list";
 export { Button } from "./button";
+export { Calendar } from "./calendar";
 export { Card } from "./card";
 export { Chip } from "./chip";
 export { CopyButton } from "./copy-button";

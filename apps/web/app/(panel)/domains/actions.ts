@@ -6,7 +6,18 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result"
 import { recordAudit } from "@/lib/audit";
 import { CloudflareError, type HostnameHealth } from "@/lib/cloudflare";
 import {
+  applyCustomerDns,
+  connectCustomerCloudflare,
+  CustomerCloudflareError,
+  disconnectCustomerCloudflare,
+  type AppliedDns,
+  type CloudflareConnectionPublic,
+} from "@/lib/customer-cloudflare";
+import { probeDomainDns, type DnsProbe } from "@/lib/dns-probe";
+import {
   addDomain,
+  cnameTarget,
+  getDomain,
   hostnameExists,
   refreshDomain,
   removeDomain,
@@ -24,13 +35,14 @@ export async function addDomainAction(hostname: string): Promise<ActionResult<Ad
 
     const parsed = hostnameSchema.safeParse(hostname);
     if (!parsed.success) {
-      return fail(parsed.error.issues[0]?.message ?? "Enter a valid hostname");
+      const www = parsed.error.issues.some((issue) => issue.message.toLowerCase().includes("www"));
+      return fail(www ? "domain_www" : "domain_invalid");
     }
 
     await assertQuota(context.workspace.id, context.plan, "customDomains");
 
     if (await hostnameExists(parsed.data)) {
-      return fail(`${parsed.data} is already connected to a workspace.`);
+      return fail("domain_taken");
     }
 
     const result = await addDomain(context.workspace.id, {
@@ -58,7 +70,7 @@ export async function addDomainAction(hostname: string): Promise<ActionResult<Ad
     });
   } catch (error) {
     if (error instanceof CloudflareError) {
-      return fail(`Cloudflare rejected this hostname: ${error.message}`);
+      return fail("cloudflare_rejected", { detail: [error.message] });
     }
     return toActionError(error);
   }
@@ -88,7 +100,7 @@ export async function updateDomainAction(
     });
 
     if (!parsed.success) {
-      return fail(parsed.error.issues[0]?.message ?? "Check the destination URLs");
+      return fail("validation");
     }
 
     await updateDomainSettings(context.workspace.id, id, parsed.data);
@@ -121,7 +133,7 @@ export async function refreshDomainAction(
     return ok({ status: result.domain.status, health: result.health });
   } catch (error) {
     if (error instanceof CloudflareError) {
-      return fail(`Cloudflare check failed: ${error.message}`);
+      return fail("cloudflare_check_failed", { detail: [error.message] });
     }
     return toActionError(error);
   }
@@ -167,5 +179,107 @@ export async function resyncKvAction(): Promise<ActionResult<{ count: number }>>
     return ok({ count });
   } catch (error) {
     return toActionError(error);
+  }
+}
+
+function fromCustomerCloudflare(error: unknown): ActionResult<never> {
+  if (error instanceof CustomerCloudflareError) {
+    if (error.code === "missing") {
+      return fail("cf_not_connected");
+    }
+    if (error.code === "token") {
+      return fail("cf_token_invalid");
+    }
+    if (error.code === "zone") {
+      return fail("cf_no_zone", { host: [error.message] });
+    }
+    return fail("cf_dns_failed", { detail: [error.message] });
+  }
+  return toActionError(error);
+}
+
+export async function probeDomainDnsAction(id: string): Promise<ActionResult<DnsProbe>> {
+  try {
+    const context = await requireWorkspaceRole("admin");
+    const domain = await getDomain(context.workspace.id, id);
+    if (!domain) {
+      return fail("not_found");
+    }
+    const probe = await probeDomainDns(domain.hostname, domain.validationRecords, cnameTarget());
+    return ok(probe);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function connectCloudflareAction(
+  token: string,
+): Promise<ActionResult<CloudflareConnectionPublic>> {
+  try {
+    const context = await requireWorkspaceRole("admin");
+    const connection = await connectCustomerCloudflare(context.workspace.id, token);
+    await recordAudit({
+      workspaceId: context.workspace.id,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "domain.cloudflare.connect",
+      targetType: "workspace",
+      targetId: context.workspace.id,
+    });
+    revalidatePath("/domains");
+    return ok(connection);
+  } catch (error) {
+    return fromCustomerCloudflare(error);
+  }
+}
+
+export async function disconnectCloudflareAction(): Promise<ActionResult<null>> {
+  try {
+    const context = await requireWorkspaceRole("admin");
+    await disconnectCustomerCloudflare(context.workspace.id);
+    await recordAudit({
+      workspaceId: context.workspace.id,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "domain.cloudflare.disconnect",
+      targetType: "workspace",
+      targetId: context.workspace.id,
+    });
+    revalidatePath("/domains");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function applyCloudflareDnsAction(id: string): Promise<ActionResult<AppliedDns>> {
+  try {
+    const context = await requireWorkspaceRole("admin");
+    const domain = await getDomain(context.workspace.id, id);
+    if (!domain) {
+      return fail("not_found");
+    }
+
+    const applied = await applyCustomerDns({
+      workspaceId: context.workspace.id,
+      hostname: domain.hostname,
+      cnameTarget: cnameTarget(),
+      validation: domain.validationRecords,
+    });
+
+    await recordAudit({
+      workspaceId: context.workspace.id,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "domain.cloudflare.dns",
+      targetType: "domain",
+      targetId: id,
+      metadata: { hostname: domain.hostname, zone: applied.zone },
+    });
+
+    revalidatePath("/domains");
+    return ok(applied);
+  } catch (error) {
+    return fromCustomerCloudflare(error);
   }
 }

@@ -9,11 +9,13 @@ import {
   sql,
   subscriptions,
   usageCounters,
+  user,
   type PlanRow,
   type SubscriptionRow,
 } from "@short/db";
 import { currentPeriod } from "./quota";
 import { getStripe, stripeEnabled } from "./stripe";
+import { getPersonalWorkspaceId, getWorkspaceOwnerId } from "./workspace";
 
 export type BillingPlan = PlanRow & { definition: PlanDefinition };
 
@@ -24,11 +26,11 @@ export async function listPlans(includeHidden = false): Promise<BillingPlan[]> {
     .map((row) => ({ ...row, definition: getPlan(row.key) }));
 }
 
-export async function getSubscription(workspaceId: string): Promise<SubscriptionRow | null> {
+export async function getSubscription(userId: string): Promise<SubscriptionRow | null> {
   const [row] = await getDb()
     .select()
     .from(subscriptions)
-    .where(eq(subscriptions.workspaceId, workspaceId))
+    .where(eq(subscriptions.userId, userId))
     .limit(1);
   return row ?? null;
 }
@@ -89,7 +91,7 @@ export async function incrementApiRequests(workspaceId: string, by = 1): Promise
 }
 
 export type SubscriptionUpsert = {
-  workspaceId: string;
+  userId: string;
   planKey: PlanKey;
   status: string;
   interval: string;
@@ -100,12 +102,53 @@ export type SubscriptionUpsert = {
   cancelAtPeriodEnd: boolean;
 };
 
+export async function assignUserPlan(userId: string, planKey: PlanKey): Promise<boolean> {
+  const [catalogue] = await getDb()
+    .select({ key: plans.key })
+    .from(plans)
+    .where(eq(plans.key, planKey))
+    .limit(1);
+  if (!catalogue) {
+    return false;
+  }
+
+  const current = await getSubscription(userId);
+  await upsertSubscription({
+    userId,
+    planKey,
+    status: "active",
+    interval: current?.interval ?? "month",
+    stripeCustomerId: current?.stripeCustomerId ?? null,
+    stripeSubscriptionId: current?.stripeSubscriptionId ?? null,
+    currentPeriodStart: current?.currentPeriodStart ?? null,
+    currentPeriodEnd: current?.currentPeriodEnd ?? null,
+    cancelAtPeriodEnd: false,
+  });
+  return true;
+}
+
+/** Assigns the plan to the workspace owner's account. */
+export async function assignWorkspacePlan(
+  workspaceId: string,
+  planKey: PlanKey,
+): Promise<boolean> {
+  const ownerId = await getWorkspaceOwnerId(workspaceId);
+  if (!ownerId) {
+    return false;
+  }
+  return assignUserPlan(ownerId, planKey);
+}
+
+export async function grantInfinityToUser(userId: string): Promise<void> {
+  await assignUserPlan(userId, "infinity");
+}
+
 export async function upsertSubscription(values: SubscriptionUpsert): Promise<void> {
   await getDb()
     .insert(subscriptions)
     .values(values)
     .onConflictDoUpdate({
-      target: subscriptions.workspaceId,
+      target: subscriptions.userId,
       set: {
         planKey: values.planKey,
         status: values.status,
@@ -120,14 +163,18 @@ export async function upsertSubscription(values: SubscriptionUpsert): Promise<vo
     });
 }
 
-/** Resolves the workspace a Stripe customer belongs to, for webhook handling. */
-export async function workspaceForCustomer(customerId: string): Promise<string | null> {
+/** Resolves the billed user a Stripe customer belongs to, for webhook handling. */
+export async function userForCustomer(customerId: string): Promise<string | null> {
   const [row] = await getDb()
-    .select({ workspaceId: subscriptions.workspaceId })
+    .select({ userId: subscriptions.userId })
     .from(subscriptions)
     .where(eq(subscriptions.stripeCustomerId, customerId))
     .limit(1);
-  return row?.workspaceId ?? null;
+  return row?.userId ?? null;
+}
+
+export async function auditWorkspaceForUser(userId: string): Promise<string | null> {
+  return getPersonalWorkspaceId(userId);
 }
 
 export async function planForStripePrice(priceId: string): Promise<{
@@ -174,12 +221,12 @@ export type BillingAccount = {
  * truth and an outage degrades to an empty list instead of a broken page.
  */
 export async function getBillingAccount(customerId: string | null): Promise<BillingAccount> {
-  if (!customerId || !stripeEnabled()) {
+  if (!customerId || !(await stripeEnabled())) {
     return { invoices: [], paymentMethod: null };
   }
 
   try {
-    const stripe = getStripe();
+    const stripe = await getStripe();
     const [invoices, customer] = await Promise.all([
       stripe.invoices.list({ customer: customerId, limit: 12 }),
       stripe.customers.retrieve(customerId, { expand: ["invoice_settings.default_payment_method"] }),
@@ -223,4 +270,14 @@ export async function getWorkspaceName(workspaceId: string): Promise<string> {
     .where(eq(organization.id, workspaceId))
     .limit(1);
   return row?.name ?? "Workspace";
+}
+
+export async function getUserDisplayName(userId: string): Promise<string> {
+  const [row] = await getDb()
+    .select({ name: user.name, email: user.email })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  const name = row?.name.trim() ?? "";
+  return name === "" ? (row?.email ?? "Account") : name;
 }

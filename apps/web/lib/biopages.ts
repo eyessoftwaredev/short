@@ -16,6 +16,7 @@ import {
   getDb,
   inArray,
   isNull,
+  member,
   plans,
   subscriptions,
   type BioBlockRow,
@@ -30,6 +31,16 @@ export type BiopageWithBlocks = BiopageRow & {
 };
 
 export type BiopageListRow = BiopageRow & { hostname: string; blockCount: number };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * PLATFORM_SHORT_DOMAIN carries a port in local development (`localhost:3200`) while a
+ * request's hostname never does, so the port has to go before the two are compared.
+ */
+export function platformHostname(): string {
+  return serverEnv().PLATFORM_SHORT_DOMAIN.toLowerCase().split(":")[0] ?? "";
+}
 
 function toKvRecord(page: BiopageRow): BiopageKvRecord {
   return {
@@ -117,6 +128,12 @@ export async function getBiopage(
   workspaceId: string,
   id: string,
 ): Promise<BiopageWithBlocks | null> {
+  // The column is a uuid, so a hand-typed id would fail the cast in Postgres instead of
+  // reaching the caller's "not found" branch.
+  if (!UUID.test(id)) {
+    return null;
+  }
+
   const db = getDb();
   const [row] = await db
     .select({ page: biopages, hostname: domains.hostname })
@@ -150,7 +167,7 @@ export async function getPublishedBiopage(
   const db = getDb();
   const normalized = handle.toLowerCase();
   const host = hostname.toLowerCase();
-  const isPlatformHost = host === serverEnv().PLATFORM_SHORT_DOMAIN.toLowerCase();
+  const isPlatformHost = host === platformHostname();
 
   // A null `domain_id` means the page is served from the platform domain, so the two
   // cases need different joins rather than one filtered afterwards.
@@ -197,11 +214,20 @@ export async function getPublishedBiopage(
 
 /** Paid plans hide the "Powered by" footer on public bio pages. */
 async function brandingRemoved(workspaceId: string): Promise<boolean> {
+  const [owner] = await getDb()
+    .select({ userId: member.userId })
+    .from(member)
+    .where(and(eq(member.organizationId, workspaceId), eq(member.role, "owner")))
+    .limit(1);
+  if (!owner) {
+    return false;
+  }
+
   const [row] = await getDb()
     .select({ features: plans.features })
     .from(subscriptions)
     .innerJoin(plans, eq(subscriptions.planKey, plans.key))
-    .where(eq(subscriptions.workspaceId, workspaceId))
+    .where(eq(subscriptions.userId, owner.userId))
     .limit(1);
 
   return row?.features.removeBranding ?? false;

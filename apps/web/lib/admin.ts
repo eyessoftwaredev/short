@@ -1,5 +1,6 @@
 import type { PlanKey } from "@short/core";
 import {
+  aliasedTable,
   and,
   auditLogs,
   biopages,
@@ -253,6 +254,8 @@ export async function listWorkspaces(options: {
       sql`(${organization.name} ILIKE ${`%${search}%`} OR ${organization.slug} ILIKE ${`%${search}%`})`,
     );
   }
+  const ownerMember = aliasedTable(member, "workspace_owner");
+
   if (options.planKey && options.planKey !== "all") {
     filters.push(eq(subscriptions.planKey, options.planKey as PlanKey));
   }
@@ -270,7 +273,11 @@ export async function listWorkspaces(options: {
         status: subscriptions.status,
       })
       .from(organization)
-      .leftJoin(subscriptions, eq(subscriptions.workspaceId, organization.id))
+      .leftJoin(
+        ownerMember,
+        and(eq(ownerMember.organizationId, organization.id), eq(ownerMember.role, "owner")),
+      )
+      .leftJoin(subscriptions, eq(subscriptions.userId, ownerMember.userId))
       .leftJoin(plans, eq(subscriptions.planKey, plans.key))
       .where(where)
       .orderBy(desc(organization.createdAt))
@@ -279,7 +286,11 @@ export async function listWorkspaces(options: {
     db
       .select({ value: count() })
       .from(organization)
-      .leftJoin(subscriptions, eq(subscriptions.workspaceId, organization.id))
+      .leftJoin(
+        ownerMember,
+        and(eq(ownerMember.organizationId, organization.id), eq(ownerMember.role, "owner")),
+      )
+      .leftJoin(subscriptions, eq(subscriptions.userId, ownerMember.userId))
       .where(where),
   ]);
 
@@ -519,6 +530,323 @@ export async function listAuditLogs(options: {
       workspaceName: row.workspaceName,
     })),
     total: totals[0]?.value ?? 0,
+  };
+}
+
+export const ADMIN_USER_ASSET_LIMIT = 50;
+
+export type AdminUserWorkspace = {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  planKey: PlanKey;
+  planName: string;
+  status: string;
+  createdAt: Date;
+  links: number;
+  biopages: number;
+  qrCodes: number;
+  domains: number;
+};
+
+export type AdminUserLink = {
+  id: string;
+  slug: string;
+  hostname: string;
+  destination: string;
+  workspaceId: string;
+  workspaceName: string;
+  createdAt: Date;
+  archived: boolean;
+  disabledAt: Date | null;
+};
+
+export type AdminUserBiopage = {
+  id: string;
+  handle: string;
+  displayName: string;
+  hostname: string | null;
+  published: boolean;
+  workspaceId: string;
+  workspaceName: string;
+  createdAt: Date;
+};
+
+export type AdminUserQr = {
+  id: string;
+  name: string;
+  hostname: string;
+  slug: string;
+  workspaceId: string;
+  workspaceName: string;
+  createdAt: Date;
+};
+
+export type AdminUserDomain = {
+  id: string;
+  hostname: string;
+  status: string;
+  isPlatform: boolean;
+  workspaceId: string;
+  workspaceName: string;
+  createdAt: Date;
+};
+
+export type AdminUserDetail = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    role: string;
+    banned: boolean;
+    banReason: string | null;
+    emailVerified: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  workspaces: AdminUserWorkspace[];
+  links: AdminUserLink[];
+  linksTotal: number;
+  biopages: AdminUserBiopage[];
+  biopagesTotal: number;
+  qrCodes: AdminUserQr[];
+  qrCodesTotal: number;
+  domains: AdminUserDomain[];
+  domainsTotal: number;
+};
+
+function countMap(rows: Array<{ workspaceId: string; value: number }>): Map<string, number> {
+  return new Map(rows.map((row) => [row.workspaceId, row.value]));
+}
+
+export async function getAdminUser(id: string): Promise<AdminUserDetail | null> {
+  const db = getDb();
+  const [account] = await db.select().from(user).where(eq(user.id, id)).limit(1);
+  if (!account) {
+    return null;
+  }
+
+  const memberships = await db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      role: member.role,
+      createdAt: organization.createdAt,
+    })
+    .from(member)
+    .innerJoin(organization, eq(member.organizationId, organization.id))
+    .where(eq(member.userId, id))
+    .orderBy(desc(organization.createdAt));
+
+  const ownerMember = aliasedTable(member, "workspace_owner");
+  const billed =
+    memberships.length === 0
+      ? []
+      : await db
+          .select({
+            workspaceId: organization.id,
+            planKey: subscriptions.planKey,
+            planName: plans.name,
+            status: subscriptions.status,
+          })
+          .from(organization)
+          .leftJoin(
+            ownerMember,
+            and(eq(ownerMember.organizationId, organization.id), eq(ownerMember.role, "owner")),
+          )
+          .leftJoin(subscriptions, eq(subscriptions.userId, ownerMember.userId))
+          .leftJoin(plans, eq(subscriptions.planKey, plans.key))
+          .where(
+            inArray(
+              organization.id,
+              memberships.map((row) => row.id),
+            ),
+          );
+  const billedByWorkspace = new Map(billed.map((row) => [row.workspaceId, row]));
+
+  const workspaceIds = memberships.map((row) => row.id);
+
+  const emptyCounts: Array<{ workspaceId: string; value: number }> = [];
+
+  const [
+    linkCounts,
+    bioCounts,
+    qrCounts,
+    domainCounts,
+    createdLinks,
+    createdLinkTotals,
+    bioRows,
+    bioTotals,
+    qrRows,
+    qrTotals,
+    domainRows,
+    domainTotals,
+  ] = await Promise.all([
+    workspaceIds.length === 0
+      ? Promise.resolve(emptyCounts)
+      : db
+          .select({ workspaceId: links.workspaceId, value: count() })
+          .from(links)
+          .where(inArray(links.workspaceId, workspaceIds))
+          .groupBy(links.workspaceId),
+    workspaceIds.length === 0
+      ? Promise.resolve(emptyCounts)
+      : db
+          .select({ workspaceId: biopages.workspaceId, value: count() })
+          .from(biopages)
+          .where(inArray(biopages.workspaceId, workspaceIds))
+          .groupBy(biopages.workspaceId),
+    workspaceIds.length === 0
+      ? Promise.resolve(emptyCounts)
+      : db
+          .select({ workspaceId: qrCodes.workspaceId, value: count() })
+          .from(qrCodes)
+          .where(inArray(qrCodes.workspaceId, workspaceIds))
+          .groupBy(qrCodes.workspaceId),
+    workspaceIds.length === 0
+      ? Promise.resolve(emptyCounts)
+      : db
+          .select({ workspaceId: domains.workspaceId, value: count() })
+          .from(domains)
+          .where(and(inArray(domains.workspaceId, workspaceIds), eq(domains.isPlatform, false)))
+          .groupBy(domains.workspaceId),
+    db
+      .select({
+        id: links.id,
+        slug: links.slug,
+        hostname: domains.hostname,
+        destination: links.destination,
+        workspaceId: links.workspaceId,
+        workspaceName: organization.name,
+        createdAt: links.createdAt,
+        archived: links.archived,
+        disabledAt: links.disabledAt,
+      })
+      .from(links)
+      .innerJoin(domains, eq(links.domainId, domains.id))
+      .innerJoin(organization, eq(links.workspaceId, organization.id))
+      .where(eq(links.creatorId, id))
+      .orderBy(desc(links.createdAt))
+      .limit(ADMIN_USER_ASSET_LIMIT),
+    db.select({ value: count() }).from(links).where(eq(links.creatorId, id)),
+    workspaceIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            id: biopages.id,
+            handle: biopages.handle,
+            displayName: biopages.displayName,
+            hostname: domains.hostname,
+            published: biopages.published,
+            workspaceId: biopages.workspaceId,
+            workspaceName: organization.name,
+            createdAt: biopages.createdAt,
+          })
+          .from(biopages)
+          .leftJoin(domains, eq(biopages.domainId, domains.id))
+          .innerJoin(organization, eq(biopages.workspaceId, organization.id))
+          .where(inArray(biopages.workspaceId, workspaceIds))
+          .orderBy(desc(biopages.createdAt))
+          .limit(ADMIN_USER_ASSET_LIMIT),
+    workspaceIds.length === 0
+      ? Promise.resolve([{ value: 0 }])
+      : db
+          .select({ value: count() })
+          .from(biopages)
+          .where(inArray(biopages.workspaceId, workspaceIds)),
+    workspaceIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            id: qrCodes.id,
+            name: qrCodes.name,
+            hostname: domains.hostname,
+            slug: links.slug,
+            workspaceId: qrCodes.workspaceId,
+            workspaceName: organization.name,
+            createdAt: qrCodes.createdAt,
+          })
+          .from(qrCodes)
+          .innerJoin(links, eq(qrCodes.linkId, links.id))
+          .innerJoin(domains, eq(links.domainId, domains.id))
+          .innerJoin(organization, eq(qrCodes.workspaceId, organization.id))
+          .where(inArray(qrCodes.workspaceId, workspaceIds))
+          .orderBy(desc(qrCodes.createdAt))
+          .limit(ADMIN_USER_ASSET_LIMIT),
+    workspaceIds.length === 0
+      ? Promise.resolve([{ value: 0 }])
+      : db
+          .select({ value: count() })
+          .from(qrCodes)
+          .where(inArray(qrCodes.workspaceId, workspaceIds)),
+    workspaceIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            id: domains.id,
+            hostname: domains.hostname,
+            status: domains.status,
+            isPlatform: domains.isPlatform,
+            workspaceId: domains.workspaceId,
+            workspaceName: organization.name,
+            createdAt: domains.createdAt,
+          })
+          .from(domains)
+          .innerJoin(organization, eq(domains.workspaceId, organization.id))
+          .where(and(inArray(domains.workspaceId, workspaceIds), eq(domains.isPlatform, false)))
+          .orderBy(desc(domains.createdAt))
+          .limit(ADMIN_USER_ASSET_LIMIT),
+    workspaceIds.length === 0
+      ? Promise.resolve([{ value: 0 }])
+      : db
+          .select({ value: count() })
+          .from(domains)
+          .where(and(inArray(domains.workspaceId, workspaceIds), eq(domains.isPlatform, false))),
+  ]);
+
+  const linksByWorkspace = countMap(linkCounts);
+  const biosByWorkspace = countMap(bioCounts);
+  const qrsByWorkspace = countMap(qrCounts);
+  const domainsByWorkspace = countMap(domainCounts);
+
+  return {
+    user: {
+      id: account.id,
+      name: account.name,
+      email: account.email,
+      image: account.image,
+      role: account.role,
+      banned: account.banned,
+      banReason: account.banReason,
+      emailVerified: account.emailVerified,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    },
+    workspaces: memberships.map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      role: row.role,
+      planKey: billedByWorkspace.get(row.id)?.planKey ?? "free",
+      planName: billedByWorkspace.get(row.id)?.planName ?? "Free",
+      status: billedByWorkspace.get(row.id)?.status ?? "active",
+      createdAt: row.createdAt,
+      links: linksByWorkspace.get(row.id) ?? 0,
+      biopages: biosByWorkspace.get(row.id) ?? 0,
+      qrCodes: qrsByWorkspace.get(row.id) ?? 0,
+      domains: domainsByWorkspace.get(row.id) ?? 0,
+    })),
+    links: createdLinks,
+    linksTotal: createdLinkTotals[0]?.value ?? 0,
+    biopages: bioRows,
+    biopagesTotal: bioTotals[0]?.value ?? 0,
+    qrCodes: qrRows,
+    qrCodesTotal: qrTotals[0]?.value ?? 0,
+    domains: domainRows,
+    domainsTotal: domainTotals[0]?.value ?? 0,
   };
 }
 

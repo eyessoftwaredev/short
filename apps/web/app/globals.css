@@ -416,6 +416,15 @@
   font-feature-settings: "tnum" 1;
 }
 
+.kit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 /*
  * Caps a scrolling table at whatever the shell leaves below the topbar, so a
  * pinned header has something to stick to without the page growing a second

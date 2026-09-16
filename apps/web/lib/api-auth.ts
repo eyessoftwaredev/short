@@ -2,6 +2,7 @@ import { getPlan, type PlanDefinition } from "@short/core";
 import { eq, getDb, organization, plans, subscriptions } from "@short/db";
 import { auth } from "./auth";
 import { rateLimit, type RateLimitResult } from "./redis";
+import { getWorkspaceOwnerId } from "./workspace";
 
 export type ApiContext = {
   keyId: string;
@@ -60,27 +61,30 @@ export async function resolveApiContext(headers: Headers): Promise<ApiContext> {
     throw new ApiError(403, "no_access", "The workspace this key belongs to no longer exists.");
   }
 
-  const [row] = await db
-    .select({
-      planKey: subscriptions.planKey,
-      limits: plans.limits,
-      features: plans.features,
-      name: plans.name,
-    })
-    .from(subscriptions)
-    .leftJoin(plans, eq(subscriptions.planKey, plans.key))
-    .where(eq(subscriptions.workspaceId, workspace.id))
-    .limit(1);
+  const ownerId = await getWorkspaceOwnerId(workspace.id);
+  const [row] = ownerId
+    ? await db
+        .select({
+          planKey: subscriptions.planKey,
+          limits: plans.limits,
+          features: plans.features,
+          name: plans.name,
+        })
+        .from(subscriptions)
+        .leftJoin(plans, eq(subscriptions.planKey, plans.key))
+        .where(eq(subscriptions.userId, ownerId))
+        .limit(1)
+    : [];
 
-  let plan = getPlan(row?.planKey ?? "free");
-  if (row) {
-    plan = {
-      ...plan,
-      name: row.name ?? plan.name,
-      limits: row.limits ?? plan.limits,
-      features: row.features ?? plan.features,
-    };
-  }
+  const base = getPlan(row?.planKey ?? "free");
+  const plan: PlanDefinition = row
+    ? {
+        ...base,
+        name: row.name ?? base.name,
+        limits: { ...base.limits, ...(row.limits ?? {}) },
+        features: { ...base.features, ...(row.features ?? {}) },
+      }
+    : base;
 
   if (!plan.features.apiAccess) {
     throw new ApiError(403, "plan_required", `The ${plan.name} plan does not include API access.`);

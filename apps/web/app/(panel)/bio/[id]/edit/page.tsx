@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { StatusBadge } from "@/components/shell/status-badge";
@@ -10,12 +11,15 @@ import { listWorkspaceDomains } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
 import { BioBuilder } from "../../bio-builder";
 
-export const metadata: Metadata = { title: "Edit bio page" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("bio");
+  return { title: t("editTitle") };
+}
 
 type Params = Promise<{ id: string }>;
 
 export default async function EditBioPage({ params }: { params: Params }) {
-  const context = await requireWorkspace();
+  const [context, t] = await Promise.all([requireWorkspace(), getTranslations("bio")]);
   const { id } = await params;
 
   const [page, domains] = await Promise.all([
@@ -44,12 +48,12 @@ export default async function EditBioPage({ params }: { params: Params }) {
   return (
     <PanelShell
       title={page.displayName}
-      crumbs={[{ label: context.workspace.name }, { label: "Bio pages", href: "/bio" }]}
+      crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/bio" }]}
       topbarActions={<StatusBadge status={page.published ? "published" : "draft"} />}
     >
       <Hero
         variant="compact"
-        eyebrow="Bio builder"
+        eyebrow={t("builder")}
         title={page.displayName}
         description={bioUrl(page.hostname, page.handle)}
       />

@@ -13,6 +13,7 @@ export {
 } from "./chart-theme";
 export { ChartTooltip, createChartTooltip } from "./chart-tooltip";
 export { SparkTooltip } from "./spark-tooltip";
+export { Icon, ICONS, type IconName } from "./icon";
 export { AdminShell } from "./admin-shell";
 export { Grid } from "./grid";
 export { Hero } from "./hero";

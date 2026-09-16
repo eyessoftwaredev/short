@@ -1,7 +1,8 @@
+import { Icon } from "@/components/kit/icon";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { asc, eq, folders, getDb } from "@short/db";
-import { BarChart3 } from "lucide-react";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, CopyButton, Hero } from "@/components/ui";
 import { toDateTimeLocal, type LinkFormValues } from "@/lib/link-form";
@@ -9,11 +10,19 @@ import { getLink, listWorkspaceDomains, shortUrl } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
 import { LinkForm } from "../link-form";
 
-export const metadata: Metadata = { title: "Edit link" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("links");
+  return { title: t("editTitle") };
+}
 
 export default async function EditLinkPage({ params }: { params: Promise<{ id: string }> }) {
-  const context = await requireWorkspace();
-  const { id } = await params;
+  const [{ id }, context, tc, ts, tn] = await Promise.all([
+    params,
+    requireWorkspace(),
+    getTranslations("common"),
+    getTranslations("stats"),
+    getTranslations("nav"),
+  ]);
 
   const link = await getLink(context.workspace.id, id);
   if (!link) {
@@ -63,7 +72,7 @@ export default async function EditLinkPage({ params }: { params: Promise<{ id: s
   return (
     <PanelShell
       title={`/${link.slug}`}
-      crumbs={[{ label: context.workspace.name }, { label: "Links", href: "/links" }]}
+      crumbs={[{ label: context.workspace.name }, { label: tn("links"), href: "/links" }]}
     >
       <Hero
         variant="compact"
@@ -72,10 +81,10 @@ export default async function EditLinkPage({ params }: { params: Promise<{ id: s
         description={link.destination}
         actions={
           <>
-            <CopyButton value={url} label="Copy link" />
+            <CopyButton value={url} label={tc("copy")} />
             <Button variant="primary" href={`/links/${link.id}/stats`}>
-              <BarChart3 className="size-4" />
-              Statistics
+              <Icon name="chart-line" className="text-sm" />
+              {ts("statistics")}
             </Button>
           </>
         }

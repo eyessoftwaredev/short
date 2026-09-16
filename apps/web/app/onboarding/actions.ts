@@ -5,18 +5,19 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { auth } from "@/lib/auth";
+import { firstWinPath } from "@/lib/draft-link";
 import { requireSession } from "@/lib/session";
 import { createWorkspace } from "@/lib/workspace";
 
 const schema = z.object({ name: z.string().trim().min(2).max(64) });
 
 /** Recovery path: a signed-in user with no membership creates their first workspace. */
-export async function createFirstWorkspace(name: string): Promise<ActionResult<null>> {
+export async function createFirstWorkspace(name: string): Promise<ActionResult<{ href: string }>> {
   try {
     const context = await requireSession();
     const parsed = schema.safeParse({ name });
     if (!parsed.success) {
-      return fail("Enter a workspace name between 2 and 64 characters.");
+      return fail("workspace_name_length");
     }
 
     const db = getDb();
@@ -35,7 +36,7 @@ export async function createFirstWorkspace(name: string): Promise<ActionResult<n
       });
     }
 
-    return ok(null);
+    return ok({ href: await firstWinPath() });
   } catch (error) {
     return toActionError(error);
   }

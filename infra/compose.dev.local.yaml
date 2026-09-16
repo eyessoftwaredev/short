@@ -1,0 +1,16 @@
+# Local-only host port remap. Ports 5432/6379 on this machine are already published by
+# containers from an unrelated compose project, so the dev stack publishes Postgres and
+# Redis on alternative host ports. Container-internal ports are unchanged.
+#
+#   docker compose -f infra/compose.dev.yaml -f infra/compose.dev.local.yaml up -d
+#
+# Keep DATABASE_URL / REDIS_URL in .env pointed at the ports below.
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:55432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:56379:6379"

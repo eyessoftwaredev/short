@@ -1,5 +1,6 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -9,23 +10,29 @@ import { formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
 import { UsersTable, type AdminUserView } from "./users-table";
 
-export const metadata: Metadata = { title: "Users · Admin" };
-
-const STATUS_OPTIONS: readonly FilterOption[] = [
-  { id: "all", label: "All" },
-  { id: "banned", label: "Banned" },
-  { id: "unverified", label: "Unverified" },
-  { id: "superadmin", label: "Platform admins" },
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.users");
+  return { title: t("metaTitle") };
+}
 
 type SearchParams = Promise<{ q?: string; status?: string; page?: string }>;
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
   const context = await requireSuperadmin();
   const { q, status, page } = await searchParams;
+  const t = await getTranslations("admin.users");
+  const tNav = await getTranslations("admin.nav");
+  const tn = await getTranslations("nav");
+
+  const statusOptions: readonly FilterOption[] = [
+    { id: "all", label: tNav("all") },
+    { id: "banned", label: t("filterBanned") },
+    { id: "unverified", label: t("filterUnverified") },
+    { id: "superadmin", label: t("filterSuperadmin") },
+  ];
 
   const current = Math.max(1, Number(page ?? 1) || 1);
-  const statusValue = STATUS_OPTIONS.some((option) => option.id === status) ? status : "all";
+  const statusValue = statusOptions.some((option) => option.id === status) ? status : "all";
 
   const { items, total } = await listUsers({
     search: q,
@@ -46,26 +53,29 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
   }));
 
   return (
-    <PanelShell title="Users" crumbs={[{ label: "Admin" }, { label: "Users" }]}>
+    <PanelShell
+      title={tn("admin-users")}
+      crumbs={[{ label: tNav("admin") }, { label: tn("admin-users") }]}
+    >
       <Hero
-        eyebrow={`${formatNumber(total)} accounts`}
-        title="Users"
-        description="Ban abusive accounts, grant platform access, or sign in as a user to reproduce a support ticket."
+        eyebrow={t("accounts", { count: formatNumber(total) })}
+        title={tn("admin-users")}
+        description={t("description")}
       />
 
       <QueryFilterBar
-        options={STATUS_OPTIONS}
+        options={statusOptions}
         value={statusValue}
         searchValue={q ?? ""}
-        searchPlaceholder="Search name or email"
+        searchPlaceholder={t("searchPlaceholder")}
       />
 
       {rows.length === 0 ? (
         <EmptyState
-          icon={<Users className="size-5" />}
-          eyebrow="Users"
-          title="No accounts match"
-          description="Adjust the filters or search for a different email."
+          icon={<Icon name="users" className="text-lg" />}
+          eyebrow={tn("admin-users")}
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
         />
       ) : (
         <>

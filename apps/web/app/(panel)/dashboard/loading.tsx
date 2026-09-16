@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Grid, Skeleton, SkeletonCard, SkeletonChart, SkeletonTable } from "@/components/ui";
 
@@ -7,9 +8,10 @@ import { Grid, Skeleton, SkeletonCard, SkeletonChart, SkeletonTable } from "@/co
  * the element it stands in for, which is what stops the layout jumping when
  * the ClickHouse queries land.
  */
-export default function DashboardLoading() {
+export default async function DashboardLoading() {
+  const t = await getTranslations("panel");
   return (
-    <PanelShell title="Dashboard">
+    <PanelShell title={t("dashboard")}>
       <div
         className="flex min-w-0 flex-wrap items-start justify-between gap-5 rounded-default border border-border bg-bg px-6 py-5"
         aria-hidden="true"

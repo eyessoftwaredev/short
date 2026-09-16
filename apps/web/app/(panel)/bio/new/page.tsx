@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { slugify } from "@short/core";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Hero } from "@/components/ui";
@@ -8,10 +9,13 @@ import { listWorkspaceDomains } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
 import { BioBuilder } from "../bio-builder";
 
-export const metadata: Metadata = { title: "New bio page" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("bio");
+  return { title: t("newTitle") };
+}
 
 export default async function NewBioPage() {
-  const context = await requireWorkspace();
+  const [context, t] = await Promise.all([requireWorkspace(), getTranslations("bio")]);
   const domains = await listWorkspaceDomains(context.workspace.id);
 
   const defaults = emptyBioForm(slugify(context.workspace.name));
@@ -19,15 +23,10 @@ export default async function NewBioPage() {
 
   return (
     <PanelShell
-      title="New bio page"
-      crumbs={[{ label: context.workspace.name }, { label: "Bio pages", href: "/bio" }]}
+      title={t("newTitle")}
+      crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/bio" }]}
     >
-      <Hero
-        variant="compact"
-        eyebrow="Bio builder"
-        title="Create a bio page"
-        description="Drag blocks into order on the left and watch the phone preview update on the right."
-      />
+      <Hero variant="compact" eyebrow={t("builder")} title={t("createTitle")} description={t("createDesc")} />
       <BioBuilder
         mode="create"
         defaultValues={defaults}

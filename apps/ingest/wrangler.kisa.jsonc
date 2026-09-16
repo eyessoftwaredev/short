@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kisa-ly-ingest",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  "queues": {
+    "consumers": [
+      {
+        "queue": "kisa-ly-clicks",
+        "max_batch_size": 100,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "max_concurrency": 10,
+        "dead_letter_queue": "kisa-ly-clicks-dlq"
+      }
+    ]
+  },
+
+  "r2_buckets": [{ "binding": "FAILED_EVENTS", "bucket_name": "short-failed-events" }],
+
+  "vars": {
+    "CLICKHOUSE_URL": "https://ch.short.ky",
+    "CLICKHOUSE_DATABASE": "kisa",
+    "CLICKHOUSE_USER": "default",
+    "ORIGIN_URL": "https://app.kisa.ly"
+  }
+
+  // Secrets (wrangler secret put): CLICKHOUSE_PASSWORD, INTERNAL_TOKEN
+}

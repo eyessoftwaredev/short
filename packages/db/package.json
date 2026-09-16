@@ -8,6 +8,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./constants": "./src/constants.ts",
     "./schema": "./src/schema/index.ts"
   },
   "scripts": {
@@ -16,6 +17,7 @@
     "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "seed": "tsx src/seed.ts",
+    "admin": "tsx src/set-superadmin.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

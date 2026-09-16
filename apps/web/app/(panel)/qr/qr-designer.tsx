@@ -1,18 +1,13 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { QR_DOT_STYLES, QR_ERROR_LEVELS } from "@short/core";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  AlertTriangle,
-  FileImage,
-  FileText,
-  FileType,
-  Info,
-  Trash2,
-  TriangleAlert,
-} from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState, type ReactNode } from "react";
+import { useActionMessage } from "@/lib/action-message";
 import { useForm } from "react-hook-form";
 import {
   Badge,
@@ -29,15 +24,9 @@ import {
 } from "@/components/ui";
 import { buildQrSvg } from "@/lib/qr-svg";
 import { cn } from "@/lib/cx";
-import {
-  DOT_STYLE_LABELS,
-  ERROR_LEVEL_LABELS,
-  qrFormSchema,
-  toQrStyle,
-  type QrFormValues,
-} from "@/lib/qr-form";
+import { qrFormSchema, toQrStyle, type QrFormValues } from "@/lib/qr-form";
 import { createQrCodeAction, deleteQrCodeAction, updateQrCodeAction } from "./actions";
-import { QR_PALETTES, scanQuality } from "./qr-presets";
+import { QR_PALETTES, scanQuality, type ScanQualityKind } from "./qr-presets";
 
 export type QrLinkOption = { id: string; label: string; url: string };
 
@@ -57,6 +46,72 @@ const EXPORT_SIZES = [512, 1024, 2048] as const;
  * stand-in keeps the preview the same density as the saved code will be.
  */
 const PLACEHOLDER_QR_ID = "00000000-0000-0000-0000-000000000000";
+
+const DOT_STYLE_KEYS = {
+  square: "dotStyle.square",
+  rounded: "dotStyle.rounded",
+  dots: "dotStyle.dots",
+} as const;
+
+const ERROR_LEVEL_KEYS = {
+  L: "errorLevel.L",
+  M: "errorLevel.M",
+  Q: "errorLevel.Q",
+  H: "errorLevel.H",
+} as const;
+
+const PALETTE_KEYS = {
+  classic: "palette.classic",
+  teal: "palette.teal",
+  navy: "palette.navy",
+  plum: "palette.plum",
+  forest: "palette.forest",
+  inverted: "palette.inverted",
+} as const;
+
+const QUALITY_LABEL_KEYS: Record<ScanQualityKind, "quality.invalid" | "quality.fail" | "quality.low" | "quality.inverted" | "quality.good"> = {
+  invalid: "quality.invalid",
+  fail: "quality.fail",
+  low: "quality.low",
+  inverted: "quality.inverted",
+  good: "quality.good",
+};
+
+function qrFieldError(
+  message: string | undefined,
+  t: (key: string) => string,
+  te: (key: string) => string,
+): string | undefined {
+  if (!message) {
+    return undefined;
+  }
+  if (message === "nameRequired") {
+    return t("nameRequired");
+  }
+  if (message === "linkRequired") {
+    return t("linkRequired");
+  }
+  if (message === "hexColor") {
+    return t("hexColor");
+  }
+  return te("validation");
+}
+
+function qualityAdvice(
+  kind: ScanQualityKind,
+  t: (key: string) => string,
+): string | null {
+  if (kind === "fail") {
+    return t("qualityFailAdvice");
+  }
+  if (kind === "low") {
+    return t("qualityLowAdvice");
+  }
+  if (kind === "inverted") {
+    return t("qualityInvertedAdvice");
+  }
+  return null;
+}
 
 function ControlGroup({
   title,
@@ -130,12 +185,14 @@ function Slider({
 
 function ColorControl({
   label,
+  pickerAria,
   error,
   value,
   onPick,
   inputProps,
 }: {
   label: string;
+  pickerAria: string;
   error?: string;
   value: string;
   onPick: (value: string) => void;
@@ -146,7 +203,7 @@ function ColorControl({
       <div className="flex min-w-0 items-center gap-2">
         <input
           type="color"
-          aria-label={`${label} colour picker`}
+          aria-label={pickerAria}
           className="size-9 shrink-0 cursor-pointer rounded-default border border-border bg-bg p-1"
           value={value}
           onChange={(event) => onPick(event.target.value)}
@@ -159,6 +216,10 @@ function ColorControl({
 
 export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrDesignerProps) {
   const router = useRouter();
+  const t = useTranslations("qr");
+  const tc = useTranslations("common");
+  const te = useTranslations("errors");
+  const actionMessage = useActionMessage();
   const [formError, setFormError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -180,6 +241,8 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
   const target = links.find((link) => link.id === values.linkId) ?? links[0];
   const payload = `${target?.url ?? "https://example.com"}?qr=${qrId ?? PLACEHOLDER_QR_ID}`;
   const quality = scanQuality(values.foreground, values.background);
+  const qualityLabel = t(QUALITY_LABEL_KEYS[quality.kind]);
+  const advice = qualityAdvice(quality.kind, t);
   const hasLogo = values.logoUrl !== "";
 
   // Preview renders at a fixed 320px regardless of the export size setting.
@@ -202,7 +265,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
         : await updateQrCodeAction(qrId ?? "", formValues);
 
     if (!result.ok) {
-      setFormError(result.error);
+      setFormError(actionMessage(result.error));
       return;
     }
 
@@ -221,7 +284,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
     setDeleting(true);
     const result = await deleteQrCodeAction(qrId);
     if (!result.ok) {
-      setFormError(result.error);
+      setFormError(actionMessage(result.error));
       setDeleting(false);
       setConfirmDelete(false);
       return;
@@ -245,7 +308,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
           role="alert"
           className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-4 py-3"
         >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+          <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
           <p className="m-0 min-w-0 text-sm text-fg-muted">{formError}</p>
         </div>
       ) : null}
@@ -256,38 +319,36 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
           <div className="flex min-w-0 flex-col items-center gap-5 rounded-default border border-border bg-surface-subtle p-6 sm:p-8">
             <div className="flex w-full min-w-0 items-center justify-between gap-3">
               <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-                Live preview
+                {t("livePreview")}
               </span>
-              <Badge tone={quality.tone}>{quality.label}</Badge>
+              <Badge tone={quality.tone}>{qualityLabel}</Badge>
             </div>
 
             {svg ? (
               <div
                 role="img"
-                aria-label={`QR code preview for ${values.name || "this code"}`}
+                aria-label={t("previewAria", { name: values.name || t("thisCode") })}
                 className="w-full max-w-md overflow-hidden rounded-default border border-border bg-bg shadow-lift [&>svg]:h-auto [&>svg]:w-full"
                 // Built locally by buildQrSvg; the only user text (caption, logo URL) is XML-escaped.
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             ) : (
               <div className="flex w-full max-w-md flex-col items-center gap-2 rounded-default border border-dashed border-danger bg-danger-surface px-6 py-16 text-center">
-                <TriangleAlert className="size-5 text-danger" aria-hidden="true" />
-                <p className="m-0 text-sm font-medium text-ink">Payload is too long</p>
-                <p className="m-0 text-sm text-fg-muted">
-                  Shorten the caption or pick a link with a shorter slug.
-                </p>
+                <Icon name="warning" className="text-lg text-danger" aria-hidden="true" />
+                <p className="m-0 text-sm font-medium text-ink">{t("payloadTooLong")}</p>
+                <p className="m-0 text-sm text-fg-muted">{t("payloadTooLongHint")}</p>
               </div>
             )}
 
-            {quality.advice ? (
+            {advice ? (
               <p
                 className={cn(
                   "m-0 flex w-full min-w-0 items-start gap-2 text-xs leading-relaxed",
                   quality.tone === "danger" ? "text-danger" : "text-warn-ink",
                 )}
               >
-                <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                {quality.advice}
+                <Icon name="circle-info" className="mt-0.5 text-xs shrink-0" aria-hidden="true" />
+                {advice}
               </p>
             ) : null}
 
@@ -295,18 +356,15 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
               <code className="min-w-0 flex-1 truncate font-mono text-xs text-fg-muted">
                 {payload}
               </code>
-              <CopyButton value={payload} iconOnly label="Copy encoded URL" />
+              <CopyButton value={payload} iconOnly label={t("copyEncoded")} />
             </div>
 
-            <p className="m-0 text-center text-xs text-fg-subtle">
-              The code encodes the short link, so editing the link&apos;s destination re-targets
-              every printed copy.
-            </p>
+            <p className="m-0 text-center text-xs text-fg-subtle">{t("encodesHint")}</p>
           </div>
 
           <Card staticHover className="gap-4">
             <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              Export
+              {t("export")}
             </span>
 
             {exportBase ? (
@@ -314,38 +372,36 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                 <div className="grid min-w-0 gap-2 *:min-w-0 sm:grid-cols-3">
                   <a href={`${exportBase}?format=png&size=${pngSize}`} className={exportTileClass}>
                     <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                      <FileImage className="size-4" aria-hidden="true" />
+                      <Icon name="image" className="text-sm" aria-hidden="true" />
                       PNG
                     </span>
                     <span className="text-xs text-fg-muted tabular-nums">
-                      Raster at {pngSize}px — web, slides, social.
+                      {t("pngRaster", { size: pngSize })}
                     </span>
                   </a>
                   <a href={`${exportBase}?format=svg`} className={exportTileClass}>
                     <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                      <FileType className="size-4" aria-hidden="true" />
+                      <Icon name="file-code" className="text-sm" aria-hidden="true" />
                       SVG
                     </span>
-                    <span className="text-xs text-fg-muted">
-                      Vector — scales to any print size.
-                    </span>
+                    <span className="text-xs text-fg-muted">{t("svgVector")}</span>
                   </a>
                   <a
                     href={`${exportBase}?format=pdf&size=${values.size}`}
                     className={exportTileClass}
                   >
                     <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                      <FileText className="size-4" aria-hidden="true" />
+                      <Icon name="file-lines" className="text-sm" aria-hidden="true" />
                       PDF
                     </span>
                     <span className="text-xs text-fg-muted tabular-nums">
-                      Print-ready page at {values.size}px.
+                      {t("pdfPrint", { size: values.size })}
                     </span>
                   </a>
                 </div>
 
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="shrink-0 text-xs text-fg-subtle">PNG size</span>
+                  <span className="shrink-0 text-xs text-fg-subtle">{t("pngSize")}</span>
                   {EXPORT_SIZES.map((size) => (
                     <Chip
                       key={size}
@@ -359,33 +415,26 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                   ))}
                 </div>
 
-                <p className="m-0 text-xs text-fg-subtle">
-                  Exports render server-side from the saved style, so the logo is embedded in the
-                  file. Unsaved edits are not included.
-                </p>
+                <p className="m-0 text-xs text-fg-subtle">{t("exportHint")}</p>
               </>
             ) : (
               <p className="m-0 rounded-default border border-dashed border-border px-4 py-6 text-center text-sm text-fg-muted">
-                Create the code to unlock PNG, SVG and PDF exports — they render server-side from
-                the saved style.
+                {t("exportLocked")}
               </p>
             )}
           </Card>
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
-          <ControlGroup
-            title="Target"
-            description="What the code points at, and how you will recognise it later."
-          >
-            <Field label="Name" error={errors.name?.message}>
-              <Input placeholder="Spring campaign poster" {...register("name")} />
+          <ControlGroup title={t("target")} description={t("targetDesc")}>
+            <Field label={t("name")} error={qrFieldError(errors.name?.message, t, te)}>
+              <Input placeholder={t("namePlaceholder")} {...register("name")} />
             </Field>
 
             <Field
-              label="Short link"
-              error={errors.linkId?.message}
-              hint="Change the link's destination later and every printed code follows."
+              label={t("shortLink")}
+              error={qrFieldError(errors.linkId?.message, t, te)}
+              hint={t("shortLinkHint")}
             >
               <Select {...register("linkId")}>
                 {links.map((link) => (
@@ -396,21 +445,18 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
               </Select>
             </Field>
 
-            <Field
-              label="Caption"
-              hint={`Printed under the code. ${values.caption.length}/60 characters.`}
-            >
-              <Input placeholder="Scan for 20% off" maxLength={60} {...register("caption")} />
+            <Field label={t("caption")} hint={t("captionHint", { count: values.caption.length })}>
+              <Input placeholder={t("captionPlaceholder")} maxLength={60} {...register("caption")} />
             </Field>
           </ControlGroup>
 
           <ControlGroup
-            title="Colour"
-            description="Scanners read brightness, not hue — keep the modules much darker than the background."
-            action={<Badge tone={quality.tone}>{quality.label}</Badge>}
+            title={t("colour")}
+            description={t("colourDesc")}
+            action={<Badge tone={quality.tone}>{qualityLabel}</Badge>}
           >
             <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-sm font-medium">Presets</span>
+              <span className="text-sm font-medium">{t("presets")}</span>
               <div className="flex min-w-0 flex-wrap gap-2">
                 {QR_PALETTES.map((palette) => {
                   const active =
@@ -431,7 +477,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                         className="size-3.5 shrink-0 rounded-full border border-border-strong"
                         style={{ background: palette.foreground }}
                       />
-                      {palette.label}
+                      {t(PALETTE_KEYS[palette.id])}
                     </Chip>
                   );
                 })}
@@ -440,15 +486,17 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
 
             <div className="grid min-w-0 gap-4 *:min-w-0 sm:grid-cols-2">
               <ColorControl
-                label="Foreground"
-                error={errors.foreground?.message}
+                label={t("foreground")}
+                pickerAria={t("colourPicker", { label: t("foreground") })}
+                error={qrFieldError(errors.foreground?.message, t, te)}
                 value={values.foreground}
                 onPick={(value) => setValue("foreground", value, { shouldDirty: true })}
                 inputProps={register("foreground")}
               />
               <ColorControl
-                label="Background"
-                error={errors.background?.message}
+                label={t("background")}
+                pickerAria={t("colourPicker", { label: t("background") })}
+                error={qrFieldError(errors.background?.message, t, te)}
                 value={values.background}
                 onPick={(value) => setValue("background", value, { shouldDirty: true })}
                 inputProps={register("background")}
@@ -457,14 +505,12 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
 
             <div className="flex min-w-0 items-center justify-between gap-4 rounded-default border border-border bg-surface-subtle px-4 py-3">
               <span className="min-w-0">
-                <span className="block text-sm font-medium">Tint the finder squares</span>
-                <span className="block text-xs text-fg-muted">
-                  Colours the three corner markers separately from the modules.
-                </span>
+                <span className="block text-sm font-medium">{t("tintFinders")}</span>
+                <span className="block text-xs text-fg-muted">{t("tintFindersHint")}</span>
               </span>
               <Switch
                 checked={values.useCustomCorners}
-                aria-label="Tint the finder squares separately"
+                aria-label={t("tintFindersAria")}
                 onCheckedChange={(checked) =>
                   setValue("useCustomCorners", checked, { shouldDirty: true })
                 }
@@ -473,8 +519,9 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
 
             {values.useCustomCorners ? (
               <ColorControl
-                label="Corner colour"
-                error={errors.cornerColor?.message}
+                label={t("cornerColour")}
+                pickerAria={t("colourPicker", { label: t("cornerColour") })}
+                error={qrFieldError(errors.cornerColor?.message, t, te)}
                 value={values.cornerColor}
                 onPick={(value) => setValue("cornerColor", value, { shouldDirty: true })}
                 inputProps={register("cornerColor")}
@@ -482,12 +529,9 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
             ) : null}
           </ControlGroup>
 
-          <ControlGroup
-            title="Shape and resilience"
-            description="Module style, quiet zone and how much damage the code can survive."
-          >
+          <ControlGroup title={t("shapeTitle")} description={t("shapeDesc")}>
             <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-sm font-medium">Module shape</span>
+              <span className="text-sm font-medium">{t("moduleShape")}</span>
               <div className="flex min-w-0 flex-wrap gap-2">
                 {QR_DOT_STYLES.map((style) => (
                   <Chip
@@ -496,32 +540,28 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                     aria-pressed={values.dotStyle === style}
                     onClick={() => setValue("dotStyle", style, { shouldDirty: true })}
                   >
-                    {DOT_STYLE_LABELS[style]}
+                    {t(DOT_STYLE_KEYS[style])}
                   </Chip>
                 ))}
               </div>
             </div>
 
             <Field
-              label="Error correction"
-              hint={
-                hasLogo
-                  ? "Locked to H while a logo covers the centre."
-                  : "Higher levels survive scuffs, folds and reprints."
-              }
+              label={t("errorCorrection")}
+              hint={hasLogo ? t("errorLocked") : t("errorHint")}
             >
               <Select {...register("errorCorrection")} disabled={hasLogo}>
                 {QR_ERROR_LEVELS.map((level) => (
                   <option key={level} value={level}>
-                    {ERROR_LEVEL_LABELS[level]}
+                    {t(ERROR_LEVEL_KEYS[level])}
                   </option>
                 ))}
               </Select>
             </Field>
 
             <Slider
-              label="Quiet zone"
-              readout={`${values.margin} modules`}
+              label={t("quietZone")}
+              readout={t("quietZoneReadout", { count: values.margin })}
               value={values.margin}
               min={0}
               max={8}
@@ -530,8 +570,8 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
             />
 
             <Slider
-              label="Default export size"
-              readout={`${values.size} px`}
+              label={t("exportSize")}
+              readout={t("exportSizeReadout", { size: values.size })}
               value={values.size}
               min={128}
               max={2048}
@@ -541,20 +581,20 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
           </ControlGroup>
 
           <ControlGroup
-            title="Logo"
-            description="Centred overlay on a padded backing plate."
-            action={canUseLogo ? null : <Badge tone="warn">Paid plans</Badge>}
+            title={t("logo")}
+            description={t("logoDesc")}
+            action={canUseLogo ? null : <Badge tone="warn">{t("paidPlans")}</Badge>}
           >
             {canUseLogo ? null : (
               <p className="m-0 rounded-default border border-border bg-surface-subtle px-4 py-3 text-sm text-fg-muted">
-                Custom logos are available on paid plans. Every other control stays editable.
+                {t("logoPaid")}
               </p>
             )}
 
             <Field
-              label="Logo URL"
-              error={errors.logoUrl?.message}
-              hint="HTTPS PNG, JPEG, WebP or SVG up to 1 MB."
+              label={t("logoUrl")}
+              error={qrFieldError(errors.logoUrl?.message, t, te)}
+              hint={t("logoUrlHint")}
             >
               <Input
                 type="url"
@@ -566,8 +606,8 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
             </Field>
 
             <Slider
-              label="Logo size"
-              readout={`${Math.round(values.logoScale * 100)}% of width`}
+              label={t("logoSize")}
+              readout={t("logoSizeReadout", { percent: Math.round(values.logoScale * 100) })}
               value={values.logoScale}
               min={0.1}
               max={0.3}
@@ -576,32 +616,24 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
               onChange={(value) => setValue("logoScale", value, { shouldDirty: true })}
             />
 
-            {hasLogo ? (
-              <p className="m-0 text-xs text-fg-subtle">
-                Keep the logo under a quarter of the width — anything larger eats the data the
-                scanner needs.
-              </p>
-            ) : null}
+            {hasLogo ? <p className="m-0 text-xs text-fg-subtle">{t("logoKeepSmall")}</p> : null}
           </ControlGroup>
 
           {mode === "edit" && qrId ? (
             <section className="flex min-w-0 flex-col gap-3 rounded-default border border-danger bg-danger-surface p-5">
               <h3 className="m-0 flex items-center gap-2 text-sm font-semibold text-ink">
-                <TriangleAlert className="size-4 text-danger" aria-hidden="true" />
-                Delete this code
+                <Icon name="warning" className="text-sm text-danger" aria-hidden="true" />
+                {t("deleteTitle")}
               </h3>
-              <p className="m-0 text-sm leading-relaxed text-fg-muted">
-                Printed copies stop resolving to this record. The short link behind it and all of
-                its click history are left untouched.
-              </p>
+              <p className="m-0 text-sm leading-relaxed text-fg-muted">{t("deleteHint")}</p>
               <Button
                 size="sm"
                 disabled={deleting}
                 className="self-start border-danger text-danger hover:bg-danger-surface hover:text-danger"
                 onClick={() => setConfirmDelete(true)}
               >
-                <Trash2 className="size-4" aria-hidden="true" />
-                Delete QR code
+                <Icon name="trash" className="text-sm" aria-hidden="true" />
+                {t("deleteCode")}
               </Button>
             </section>
           ) : null}
@@ -611,17 +643,17 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
       <SaveBar
         dirty={isDirty || mode === "create"}
         saving={isSubmitting}
-        message={mode === "create" ? "Ready to create" : "Unsaved changes"}
+        message={mode === "create" ? t("readyToCreate") : tc("unsavedChanges")}
         onReset={() => reset(defaultValues)}
         actions={
           <>
             {mode === "edit" ? (
               <Button size="sm" onClick={() => reset(defaultValues)} disabled={isSubmitting}>
-                Discard
+                {t("discard")}
               </Button>
             ) : null}
             <Button size="sm" type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : mode === "create" ? "Create QR code" : "Save changes"}
+              {isSubmitting ? t("saving") : mode === "create" ? t("createCode") : t("saveChanges")}
             </Button>
           </>
         }
@@ -629,13 +661,13 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
 
       <Modal
         open={confirmDelete}
-        title="Delete this QR code?"
-        description={values.name || "Untitled code"}
+        title={t("deleteConfirmTitle")}
+        description={values.name || t("untitled")}
         onClose={() => setConfirmDelete(false)}
         footer={
           <>
             <Button disabled={deleting} onClick={() => setConfirmDelete(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               disabled={deleting}
@@ -644,17 +676,17 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                 void remove();
               }}
             >
-              {deleting ? "Deleting…" : "Delete QR code"}
+              {deleting ? t("deleting") : t("deleteCode")}
             </Button>
           </>
         }
       >
         <div className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+          <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
           <ul className="m-0 flex min-w-0 list-none flex-col gap-1.5 p-0 text-sm text-fg-muted">
-            <li>Anything already printed keeps pointing at the short link, not this design.</li>
-            <li>The short link and its click history are not affected.</li>
-            <li>This cannot be undone.</li>
+            <li>{t("deleteBullet1")}</li>
+            <li>{t("deleteBullet2")}</li>
+            <li>{t("deleteBullet3")}</li>
           </ul>
         </div>
       </Modal>

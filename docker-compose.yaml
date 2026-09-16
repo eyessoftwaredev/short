@@ -1,6 +1,8 @@
 # Coolify compose for stateful origin services.
-# The Next.js panel is a separate Coolify Dockerfile resource (infra/Dockerfile)
-# because this Coolify version rejects Compose `build:` services.
+# Native Coolify DBs already exist (short.ky-pg, shared-redis). Keep these
+# compose services until a dump/restore cutover; shrinking this file before
+# that delete production volumes on the next compose deploy.
+# The Next.js panel is a separate Coolify Dockerfile resource.
 
 services:
   postgres:

@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { BrandLockup } from "@/components/brand/brand-mark";
 import { usePanelSession } from "@/components/providers/session-provider";
 import { authClient } from "@/lib/auth-client";
-import { brandName } from "@/lib/nav";
 import { cn } from "@/lib/cx";
+import { CreateTeamDialog } from "./create-team-dialog";
 import { ImpersonationBanner } from "./impersonation-banner";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -38,8 +39,10 @@ export function PanelShell({
   contentClassName,
 }: PanelShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const router = useRouter();
   const session = usePanelSession();
+  const t = useTranslations("common");
 
   // Read after mount rather than during render: the server has no idea what the
   // user last chose, and guessing would hydrate a different sidebar width.
@@ -92,7 +95,7 @@ export function PanelShell({
         href="#panel-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-toast focus:rounded-default focus:border focus:border-border focus:bg-bg focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:no-underline focus:shadow-pop"
       >
-        Skip to content
+        {t("skipToContent")}
       </a>
 
       <Sidebar
@@ -101,17 +104,11 @@ export function PanelShell({
         onSwitchWorkspace={(id) => {
           void switchWorkspace(id);
         }}
+        onCreateTeam={() => setCreateTeamOpen(true)}
         onSignOut={() => {
           void signOut();
         }}
-        brand={
-          <Link
-            href="/dashboard"
-            className="truncate font-semibold text-ink no-underline hover:no-underline"
-          >
-            {brandName}
-          </Link>
-        }
+        brand={<BrandLockup name={session.brandName} href="/dashboard" />}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
@@ -135,6 +132,13 @@ export function PanelShell({
           {children}
         </main>
       </div>
+      <CreateTeamDialog
+        open={createTeamOpen}
+        onClose={() => setCreateTeamOpen(false)}
+        onCreated={(workspaceId) => {
+          void switchWorkspace(workspaceId);
+        }}
+      />
     </div>
   );
 }

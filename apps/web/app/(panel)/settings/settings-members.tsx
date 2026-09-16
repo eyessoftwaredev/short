@@ -1,6 +1,8 @@
 "use client";
 
-import { MailPlus, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { initials } from "@/components/providers/session-provider";
 import {
@@ -23,7 +25,15 @@ import {
 import { formatDate } from "@/lib/format";
 import { cancelInviteAction, inviteMemberAction, removeMemberAction, updateMemberRoleAction } from "./actions";
 import { DangerButton } from "./settings-dialogs";
-import { ROLE_COPY, type InviteView, type MemberView, type RequestConfirm, type RunAction } from "./settings-types";
+import {
+  ROLE_COPY,
+  isRoleId,
+  type InviteView,
+  type MemberView,
+  type RequestConfirm,
+  type RoleId,
+  type RunAction,
+} from "./settings-types";
 
 type SettingsMembersProps = {
   currentUserId: string;
@@ -32,6 +42,7 @@ type SettingsMembersProps = {
   canManage: boolean;
   isOwner: boolean;
   memberLimit: number;
+  memberUsed: number;
   pending: boolean;
   run: RunAction;
   requestConfirm: RequestConfirm;
@@ -44,42 +55,43 @@ export function SettingsMembers({
   canManage,
   isOwner,
   memberLimit,
+  memberUsed,
   pending,
   run,
   requestConfirm,
 }: SettingsMembersProps) {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("member");
+  const [inviteRole, setInviteRole] = useState<RoleId>("member");
 
-  const seatsFull = memberLimit !== -1 && members.length + invites.length >= memberLimit;
+  const seatsFull = memberLimit !== -1 && memberUsed >= memberLimit;
+  const inviteCopy = ROLE_COPY[inviteRole];
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="grid min-w-0 gap-4 *:min-w-0 lg:grid-cols-3">
         <Card staticHover className="gap-4">
-          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">Seats</span>
-          <QuotaMeter label="Members" used={members.length} limit={memberLimit} />
+          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{t("seats")}</span>
+          <QuotaMeter label={t("members")} used={memberUsed} limit={memberLimit} />
           {invites.length > 0 ? (
-            <p className="m-0 text-xs text-fg-subtle">
-              {invites.length} pending {invites.length === 1 ? "invitation" : "invitations"} also
-              count against this limit once accepted.
-            </p>
+            <p className="m-0 text-xs text-fg-subtle">{t("pendingInvites", { count: invites.length })}</p>
           ) : null}
         </Card>
 
         <Card staticHover className="gap-3 lg:col-span-2">
           <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <ShieldCheck className="size-3.5" aria-hidden="true" />
-            What each role can do
+            <Icon name="shield" className="text-xs" aria-hidden="true" />
+            {t("rolesHeading")}
           </span>
           <dl className="m-0 grid min-w-0 gap-2.5 *:min-w-0 sm:grid-cols-3">
             {(["owner", "admin", "member"] as const).map((role) => (
               <div key={role} className="flex min-w-0 flex-col gap-1">
                 <dt>
-                  <Badge tone={role === "owner" ? "accent" : "muted"}>{ROLE_COPY[role].label}</Badge>
+                  <Badge tone={role === "owner" ? "accent" : "muted"}>{t(ROLE_COPY[role].label)}</Badge>
                 </dt>
                 <dd className="m-0 text-xs leading-relaxed text-fg-muted">
-                  {ROLE_COPY[role].summary}
+                  {t(ROLE_COPY[role].summary)}
                 </dd>
               </div>
             ))}
@@ -90,28 +102,31 @@ export function SettingsMembers({
       {canManage ? (
         <Card staticHover className="gap-4">
           <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <UserPlus className="size-3.5" aria-hidden="true" />
-            Invite a teammate
+            <Icon name="user-plus" className="text-xs" aria-hidden="true" />
+            {t("inviteHeading")}
           </span>
           <div className="flex min-w-0 flex-wrap items-end gap-3">
-            <Field label="Email address" className="min-w-56 flex-1">
+            <Field label={t("inviteEmail")} className="min-w-56 flex-1">
               <Input
                 type="email"
                 autoComplete="off"
-                placeholder="teammate@acme.com"
+                placeholder={t("inviteEmailPlaceholder")}
                 value={inviteEmail}
                 onChange={(event) => setInviteEmail(event.target.value)}
               />
             </Field>
-            <Field
-              label="Role"
-              className="min-w-40"
-              hint={ROLE_COPY[inviteRole]?.summary}
-            >
-              <Select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}>
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-                {isOwner ? <option value="owner">Owner</option> : null}
+            <Field label={t("inviteRole")} className="min-w-40" hint={t(inviteCopy.summary)}>
+              <Select
+                value={inviteRole}
+                onChange={(event) => {
+                  if (isRoleId(event.target.value)) {
+                    setInviteRole(event.target.value);
+                  }
+                }}
+              >
+                <option value="member">{t("roleMember")}</option>
+                <option value="admin">{t("roleAdmin")}</option>
+                {isOwner ? <option value="owner">{t("roleOwner")}</option> : null}
               </Select>
             </Field>
             <Button
@@ -119,38 +134,34 @@ export function SettingsMembers({
               className="shrink-0"
               disabled={pending || seatsFull || inviteEmail.trim() === ""}
               onClick={() => {
-                run(() => inviteMemberAction(inviteEmail, inviteRole), "Invitation sent.");
+                run(() => inviteMemberAction(inviteEmail, inviteRole), t("inviteSent"));
                 setInviteEmail("");
               }}
             >
-              <MailPlus className="size-4" aria-hidden="true" />
-              Send invite
+              <Icon name="envelope" className="text-sm" aria-hidden="true" />
+              {t("sendInvite")}
             </Button>
           </div>
-          {seatsFull ? (
-            <p className="m-0 text-sm text-warn-ink">
-              Every seat on this plan is taken. Remove a member or upgrade to invite more.
-            </p>
-          ) : null}
+          {seatsFull ? <p className="m-0 text-sm text-warn-ink">{t("seatsFull")}</p> : null}
         </Card>
       ) : null}
 
       <div className="flex min-w-0 flex-col gap-3">
         <h3 className="m-0 text-sm font-semibold">
-          Members{" "}
+          {t("members")}{" "}
           <span className="font-mono text-xs font-normal text-fg-subtle tabular-nums">
             {members.length}
           </span>
         </h3>
         <Table>
-          <caption className="sr-only">Workspace members and their roles</caption>
+          <caption className="sr-only">{t("membersTableCaption")}</caption>
           <TableHead>
             <TableRow>
-              <TableHeaderCell scope="col">Member</TableHeaderCell>
-              <TableHeaderCell scope="col">Role</TableHeaderCell>
-              <TableHeaderCell scope="col">Joined</TableHeaderCell>
+              <TableHeaderCell scope="col">{t("colMember")}</TableHeaderCell>
+              <TableHeaderCell scope="col">{t("colRole")}</TableHeaderCell>
+              <TableHeaderCell scope="col">{t("colJoined")}</TableHeaderCell>
               <TableHeaderCell scope="col" className="text-right">
-                Actions
+                {t("colActions")}
               </TableHeaderCell>
             </TableRow>
           </TableHead>
@@ -158,6 +169,7 @@ export function SettingsMembers({
             {members.map((row) => {
               const isSelf = row.userId === currentUserId;
               const removable = canManage && row.role !== "owner" && !isSelf;
+              const roleCopy = isRoleId(row.role) ? ROLE_COPY[row.role] : null;
 
               return (
                 <TableRow key={row.id}>
@@ -167,7 +179,7 @@ export function SettingsMembers({
                       <span className="flex min-w-0 flex-col">
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">{row.name}</span>
-                          {isSelf ? <Badge tone="muted">You</Badge> : null}
+                          {isSelf ? <Badge tone="muted">{t("you")}</Badge> : null}
                         </span>
                         <span className="truncate font-mono text-xs text-fg-muted">
                           {row.email}
@@ -178,23 +190,23 @@ export function SettingsMembers({
                   <TableCell>
                     {isOwner && !isSelf ? (
                       <Select
-                        aria-label={`Role for ${row.email}`}
+                        aria-label={t("roleFor", { email: row.email })}
                         value={row.role}
                         disabled={pending}
                         onChange={(event) =>
                           run(
                             () => updateMemberRoleAction(row.id, event.target.value),
-                            "Role updated.",
+                            t("roleUpdated"),
                           )
                         }
                       >
-                        <option value="member">Member</option>
-                        <option value="admin">Admin</option>
-                        <option value="owner">Owner</option>
+                        <option value="member">{t("roleMember")}</option>
+                        <option value="admin">{t("roleAdmin")}</option>
+                        <option value="owner">{t("roleOwner")}</option>
                       </Select>
                     ) : (
                       <Badge tone={row.role === "owner" ? "accent" : "muted"}>
-                        {ROLE_COPY[row.role]?.label ?? row.role}
+                        {roleCopy ? t(roleCopy.label) : row.role}
                       </Badge>
                     )}
                   </TableCell>
@@ -207,28 +219,28 @@ export function SettingsMembers({
                         <DangerButton
                           size="sm"
                           icon
-                          aria-label={`Remove ${row.email} from the workspace`}
+                          aria-label={t("removeMemberAria", { email: row.email })}
                           disabled={pending}
                           onClick={() =>
                             requestConfirm({
-                              title: `Remove ${row.name}?`,
-                              description: `${row.email} loses access to this workspace immediately.`,
+                              title: t("removeMemberTitle", { name: row.name }),
+                              description: t("removeMemberBody", { email: row.email }),
                               consequences: [
-                                "Their links, QR codes and bio pages stay in the workspace.",
-                                "Any API keys they created keep working until revoked separately.",
-                                "They can be invited back at any time.",
+                                t("removeMemberKeepAssets"),
+                                t("removeMemberKeepKeys"),
+                                t("removeMemberReinvite"),
                               ],
-                              confirmLabel: "Remove member",
+                              confirmLabel: t("removeMemberConfirm"),
                               onConfirm: () =>
-                                run(() => removeMemberAction(row.id), "Member removed."),
+                                run(() => removeMemberAction(row.id), t("memberRemoved")),
                             })
                           }
                         >
-                          <Trash2 className="size-4" aria-hidden="true" />
+                          <Icon name="trash" className="text-sm" aria-hidden="true" />
                         </DangerButton>
                       ) : (
                         <span className="text-xs text-fg-disabled">
-                          {isSelf ? "—" : row.role === "owner" ? "Protected" : "—"}
+                          {isSelf ? "—" : row.role === "owner" ? t("protected") : "—"}
                         </span>
                       )}
                     </span>
@@ -242,50 +254,53 @@ export function SettingsMembers({
 
       <div className="flex min-w-0 flex-col gap-3">
         <h3 className="m-0 text-sm font-semibold">
-          Pending invitations{" "}
+          {t("pendingInvitations")}{" "}
           <span className="font-mono text-xs font-normal text-fg-subtle tabular-nums">
             {invites.length}
           </span>
         </h3>
         {invites.length === 0 ? (
           <EmptyState
-            icon={<MailPlus className="size-5" />}
-            eyebrow="Invitations"
-            title="Nobody is waiting"
-            description="Invitations you send appear here until they are accepted or expire."
+            icon={<Icon name="envelope" className="text-lg" />}
+            eyebrow={t("invitesEmptyEyebrow")}
+            title={t("invitesEmptyTitle")}
+            description={t("invitesEmptyBody")}
             className="py-10"
           />
         ) : (
           <ul className="m-0 flex min-w-0 list-none flex-col gap-2 p-0">
-            {invites.map((invite) => (
-              <li
-                key={invite.id}
-                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-default border border-dashed border-border px-4 py-3"
-              >
-                <span className="min-w-0 flex-1 truncate font-mono text-sm">{invite.email}</span>
-                <Badge tone="muted">{ROLE_COPY[invite.role]?.label ?? invite.role}</Badge>
-                <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
-                  Expires {formatDate(invite.expiresAt)}
-                </span>
-                {canManage ? (
-                  <DangerButton
-                    size="sm"
-                    disabled={pending}
-                    onClick={() =>
-                      requestConfirm({
-                        title: "Cancel this invitation?",
-                        description: `The link sent to ${invite.email} stops working right away.`,
-                        confirmLabel: "Cancel invitation",
-                        onConfirm: () =>
-                          run(() => cancelInviteAction(invite.id), "Invitation cancelled."),
-                      })
-                    }
-                  >
-                    Cancel
-                  </DangerButton>
-                ) : null}
-              </li>
-            ))}
+            {invites.map((invite) => {
+              const inviteRoleCopy = isRoleId(invite.role) ? ROLE_COPY[invite.role] : null;
+              return (
+                <li
+                  key={invite.id}
+                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-default border border-dashed border-border px-4 py-3"
+                >
+                  <span className="min-w-0 flex-1 truncate font-mono text-sm">{invite.email}</span>
+                  <Badge tone="muted">{inviteRoleCopy ? t(inviteRoleCopy.label) : invite.role}</Badge>
+                  <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
+                    {t("inviteExpires", { date: formatDate(invite.expiresAt) })}
+                  </span>
+                  {canManage ? (
+                    <DangerButton
+                      size="sm"
+                      disabled={pending}
+                      onClick={() =>
+                        requestConfirm({
+                          title: t("cancelInviteTitle"),
+                          description: t("cancelInviteBody", { email: invite.email }),
+                          confirmLabel: t("cancelInviteConfirm"),
+                          onConfirm: () =>
+                            run(() => cancelInviteAction(invite.id), t("inviteCancelled")),
+                        })
+                      }
+                    >
+                      {tc("cancel")}
+                    </DangerButton>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

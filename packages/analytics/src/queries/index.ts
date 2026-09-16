@@ -93,17 +93,30 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
   const { where, params } = buildFilters(scope);
 
   const windowMs = scope.to.getTime() - scope.from.getTime();
-  const previous = buildFilters({
-    ...scope,
-    from: new Date(scope.from.getTime() - windowMs),
-    to: scope.from,
-  });
+  // Lifetime (and other multi-year windows) have no meaningful previous period.
+  const skipPrevious = windowMs > 366 * 24 * 60 * 60 * 1000;
 
   const [current] = await chQuery<{ clicks: string; visitors: string; countries: string }>(
     `SELECT count() AS clicks, uniq(visitor_id) AS visitors, uniq(country) AS countries
      FROM events WHERE ${where}`,
     params,
   );
+
+  if (skipPrevious) {
+    return {
+      clicks: Number(current?.clicks ?? 0),
+      visitors: Number(current?.visitors ?? 0),
+      countries: Number(current?.countries ?? 0),
+      previousClicks: 0,
+      previousVisitors: 0,
+    };
+  }
+
+  const previous = buildFilters({
+    ...scope,
+    from: new Date(scope.from.getTime() - windowMs),
+    to: scope.from,
+  });
 
   const [prior] = await chQuery<{ clicks: string; visitors: string }>(
     `SELECT count() AS clicks, uniq(visitor_id) AS visitors FROM events WHERE ${previous.where}`,
@@ -128,16 +141,23 @@ export async function getTimeseries(
   const { where, params } = buildFilters(scope);
   const bucketFn = granularity === "hour" ? "toStartOfHour" : "toStartOfDay";
   const step = granularity === "hour" ? "INTERVAL 1 HOUR" : "INTERVAL 1 DAY";
+  const spanMs = scope.to.getTime() - scope.from.getTime();
+  // WITH FILL materialises every bucket; lifetime / multi-year custom ranges
+  // would emit thousands of empty rows.
+  const fill = spanMs <= 400 * 24 * 60 * 60 * 1000;
+  const order = fill
+    ? `ORDER BY bucket WITH FILL
+       FROM ${bucketFn}(toDateTime64({from:DateTime64(3)}, 3))
+       TO ${bucketFn}(toDateTime64({to:DateTime64(3)}, 3))
+       STEP ${step}`
+    : "ORDER BY bucket";
 
   const rows = await chQuery<{ bucket: string; clicks: string; visitors: string }>(
     `SELECT ${bucketFn}(ts) AS bucket, count() AS clicks, uniq(visitor_id) AS visitors
      FROM events
      WHERE ${where}
      GROUP BY bucket
-     ORDER BY bucket WITH FILL
-       FROM ${bucketFn}(toDateTime64({from:DateTime64(3)}, 3))
-       TO ${bucketFn}(toDateTime64({to:DateTime64(3)}, 3))
-       STEP ${step}`,
+     ${order}`,
     params,
   );
 

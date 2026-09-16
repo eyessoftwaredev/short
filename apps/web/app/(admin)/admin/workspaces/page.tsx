@@ -1,5 +1,6 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { Building2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { PLAN_KEYS } from "@short/core";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
@@ -22,12 +23,10 @@ import { ADMIN_PAGE_SIZE, listWorkspaces } from "@/lib/admin";
 import { formatDate, formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Workspaces · Admin" };
-
-const PLAN_OPTIONS: readonly FilterOption[] = [
-  { id: "all", label: "All plans" },
-  ...PLAN_KEYS.map((key) => ({ id: key, label: key[0]!.toUpperCase() + key.slice(1) })),
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("admin.workspaces");
+  return { title: t("metaTitle") };
+}
 
 type SearchParams = Promise<{ q?: string; plan?: string; page?: string }>;
 
@@ -38,9 +37,17 @@ export default async function AdminWorkspacesPage({
 }) {
   await requireSuperadmin();
   const { q, plan, page } = await searchParams;
+  const t = await getTranslations("admin.workspaces");
+  const tNav = await getTranslations("admin.nav");
+  const tn = await getTranslations("nav");
+
+  const planOptions: readonly FilterOption[] = [
+    { id: "all", label: t("allPlans") },
+    ...PLAN_KEYS.map((key) => ({ id: key, label: key[0]!.toUpperCase() + key.slice(1) })),
+  ];
 
   const current = Math.max(1, Number(page ?? 1) || 1);
-  const planValue = PLAN_OPTIONS.some((option) => option.id === plan) ? plan : "all";
+  const planValue = planOptions.some((option) => option.id === plan) ? plan : "all";
 
   const { items, total } = await listWorkspaces({
     search: q,
@@ -49,39 +56,42 @@ export default async function AdminWorkspacesPage({
   });
 
   return (
-    <PanelShell title="Workspaces" crumbs={[{ label: "Admin" }, { label: "Workspaces" }]}>
+    <PanelShell
+      title={tn("admin-workspaces")}
+      crumbs={[{ label: tNav("admin") }, { label: tn("admin-workspaces") }]}
+    >
       <Hero
-        eyebrow={`${formatNumber(total)} workspaces`}
-        title="Workspaces"
-        description="Every tenant on the platform with its plan, team size and link volume."
+        eyebrow={t("count", { count: formatNumber(total) })}
+        title={tn("admin-workspaces")}
+        description={t("description")}
       />
 
       <QueryFilterBar
         paramKey="plan"
-        options={PLAN_OPTIONS}
+        options={planOptions}
         value={planValue}
         searchValue={q ?? ""}
-        searchPlaceholder="Search name or slug"
+        searchPlaceholder={t("searchPlaceholder")}
       />
 
       {items.length === 0 ? (
         <EmptyState
-          icon={<Building2 className="size-5" />}
-          eyebrow="Workspaces"
-          title="No workspaces match"
-          description="Try a different plan filter or search term."
+          icon={<Icon name="building" className="text-lg" />}
+          eyebrow={tn("admin-workspaces")}
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
         />
       ) : (
         <>
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeaderCell>Workspace</TableHeaderCell>
-                <TableHeaderCell>Plan</TableHeaderCell>
-                <TableHeaderCell className="text-right">Members</TableHeaderCell>
-                <TableHeaderCell className="text-right">Links</TableHeaderCell>
-                <TableHeaderCell>Created</TableHeaderCell>
-                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+                <TableHeaderCell>{tNav("workspace")}</TableHeaderCell>
+                <TableHeaderCell>{tNav("plan")}</TableHeaderCell>
+                <TableHeaderCell className="text-right">{tNav("members")}</TableHeaderCell>
+                <TableHeaderCell className="text-right">{tn("links")}</TableHeaderCell>
+                <TableHeaderCell>{tNav("created")}</TableHeaderCell>
+                <TableHeaderCell className="text-right">{tNav("actions")}</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -113,7 +123,7 @@ export default async function AdminWorkspacesPage({
                   <TableCell>
                     <span className="flex justify-end">
                       <Button size="sm" variant="ghost" href={`/admin/links?workspace=${row.id}`}>
-                        Inspect
+                        {tNav("inspect")}
                       </Button>
                     </span>
                   </TableCell>

@@ -19,7 +19,7 @@ export function fromZodError(error: z.ZodError): ActionResult<never> {
     const path = issue.path.join(".") || "_form";
     fieldErrors[path] = [...(fieldErrors[path] ?? []), issue.message];
   }
-  return { ok: false, error: "Please fix the highlighted fields", fieldErrors };
+  return { ok: false, error: "validation", fieldErrors };
 }
 
 /** Thrown by quota and feature guards; surfaced to the user as an upgrade prompt. */
@@ -35,11 +35,17 @@ export class QuotaError extends Error {
 
 export function toActionError(error: unknown): ActionResult<never> {
   if (error instanceof QuotaError) {
-    return fail(error.message);
+    if (error.resource === "teams") {
+      return fail("quota_teams");
+    }
+    if (error.resource === "members") {
+      return fail("quota_members");
+    }
+    return fail("quota");
   }
   if (error instanceof z.ZodError) {
     return fromZodError(error);
   }
   console.error("server action failed", error);
-  return fail("Something went wrong. Try again.");
+  return fail("generic");
 }

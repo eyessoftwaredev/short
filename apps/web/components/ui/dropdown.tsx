@@ -111,7 +111,7 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
   };
 
   return (
-    <div ref={containerRef} className={cn("relative inline-flex", className)}>
+    <div ref={containerRef} className={cn("relative inline-flex min-w-0", className)}>
       {/*
         The wrapper carries the menu relationship but stays non-focusable: the
         trigger passed in is already a real button, and giving the wrapper
@@ -129,7 +129,7 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
             setOpen(true);
           }
         }}
-        className="inline-flex"
+        className={cn("inline-flex min-w-0", className?.includes("w-full") && "w-full")}
       >
         {trigger}
       </span>

@@ -25,6 +25,8 @@ COPY . .
 # Next collects env at build time for the client bundle; NEXT_PUBLIC_* values that
 # differ per environment are read at runtime instead (see lib/env.ts).
 ENV NEXT_TELEMETRY_DISABLED=1
+# auth.ts calls features() at module init, which parses the full server schema.
+ENV SECRET_ENCRYPTION_KEY=build-placeholder-secret-encryption-key-32
 RUN pnpm --filter @short/web build
 
 

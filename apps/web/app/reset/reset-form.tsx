@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { AuthAlert, AuthHeading } from "../_auth/auth-shell";
+import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
 import { PasswordField } from "../_auth/password-field";
 
 const MIN_PASSWORD_LENGTH = 10;
 
 export function ResetForm({ token }: { token: string }) {
+  const t = useTranslations("auth");
+  const te = useTranslations("errors");
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,11 +22,11 @@ export function ResetForm({ token }: { token: string }) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+      setError(t("resetTooShort", { min: MIN_PASSWORD_LENGTH }));
       return;
     }
     if (token === "") {
-      setError("This reset link is missing its token. Request a new one from the sign-in page.");
+      setError(t("resetMissingToken"));
       return;
     }
 
@@ -33,12 +36,12 @@ export function ResetForm({ token }: { token: string }) {
     try {
       const result = await authClient.resetPassword({ newPassword: password, token });
       if (result.error) {
-        setError(result.error.message ?? "Could not reset the password");
+        setError(result.error.message ?? t("resetFailed"));
         return;
       }
       router.push("/login");
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(te("generic"));
     } finally {
       setPending(false);
     }
@@ -46,24 +49,20 @@ export function ResetForm({ token }: { token: string }) {
 
   return (
     <>
-      <AuthHeading
-        title="Choose a new password"
-        description="Pick something at least 10 characters long. You will sign in with it next."
-      />
+      <AuthHeading title={t("resetTitle")} description={t("resetDescription")} />
 
       {error ? (
-        <AuthAlert tone="danger" title="Could not update the password">
+        <AuthAlert tone="danger" title={t("resetErrorTitle")}>
           {error}
         </AuthAlert>
       ) : null}
 
       {token === "" ? (
         <AuthAlert tone="info">
-          Open the link from your inbox, or{" "}
+          {t("resetOpenInbox")}{" "}
           <Link href="/forgot" className="font-medium">
-            request a new reset email
+            {t("resetRequestNew")}
           </Link>
-          .
         </AuthAlert>
       ) : null}
 
@@ -75,7 +74,7 @@ export function ResetForm({ token }: { token: string }) {
         }}
       >
         <PasswordField
-          label="New password"
+          label={t("resetNewPassword")}
           value={password}
           onChange={setPassword}
           autoComplete="new-password"
@@ -91,7 +90,7 @@ export function ResetForm({ token }: { token: string }) {
           className="w-full"
           disabled={pending || token === ""}
         >
-          {pending ? "Updating password…" : "Save new password"}
+          {pending ? t("resetUpdating") : t("resetSubmit")}
         </Button>
       </form>
     </>

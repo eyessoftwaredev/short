@@ -3,12 +3,30 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { Icon } from "@/components/kit/icon";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { AuthAlert, AuthDivider, AuthHeading } from "../_auth/auth-shell";
+import { verifyPendingPath } from "@/lib/verify-path";
+import { grantVerifyResend } from "../verify/actions";
+import { useTranslations } from "next-intl";
+import { AuthAlert, AuthDivider, AuthHeading } from "../_auth/auth-primitives";
 import { PasswordField } from "../_auth/password-field";
 
+function isUnverifiedLogin(error: { status?: number; code?: string; message?: string | null }): boolean {
+  const code = (error.code ?? "").toUpperCase();
+  if (code === "EMAIL_NOT_VERIFIED") {
+    return true;
+  }
+  const message = (error.message ?? "").toLowerCase();
+  if (message.includes("verif")) {
+    return true;
+  }
+  return error.status === 403;
+}
+
 export function LoginForm() {
+  const t = useTranslations("auth");
+  const te = useTranslations("errors");
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") ?? "/dashboard";
@@ -30,13 +48,18 @@ export function LoginForm() {
     try {
       const result = await authClient.signIn.email({ email, password, callbackURL: next });
       if (result.error) {
-        setError(result.error.message ?? "Could not sign in");
+        if (isUnverifiedLogin(result.error)) {
+          await grantVerifyResend(email, password);
+          router.push(verifyPendingPath());
+          return;
+        }
+        setError(result.error.message ?? t("signInFailed"));
         return;
       }
       router.push(next);
       router.refresh();
     } catch {
-      setError("Something went wrong. Try again.");
+      setError(te("generic"));
     } finally {
       setPending(false);
     }
@@ -48,24 +71,23 @@ export function LoginForm() {
     try {
       await authClient.signIn.social({ provider: "google", callbackURL: next });
     } catch {
-      setError("Google sign-in is unavailable right now.");
+      setError(t("googleUnavailable"));
       setGooglePending(false);
     }
   };
 
   return (
     <>
-      <AuthHeading title="Sign in" description="Continue to your Short workspace." />
+      <AuthHeading title={t("loginTitle")} description={t("loginDescription")} />
 
       {returnedFrom ? (
         <AuthAlert tone="info">
-          Sign in to continue to{" "}
-          <span className="font-mono text-ink break-all">{returnedFrom}</span>.
+          {t("continueTo", { path: returnedFrom })}
         </AuthAlert>
       ) : null}
 
       {error ? (
-        <AuthAlert tone="danger" title="Could not sign you in">
+        <AuthAlert tone="danger" title={t("signInFailedTitle")}>
           {error}
         </AuthAlert>
       ) : null}
@@ -78,13 +100,13 @@ export function LoginForm() {
           void handleSubmit(event);
         }}
       >
-        <Field label="Email">
+        <Field label={t("email")}>
           <Input
             type="email"
             name="email"
             autoComplete="email"
             required
-            placeholder="you@acme.com"
+            placeholder={t("emailPlaceholder")}
             aria-invalid={error ? true : undefined}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -99,16 +121,16 @@ export function LoginForm() {
             invalid={Boolean(error)}
           />
           <Link href="/forgot" className="self-end text-xs font-medium">
-            Forgot your password?
+            {t("forgotPassword")}
           </Link>
         </div>
 
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? t("signingIn") : t("signIn")}
         </Button>
       </form>
 
-      <AuthDivider label="or" />
+      <AuthDivider label={t("or")} />
 
       <Button
         size="lg"
@@ -118,7 +140,8 @@ export function LoginForm() {
           void handleGoogle();
         }}
       >
-        {googlePending ? "Redirecting to Google…" : "Continue with Google"}
+        <Icon name="google" className="text-sm" />
+        {googlePending ? t("redirectingGoogle") : t("continueGoogle")}
       </Button>
     </>
   );

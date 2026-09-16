@@ -2,9 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import type { PlanKey } from "@short/core";
 import { recordAudit } from "@/lib/audit";
-import { planForStripePrice, upsertSubscription, workspaceForCustomer } from "@/lib/billing";
-import { serverEnv } from "@/lib/env";
-import { getStripe, stripeEnabled, toSubscriptionStatus } from "@/lib/stripe";
+import {
+  auditWorkspaceForUser,
+  planForStripePrice,
+  upsertSubscription,
+  userForCustomer,
+} from "@/lib/billing";
+import { getStripe, getStripeCredentials, toSubscriptionStatus } from "@/lib/stripe";
+import { getWorkspaceOwnerId } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 /** Stripe signs the exact bytes, so the body must never be parsed or cached. */
@@ -21,15 +26,31 @@ function customerId(value: string | Stripe.Customer | Stripe.DeletedCustomer | n
   return typeof value === "string" ? value : value.id;
 }
 
+async function resolveUserId(
+  subscription: Stripe.Subscription,
+  stripeCustomerId: string,
+): Promise<string | null> {
+  if (subscription.metadata.userId) {
+    return subscription.metadata.userId;
+  }
+  const fromCustomer = await userForCustomer(stripeCustomerId);
+  if (fromCustomer) {
+    return fromCustomer;
+  }
+  if (subscription.metadata.workspaceId) {
+    return getWorkspaceOwnerId(subscription.metadata.workspaceId);
+  }
+  return null;
+}
+
 async function applySubscription(subscription: Stripe.Subscription): Promise<void> {
   const stripeCustomerId = customerId(subscription.customer);
   if (!stripeCustomerId) {
     return;
   }
 
-  const workspaceId =
-    subscription.metadata.workspaceId ?? (await workspaceForCustomer(stripeCustomerId));
-  if (!workspaceId) {
+  const userId = await resolveUserId(subscription, stripeCustomerId);
+  if (!userId) {
     return;
   }
 
@@ -37,14 +58,14 @@ async function applySubscription(subscription: Stripe.Subscription): Promise<voi
   const priceId = item?.price.id ?? null;
   const mapped = priceId ? await planForStripePrice(priceId) : null;
 
-  // A cancelled or unpaid subscription drops the workspace back to free rather than
+  // A cancelled or unpaid subscription drops the account back to free rather than
   // leaving paid limits in place.
   const status = toSubscriptionStatus(subscription.status);
   const downgraded = status === "canceled";
   const planKey: PlanKey = downgraded ? "free" : (mapped?.key ?? "free");
 
   await upsertSubscription({
-    workspaceId,
+    userId,
     planKey,
     status,
     interval: mapped?.interval ?? "month",
@@ -56,31 +77,31 @@ async function applySubscription(subscription: Stripe.Subscription): Promise<voi
   });
 
   await recordAudit({
-    workspaceId,
+    workspaceId: await auditWorkspaceForUser(userId),
     actorId: null,
     action: "billing.subscription",
     targetType: "subscription",
     targetId: subscription.id,
-    metadata: { planKey, status },
+    metadata: { planKey, status, userId },
   });
 }
 
 export async function POST(request: NextRequest) {
-  if (!stripeEnabled()) {
+  const creds = await getStripeCredentials();
+  if (!creds) {
     return NextResponse.json({ error: "billing_disabled" }, { status: 503 });
   }
 
   const signature = request.headers.get("stripe-signature");
-  const secret = serverEnv().STRIPE_WEBHOOK_SECRET;
-  if (!signature || !secret) {
+  if (!signature) {
     return NextResponse.json({ error: "missing_signature" }, { status: 400 });
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   let event: Stripe.Event;
 
   try {
-    event = await stripe.webhooks.constructEventAsync(await request.text(), signature, secret);
+    event = await stripe.webhooks.constructEventAsync(await request.text(), signature, creds.webhookSecret);
   } catch {
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
@@ -91,9 +112,8 @@ export async function POST(request: NextRequest) {
         const session = event.data.object;
         if (typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
-          // Checkout knows the workspace; the subscription object may not yet.
-          if (!subscription.metadata.workspaceId && session.client_reference_id) {
-            subscription.metadata.workspaceId = session.client_reference_id;
+          if (!subscription.metadata.userId && session.client_reference_id) {
+            subscription.metadata.userId = session.client_reference_id;
           }
           await applySubscription(subscription);
         }
@@ -108,17 +128,15 @@ export async function POST(request: NextRequest) {
       case "invoice.payment_failed": {
         const invoice = event.data.object;
         const stripeCustomerId = customerId(invoice.customer);
-        const workspaceId = stripeCustomerId
-          ? await workspaceForCustomer(stripeCustomerId)
-          : null;
-        if (workspaceId) {
+        const userId = stripeCustomerId ? await userForCustomer(stripeCustomerId) : null;
+        if (userId) {
           await recordAudit({
-            workspaceId,
+            workspaceId: await auditWorkspaceForUser(userId),
             actorId: null,
             action: "billing.payment_failed",
             targetType: "invoice",
             targetId: invoice.id ?? null,
-            metadata: { amountDue: invoice.amount_due },
+            metadata: { amountDue: invoice.amount_due, userId },
           });
         }
         break;

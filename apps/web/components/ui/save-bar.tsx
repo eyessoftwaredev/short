@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cx";
@@ -21,14 +22,18 @@ type SaveBarProps = {
 export function SaveBar({
   dirty,
   saving = false,
-  message = "Unsaved changes",
+  message,
   onReset,
   onSave,
-  saveLabel = "Save",
-  resetLabel = "Discard",
+  saveLabel,
+  resetLabel,
   actions,
   className,
 }: SaveBarProps) {
+  const t = useTranslations("common");
+  const resolvedMessage = message ?? t("unsavedChanges");
+  const resolvedSave = saveLabel ?? t("save");
+  const resolvedReset = resetLabel ?? t("discard");
   if (!dirty) {
     return null;
   }
@@ -40,15 +45,15 @@ export function SaveBar({
         className,
       )}
     >
-      <span className="text-sm text-fg-muted">{message}</span>
+      <span className="text-sm text-fg-muted">{resolvedMessage}</span>
       <span className="flex shrink-0 gap-2">
         {actions ?? (
           <>
             <Button size="sm" onClick={onReset} disabled={saving}>
-              {resetLabel}
+              {resolvedReset}
             </Button>
             <Button size="sm" variant="primary" onClick={onSave} disabled={saving}>
-              {saving ? "Saving…" : saveLabel}
+              {saving ? t("saving") : resolvedSave}
             </Button>
           </>
         )}

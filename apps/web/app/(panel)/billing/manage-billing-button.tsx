@@ -1,8 +1,11 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useState } from "react";
-import { CreditCard } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { openPortalAction } from "./actions";
 
 type ManageBillingButtonProps = {
@@ -19,13 +22,16 @@ type ManageBillingButtonProps = {
  * "fix your billing" action is identical wherever it appears.
  */
 export function ManageBillingButton({
-  label = "Manage billing",
+  label,
   variant = "default",
   size = "sm",
   className,
   disabled = false,
   withIcon = true,
 }: ManageBillingButtonProps) {
+  const t = useTranslations("billing");
+  const actionMessage = useActionMessage();
+  const resolvedLabel = label ?? t("manageBilling");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,14 +41,14 @@ export function ManageBillingButton({
     try {
       const result = await openPortalAction();
       if (!result.ok) {
-        setError(result.error);
+        setError(actionMessage(result.error));
         setPending(false);
         return;
       }
       // Leaves `pending` set on purpose — the tab is navigating to Stripe.
       window.location.href = result.data.url;
     } catch {
-      setError("Could not open the billing portal. Try again.");
+      setError(actionMessage("portal_failed"));
       setPending(false);
     }
   }
@@ -58,8 +64,8 @@ export function ManageBillingButton({
           void open();
         }}
       >
-        {withIcon ? <CreditCard className="size-4" aria-hidden="true" /> : null}
-        {pending ? "Opening Stripe…" : label}
+        {withIcon ? <Icon name="credit-card" className="text-sm" aria-hidden="true" /> : null}
+        {pending ? t("openingStripe") : resolvedLabel}
       </Button>
       {error ? (
         <span role="alert" className="text-xs text-danger">

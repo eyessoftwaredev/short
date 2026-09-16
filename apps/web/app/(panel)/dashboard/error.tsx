@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
-import { RotateCw, TriangleAlert } from "lucide-react";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, EmptyState } from "@/components/ui";
 
@@ -18,27 +20,30 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("panel");
+  const tc = useTranslations("common");
+
   useEffect(() => {
     console.error("dashboard failed to render", error);
   }, [error]);
 
   return (
-    <PanelShell title="Dashboard">
+    <PanelShell title={t("dashboard")}>
       <EmptyState
-        icon={<TriangleAlert className="size-5" />}
-        eyebrow={error.digest ? `Ref ${error.digest}` : undefined}
-        title="This dashboard could not be loaded"
-        description="Something went wrong while reading your workspace. Your links and click data are unaffected."
+        icon={<Icon name="warning" className="text-lg" />}
+        eyebrow={error.digest ? tc("errorRef", { digest: error.digest }) : undefined}
+        title={t("dashboardLoadError")}
+        description={t("dashboardLoadErrorBody")}
         actions={
           <>
             <Button variant="primary" onClick={reset}>
-              <RotateCw className="size-4" />
-              Try again
+              <Icon name="rotate-right" className="text-sm" />
+              {tc("tryAgain")}
             </Button>
-            <Button href="/links">Go to links</Button>
+            <Button href="/links">{tc("goToLinks")}</Button>
           </>
         }
-        hint="If this keeps happening, quote the reference above to support."
+        hint={t("loadErrorHint")}
       />
     </PanelShell>
   );

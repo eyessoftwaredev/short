@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { organization } from "./auth";
+import { organization, user } from "./auth";
 
 /**
  * Plans are seeded from `@short/core` PLANS but stored in Postgres so an admin can
@@ -40,9 +40,11 @@ export const subscriptions = pgTable(
   "subscriptions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    workspaceId: text("workspace_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Legacy workspace pointer; billing is per user. Kept nullable for old rows. */
+    workspaceId: text("workspace_id").references(() => organization.id, { onDelete: "set null" }),
     planKey: text("plan_key")
       .$type<PlanKey>()
       .notNull()
@@ -60,7 +62,7 @@ export const subscriptions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("subscriptions_workspace_uq").on(table.workspaceId),
+    uniqueIndex("subscriptions_user_uq").on(table.userId),
     index("subscriptions_stripe_customer_idx").on(table.stripeCustomerId),
   ],
 );

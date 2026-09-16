@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "short-ingest",
+  "name": "short-ky-ingest",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
@@ -8,12 +8,12 @@
   "queues": {
     "consumers": [
       {
-        "queue": "short-clicks",
+        "queue": "short-ky-clicks",
         "max_batch_size": 100,
         "max_batch_timeout": 5,
         "max_retries": 3,
         "max_concurrency": 10,
-        "dead_letter_queue": "short-clicks-dlq"
+        "dead_letter_queue": "short-ky-clicks-dlq"
       }
     ]
   },

@@ -1,8 +1,11 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
-import { Lock } from "lucide-react";
+import { useActionMessage } from "@/lib/action-message";
 import type { WebhookEvent } from "@short/core";
 import { initials } from "@/components/providers/session-provider";
 import {
@@ -21,11 +24,12 @@ import {
 import {
   createApiKeyAction,
   createWebhookAction,
+  deleteTeamAction,
   updateProfileAction,
   updateWorkspaceAction,
 } from "./actions";
 import { SettingsApi } from "./settings-api";
-import { ConfirmDialog, SecretModal, SettingsBanner } from "./settings-dialogs";
+import { ConfirmDialog, DangerButton, SecretModal, SettingsBanner } from "./settings-dialogs";
 import { SettingsMembers } from "./settings-members";
 import { SettingsWebhooks } from "./settings-webhooks";
 import type {
@@ -40,7 +44,7 @@ import type {
 
 type SettingsViewProps = {
   user: { id: string; name: string; email: string };
-  workspace: { id: string; name: string; slug: string };
+  workspace: { id: string; name: string; slug: string; kind: "personal" | "team" };
   members: MemberView[];
   invites: InviteView[];
   apiKeys: KeyView[];
@@ -50,16 +54,18 @@ type SettingsViewProps = {
   planName: string;
   features: { apiAccess: boolean; webhooks: boolean };
   memberLimit: number;
+  memberUsed: number;
   apiRateLimit: number;
   apiBaseUrl: string;
   initialTab?: SettingsTabId;
 };
 
 function LockedLabel({ label, locked }: { label: string; locked: boolean }) {
+  const tc = useTranslations("common");
   return (
     <span className="inline-flex items-center gap-1.5">
       {label}
-      {locked ? <Lock className="size-3 text-fg-disabled" aria-label="not in your plan" /> : null}
+      {locked ? <Icon name="lock" className="text-xs text-fg-disabled" aria-label={tc("notInPlan")} /> : null}
     </span>
   );
 }
@@ -76,11 +82,15 @@ export function SettingsView({
   planName,
   features,
   memberLimit,
+  memberUsed,
   apiRateLimit,
   apiBaseUrl,
   initialTab = "profile",
 }: SettingsViewProps) {
   const router = useRouter();
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
+  const actionMessage = useActionMessage();
   const [tab, setTab] = useState<SettingsTabId>(initialTab);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -105,18 +115,19 @@ export function SettingsView({
     router.replace(href, { scroll: false });
   }
 
+  const isTeam = workspace.kind === "team";
   const tabs: readonly TabItem<SettingsTabId>[] = [
-    { id: "profile", label: "Profile" },
-    { id: "workspace", label: "Workspace" },
-    { id: "members", label: "Members", count: members.length },
+    { id: "profile", label: t("tabProfile") },
+    { id: "workspace", label: t("tabWorkspace") },
+    ...(isTeam ? [{ id: "members" as const, label: t("tabMembers"), count: members.length }] : []),
     {
       id: "api",
-      label: <LockedLabel label="API keys" locked={!features.apiAccess} />,
+      label: <LockedLabel label={t("tabApi")} locked={!features.apiAccess} />,
       count: features.apiAccess ? apiKeys.length : undefined,
     },
     {
       id: "webhooks",
-      label: <LockedLabel label="Webhooks" locked={!features.webhooks} />,
+      label: <LockedLabel label={t("tabWebhooks")} locked={!features.webhooks} />,
       count: features.webhooks ? webhookRows.length : undefined,
     },
   ];
@@ -127,7 +138,7 @@ export function SettingsView({
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
-        setError(result.error ?? "Something went wrong.");
+        setError(actionMessage(result.error));
         return;
       }
       if (message) {
@@ -153,7 +164,7 @@ export function SettingsView({
     startTransition(async () => {
       const result = await createApiKeyAction(keyName);
       if (!result.ok) {
-        setError(result.error);
+        setError(actionMessage(result.error));
         return;
       }
       setIssuedKey(result.data.key);
@@ -172,7 +183,7 @@ export function SettingsView({
         enabled: true,
       });
       if (!result.ok) {
-        setError(result.error);
+        setError(actionMessage(result.error));
         return;
       }
       setIssuedSecret(result.data.secret);
@@ -200,10 +211,7 @@ export function SettingsView({
       ) : null}
 
       <TabPanel active={tab === "profile"}>
-        <Section
-          title="Your profile"
-          description="How you appear to teammates in member lists and activity."
-        >
+        <Section title={t("profileTitle")} description={t("profileDescription")}>
           <div className="flex min-w-0 flex-col gap-4">
             <Card staticHover className="max-w-xl gap-5">
               <span className="flex min-w-0 items-center gap-3">
@@ -218,7 +226,7 @@ export function SettingsView({
                 </span>
               </span>
 
-              <Field label="Display name" hint="Between 2 and 80 characters.">
+              <Field label={t("displayName")} hint={t("displayNameHint")}>
                 <Input
                   value={displayName}
                   minLength={2}
@@ -228,10 +236,7 @@ export function SettingsView({
                 />
               </Field>
 
-              <Field
-                label="Email"
-                hint="Your sign-in address. Contact support to change it — links and audit history are tied to it."
-              >
+              <Field label={t("email")} hint={t("emailHint")}>
                 <Input value={user.email} readOnly disabled autoComplete="email" />
               </Field>
             </Card>
@@ -239,9 +244,11 @@ export function SettingsView({
             <SaveBar
               dirty={profileDirty}
               saving={pending}
-              message="Unsaved profile changes"
+              message={t("unsavedProfile")}
+              saveLabel={tc("save")}
+              resetLabel={tc("cancel")}
               onReset={() => setDisplayName(user.name)}
-              onSave={() => run(() => updateProfileAction(displayName), "Profile updated.")}
+              onSave={() => run(() => updateProfileAction(displayName), t("profileUpdated"))}
               className="max-w-xl"
             />
           </div>
@@ -250,18 +257,14 @@ export function SettingsView({
 
       <TabPanel active={tab === "workspace"}>
         <Section
-          title="Workspace"
-          description="The name your team sees in the switcher and on shared surfaces."
+          title={t("workspaceTitle")}
+          description={isTeam ? t("workspaceDescription") : t("personalDescription")}
         >
           <div className="flex min-w-0 flex-col gap-4">
             <Card staticHover className="max-w-xl gap-5">
               <Field
-                label="Workspace name"
-                hint={
-                  canManage
-                    ? "Between 2 and 80 characters."
-                    : "Only owners and admins can rename the workspace."
-                }
+                label={t("workspaceName")}
+                hint={canManage ? t("workspaceNameHint") : t("workspaceNameLocked")}
               >
                 <Input
                   value={workspaceName}
@@ -274,52 +277,83 @@ export function SettingsView({
 
               <dl className="m-0 flex min-w-0 flex-col gap-3 border-t border-border pt-4">
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                  <dt className="text-sm text-fg-muted">Slug</dt>
+                  <dt className="text-sm text-fg-muted">{t("workspaceCode")}</dt>
                   <dd className="m-0 flex min-w-0 items-center gap-1.5">
                     <code className="min-w-0 truncate font-mono text-sm">{workspace.slug}</code>
-                    <CopyButton value={workspace.slug} iconOnly label="Copy slug" />
+                    <CopyButton value={workspace.slug} iconOnly label={t("copyWorkspaceCode")} />
                   </dd>
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                  <dt className="text-sm text-fg-muted">Workspace ID</dt>
+                  <dt className="text-sm text-fg-muted">{t("workspaceId")}</dt>
                   <dd className="m-0 flex min-w-0 items-center gap-1.5">
                     <code className="min-w-0 truncate font-mono text-xs text-fg-muted">
                       {workspace.id}
                     </code>
-                    <CopyButton value={workspace.id} iconOnly label="Copy workspace ID" />
+                    <CopyButton value={workspace.id} iconOnly label={t("copyWorkspaceId")} />
                   </dd>
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                  <dt className="text-sm text-fg-muted">Plan</dt>
+                  <dt className="text-sm text-fg-muted">{t("kind")}</dt>
+                  <dd className="m-0">
+                    <Badge tone="muted">{isTeam ? t("kindTeam") : t("kindPersonal")}</Badge>
+                  </dd>
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <dt className="text-sm text-fg-muted">{t("plan")}</dt>
                   <dd className="m-0">
                     <Badge tone="accent">{planName}</Badge>
                   </dd>
                 </div>
               </dl>
 
-              <p className="m-0 text-xs leading-relaxed text-fg-subtle">
-                The slug appears in invitation links and cannot be changed here — contact support if
-                it has to move.
-              </p>
+              <p className="m-0 text-xs leading-relaxed text-fg-subtle">{t("workspaceCodeHint")}</p>
             </Card>
 
             <SaveBar
               dirty={workspaceDirty && canManage}
               saving={pending}
-              message="Unsaved workspace changes"
+              message={t("unsavedWorkspace")}
+              saveLabel={tc("save")}
+              resetLabel={tc("cancel")}
               onReset={() => setWorkspaceName(workspace.name)}
-              onSave={() => run(() => updateWorkspaceAction(workspaceName), "Workspace updated.")}
+              onSave={() => run(() => updateWorkspaceAction(workspaceName), t("workspaceUpdated"))}
               className="max-w-xl"
             />
+
+            {isTeam && isOwner ? (
+              <Card staticHover className="max-w-xl gap-3 border-danger">
+                <span className="text-sm font-medium text-danger">{t("deleteTeam")}</span>
+                <p className="m-0 text-sm text-fg-muted">{t("deleteTeamBody")}</p>
+                <DangerButton
+                  size="sm"
+                  disabled={pending}
+                  onClick={() =>
+                    requestConfirm({
+                      title: t("deleteTeamTitle", { name: workspace.name }),
+                      description: t("deleteTeamConfirm"),
+                      consequences: [t("deleteTeamKeepAccount")],
+                      confirmLabel: t("deleteTeam"),
+                      onConfirm: () =>
+                        run(async () => {
+                          const result = await deleteTeamAction();
+                          if (result.ok) {
+                            router.push("/dashboard");
+                          }
+                          return result;
+                        }),
+                    })
+                  }
+                >
+                  {t("deleteTeam")}
+                </DangerButton>
+              </Card>
+            ) : null}
           </div>
         </Section>
       </TabPanel>
 
       <TabPanel active={tab === "members"}>
-        <Section
-          title="Members and access"
-          description="Who can reach this workspace, and how much they can change once they are in."
-        >
+        <Section title={t("membersTitle")} description={t("membersDescription")}>
           <SettingsMembers
             currentUserId={user.id}
             members={members}
@@ -327,6 +361,7 @@ export function SettingsView({
             canManage={canManage}
             isOwner={isOwner}
             memberLimit={memberLimit}
+            memberUsed={memberUsed}
             pending={pending}
             run={run}
             requestConfirm={requestConfirm}
@@ -335,10 +370,7 @@ export function SettingsView({
       </TabPanel>
 
       <TabPanel active={tab === "api"}>
-        <Section
-          title="API keys"
-          description="Keys are scoped to this workspace and authenticate every REST API call."
-        >
+        <Section title={t("apiTitle")} description={t("apiDescription")}>
           <SettingsApi
             apiKeys={apiKeys}
             apiBaseUrl={apiBaseUrl}
@@ -356,10 +388,7 @@ export function SettingsView({
       </TabPanel>
 
       <TabPanel active={tab === "webhooks"}>
-        <Section
-          title="Webhooks"
-          description="Outbound events, signed so your backend can prove they came from us."
-        >
+        <Section title={t("webhooksTitle")} description={t("webhooksDescription")}>
           <SettingsWebhooks
             webhookRows={webhookRows}
             hasFeature={features.webhooks}
@@ -378,17 +407,17 @@ export function SettingsView({
 
       <SecretModal
         open={issuedKey !== null}
-        kind="API key"
+        kind="apiKey"
         secret={issuedKey ?? ""}
-        usage={`Send it as an Authorization: Bearer header against ${apiBaseUrl}.`}
+        usage={t("apiKeyUsage", { url: apiBaseUrl })}
         onDismiss={() => setIssuedKey(null)}
       />
 
       <SecretModal
         open={issuedSecret !== null}
-        kind="Signing secret"
+        kind="signingSecret"
         secret={issuedSecret ?? ""}
-        usage="Use it to recompute the x-short-signature header and reject deliveries that do not match."
+        usage={t("signingSecretUsage")}
         onDismiss={() => setIssuedSecret(null)}
       />
 

@@ -17,9 +17,8 @@ const PROTECTED_PREFIXES = [
   "/billing",
   "/admin",
   "/onboarding",
+  "/docs",
 ];
-
-const AUTH_ROUTES = ["/login", "/register", "/forgot", "/reset"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -31,10 +30,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && AUTH_ROUTES.includes(pathname)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
+  // Auth screens decide for themselves after `getSession()`. A leftover cookie
+  // must not bounce /login → /dashboard → /login when Postgres rejects it.
   return NextResponse.next();
 }
 
@@ -49,9 +46,11 @@ export const config = {
     "/settings/:path*",
     "/billing/:path*",
     "/admin/:path*",
+    "/docs/:path*",
     "/onboarding",
     "/login",
     "/register",
+    "/verify",
     "/forgot",
     "/reset",
     "/invite/:path*",

@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cx";
 import { Progress } from "./progress";
@@ -30,10 +33,12 @@ export function BreakdownList({
   total,
   meta,
   footer,
-  emptyLabel = "No data in this range",
+  emptyLabel,
   limit,
   className,
 }: BreakdownListProps) {
+  const t = useTranslations("common");
+  const resolvedEmpty = emptyLabel ?? t("noDataInRange");
   const visible = limit ? rows.slice(0, limit) : rows;
   const sum = total ?? rows.reduce((acc, row) => acc + row.value, 0);
   // Bars are scaled against the largest row, not the total, or a long tail is invisible.
@@ -54,7 +59,7 @@ export function BreakdownList({
       </div>
 
       {visible.length === 0 ? (
-        <p className="py-4 text-sm text-fg-muted">{emptyLabel}</p>
+        <p className="py-4 text-sm text-fg-muted">{resolvedEmpty}</p>
       ) : (
         <div className="flex flex-col gap-3.5">
           {visible.map((row) => (

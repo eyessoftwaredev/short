@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 type ModalProps = {
@@ -12,6 +13,7 @@ type ModalProps = {
 };
 
 export function Modal({ open, title, description, children, onClose, footer }: ModalProps) {
+  const t = useTranslations("common");
   if (!open) {
     return null;
   }
@@ -33,7 +35,7 @@ export function Modal({ open, title, description, children, onClose, footer }: M
             <h3 className="text-lg font-semibold">{title}</h3>
             {description ? <p className="mt-1 text-sm text-fg-muted">{description}</p> : null}
           </div>
-          <Button variant="ghost" icon aria-label="Close" onClick={onClose}>
+          <Button variant="ghost" icon aria-label={t("close")} onClick={onClose}>
             ×
           </Button>
         </div>

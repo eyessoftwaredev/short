@@ -1,18 +1,17 @@
 export type QrPalette = {
-  id: string;
-  label: string;
+  id: "classic" | "teal" | "navy" | "plum" | "forest" | "inverted";
   foreground: string;
   background: string;
 };
 
 /** Known-scannable pairs, so picking a colour never produces a dead code. */
 export const QR_PALETTES: readonly QrPalette[] = [
-  { id: "classic", label: "Classic", foreground: "#171717", background: "#ffffff" },
-  { id: "teal", label: "Teal", foreground: "#0f766e", background: "#ffffff" },
-  { id: "navy", label: "Navy", foreground: "#0b1120", background: "#e8ecf6" },
-  { id: "plum", label: "Plum", foreground: "#500724", background: "#fdf2f8" },
-  { id: "forest", label: "Forest", foreground: "#14281d", background: "#e2efe6" },
-  { id: "inverted", label: "Inverted", foreground: "#ffffff", background: "#171717" },
+  { id: "classic", foreground: "#171717", background: "#ffffff" },
+  { id: "teal", foreground: "#0f766e", background: "#ffffff" },
+  { id: "navy", foreground: "#0b1120", background: "#e8ecf6" },
+  { id: "plum", foreground: "#500724", background: "#fdf2f8" },
+  { id: "forest", foreground: "#14281d", background: "#e2efe6" },
+  { id: "inverted", foreground: "#ffffff", background: "#171717" },
 ];
 
 function channel(value: number): number {
@@ -41,10 +40,11 @@ function luminance(hex: string): number | null {
   );
 }
 
+export type ScanQualityKind = "invalid" | "fail" | "low" | "inverted" | "good";
+
 export type ScanQuality = {
   tone: "accent" | "warn" | "danger" | "muted";
-  label: string;
-  advice: string | null;
+  kind: ScanQualityKind;
 };
 
 /**
@@ -56,7 +56,7 @@ export function scanQuality(foreground: string, background: string): ScanQuality
   const back = luminance(background);
 
   if (front === null || back === null) {
-    return { tone: "muted", label: "Check colours", advice: null };
+    return { tone: "muted", kind: "invalid" };
   }
 
   const [high, low] = front > back ? [front, back] : [back, front];
@@ -64,28 +64,16 @@ export function scanQuality(foreground: string, background: string): ScanQuality
   const inverted = front > back;
 
   if (ratio < 3) {
-    return {
-      tone: "danger",
-      label: "Will not scan",
-      advice: "Foreground and background are too close in brightness. Darken one of them.",
-    };
+    return { tone: "danger", kind: "fail" };
   }
 
   if (ratio < 7) {
-    return {
-      tone: "warn",
-      label: "Low contrast",
-      advice: "Readable up close, but likely to fail on a poster or in dim light.",
-    };
+    return { tone: "warn", kind: "low" };
   }
 
   if (inverted) {
-    return {
-      tone: "warn",
-      label: "Inverted",
-      advice: "Light modules on a dark background — some older scanners refuse these.",
-    };
+    return { tone: "warn", kind: "inverted" };
   }
 
-  return { tone: "accent", label: "Scans well", advice: null };
+  return { tone: "accent", kind: "good" };
 }

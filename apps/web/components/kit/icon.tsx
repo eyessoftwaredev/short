@@ -1,0 +1,131 @@
+import { cn } from "@/lib/cx";
+
+/**
+ * Theme icon pack (Font Awesome 6, same classes as /docs catalog).
+ * UI names match `copy.json` uiIcons; brand names match brandIcons.
+ */
+export const ICONS = {
+  folder: "fa-solid fa-folder",
+  export: "fa-solid fa-file-export",
+  "chart-line": "fa-solid fa-chart-line",
+  globe: "fa-solid fa-globe",
+  copy: "fa-solid fa-copy",
+  plus: "fa-solid fa-plus",
+  gear: "fa-solid fa-gear",
+  "gauge-high": "fa-solid fa-gauge-high",
+  "cloud-up": "fa-solid fa-cloud-arrow-up",
+  "arrow-down": "fa-solid fa-arrow-down",
+  "arrow-up": "fa-solid fa-arrow-up",
+  "arrow-trend-up": "fa-solid fa-arrow-trend-up",
+  "arrow-right": "fa-solid fa-arrow-right",
+  "arrow-left": "fa-solid fa-arrow-left",
+  search: "fa-solid fa-magnifying-glass",
+  filter: "fa-solid fa-filter",
+  calendar: "fa-solid fa-calendar-days",
+  clock: "fa-solid fa-clock",
+  tag: "fa-solid fa-tag",
+  "user-plus": "fa-solid fa-user-plus",
+  "user-check": "fa-solid fa-user-check",
+  "user-gear": "fa-solid fa-user-gear",
+  users: "fa-solid fa-users",
+  code: "fa-solid fa-code",
+  key: "fa-solid fa-key",
+  shield: "fa-solid fa-shield-halved",
+  trash: "fa-solid fa-trash",
+  pen: "fa-solid fa-pen",
+  ellipsis: "fa-solid fa-ellipsis",
+  check: "fa-solid fa-check",
+  "circle-check": "fa-solid fa-circle-check",
+  "circle-xmark": "fa-solid fa-circle-xmark",
+  xmark: "fa-solid fa-xmark",
+  "circle-info": "fa-solid fa-circle-info",
+  warning: "fa-solid fa-triangle-exclamation",
+  "chevron-down": "fa-solid fa-chevron-down",
+  "chevron-up": "fa-solid fa-chevron-up",
+  "chevron-left": "fa-solid fa-chevron-left",
+  "chevron-right": "fa-solid fa-chevron-right",
+  "layer-group": "fa-solid fa-layer-group",
+  bolt: "fa-solid fa-bolt",
+  earth: "fa-solid fa-earth-europe",
+  link: "fa-solid fa-link",
+  qrcode: "fa-solid fa-qrcode",
+  "address-card": "fa-solid fa-address-card",
+  bullseye: "fa-solid fa-bullseye",
+  book: "fa-solid fa-book",
+  building: "fa-solid fa-building",
+  "credit-card": "fa-solid fa-credit-card",
+  palette: "fa-solid fa-palette",
+  pulse: "fa-solid fa-heart-pulse",
+  scroll: "fa-solid fa-scroll",
+  "right-from-bracket": "fa-solid fa-right-from-bracket",
+  sort: "fa-solid fa-sort",
+  spinner: "fa-solid fa-spinner fa-spin",
+  sun: "fa-solid fa-sun",
+  moon: "fa-solid fa-moon",
+  lock: "fa-solid fa-lock",
+  unlock: "fa-solid fa-unlock",
+  eye: "fa-solid fa-eye",
+  "eye-slash": "fa-solid fa-eye-slash",
+  envelope: "fa-solid fa-envelope",
+  "envelope-circle-check": "fa-solid fa-envelope-circle-check",
+  inbox: "fa-solid fa-inbox",
+  compass: "fa-solid fa-compass",
+  "rotate-right": "fa-solid fa-rotate-right",
+  download: "fa-solid fa-download",
+  "external-link": "fa-solid fa-arrow-up-right-from-square",
+  sliders: "fa-solid fa-sliders",
+  terminal: "fa-solid fa-terminal",
+  flag: "fa-solid fa-flag",
+  ban: "fa-solid fa-ban",
+  laptop: "fa-solid fa-laptop",
+  "share-nodes": "fa-solid fa-share-nodes",
+  "arrow-pointer": "fa-solid fa-arrow-pointer",
+  repeat: "fa-solid fa-repeat",
+  minus: "fa-solid fa-minus",
+  sparkles: "fa-solid fa-wand-magic-sparkles",
+  "mobile-screen": "fa-solid fa-mobile-screen",
+  grip: "fa-solid fa-grip-vertical",
+  archive: "fa-solid fa-box-archive",
+  "archive-restore": "fa-solid fa-box-open",
+  image: "fa-solid fa-file-image",
+  "file-lines": "fa-solid fa-file-lines",
+  "file-code": "fa-solid fa-file-code",
+  at: "fa-solid fa-at",
+  apple: "fa-brands fa-apple",
+  android: "fa-brands fa-android",
+  windows: "fa-brands fa-windows",
+  linux: "fa-brands fa-linux",
+  chrome: "fa-brands fa-chrome",
+  safari: "fa-brands fa-safari",
+  firefox: "fa-brands fa-firefox-browser",
+  edge: "fa-brands fa-edge",
+  linkedin: "fa-brands fa-linkedin",
+  "x-twitter": "fa-brands fa-x-twitter",
+  instagram: "fa-brands fa-instagram",
+  whatsapp: "fa-brands fa-whatsapp",
+  youtube: "fa-brands fa-youtube",
+  github: "fa-brands fa-github",
+  google: "fa-brands fa-google",
+  cloudflare: "fa-brands fa-cloudflare",
+  slack: "fa-brands fa-slack",
+  tiktok: "fa-brands fa-tiktok",
+  facebook: "fa-brands fa-facebook",
+  telegram: "fa-brands fa-telegram",
+} as const;
+
+export type IconName = keyof typeof ICONS;
+
+type IconProps = {
+  name: IconName;
+  className?: string;
+};
+
+export function Icon({ name, className }: IconProps) {
+  return (
+    <i
+      className={cn("kit-icon", ICONS[name], className)}
+      aria-hidden="true"
+      suppressHydrationWarning
+    />
+  )
+}

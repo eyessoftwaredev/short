@@ -1,15 +1,18 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { linkListQuerySchema } from "@short/core";
 import { getTopLinks } from "@short/analytics";
-import { Plus } from "lucide-react";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, Hero } from "@/components/ui";
-import { formatNumber } from "@/lib/format";
 import { listLinks } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
 import { LinksTable, type LinkListRow } from "./links-table";
 
-export const metadata: Metadata = { title: "Links" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("nav");
+  return { title: t("links") };
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -18,8 +21,13 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function LinksPage({ searchParams }: { searchParams: SearchParams }) {
-  const context = await requireWorkspace();
-  const raw = await searchParams;
+  const [context, raw, tn, t, tc] = await Promise.all([
+    requireWorkspace(),
+    searchParams,
+    getTranslations("nav"),
+    getTranslations("links"),
+    getTranslations("common"),
+  ]);
 
   const query = linkListQuerySchema.parse({
     search: single(raw.search),
@@ -66,16 +74,16 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
   return (
     // The filter bar below owns search on this screen, so the topbar's copy of
     // it is suppressed rather than sitting there doing the same job.
-    <PanelShell title="Links" crumbs={[{ label: context.workspace.name }]} searchable={false}>
+    <PanelShell title={tn("links")} crumbs={[{ label: context.workspace.name }]} searchable={false}>
       <Hero
         variant="compact"
-        eyebrow={`${formatNumber(total)} ${total === 1 ? "link" : "links"}`}
-        title="Links"
-        description="Every short link in this workspace, with its targeting rules and click totals."
+        eyebrow={t("count", { count: total })}
+        title={tn("links")}
+        description={t("description")}
         actions={
           <Button variant="primary" href="/links/new">
-            <Plus className="size-4" />
-            New link
+            <Icon name="plus" className="text-sm" />
+            {tc("newLink")}
           </Button>
         }
       />

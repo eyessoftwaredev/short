@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 
 /** Anything not listed here renders as `warn`, which reads as "needs attention". */
@@ -21,12 +24,9 @@ const TONES: Record<string, "accent" | "danger" | "muted" | "warn"> = {
   disabled: "muted",
 };
 
-const LABELS: Record<string, string> = {
-  past_due: "Past due",
-};
-
 export function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("common");
   const key = status.toLowerCase();
-  const label = LABELS[key] ?? status.charAt(0).toUpperCase() + status.slice(1);
+  const label = key === "past_due" ? t("pastDue") : status.charAt(0).toUpperCase() + status.slice(1);
   return <Badge tone={TONES[key] ?? "warn"}>{label}</Badge>;
 }

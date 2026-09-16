@@ -2,6 +2,7 @@
 @import "./palettes.css";
 @import "./base.css";
 @import "./layout.css";
+@import "./landing.css";
 
 @keyframes om-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }

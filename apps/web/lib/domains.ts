@@ -111,6 +111,7 @@ export async function addDomain(
       rootDestination: input.rootDestination,
       notFoundDestination: input.notFoundDestination,
       isDefault: input.isDefault,
+      validationRecords: health?.validation ?? [],
     })
     .returning();
 
@@ -192,6 +193,7 @@ export async function refreshDomain(
       sslStatus: health.sslStatus,
       lastCheckedAt: new Date(),
       verifiedAt: health.status === "active" ? (domain.verifiedAt ?? new Date()) : null,
+      validationRecords: health.status === "active" ? [] : health.validation,
       updatedAt: new Date(),
     })
     .where(eq(domains.id, id))

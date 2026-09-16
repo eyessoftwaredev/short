@@ -1,5 +1,7 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import {
   BIOPAGE_BUTTON_STYLES,
   BIOPAGE_THEMES,
@@ -24,18 +26,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  EyeOff,
-  ExternalLink,
-  GripVertical,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useActionMessage } from "@/lib/action-message";
 import { useForm } from "react-hook-form";
 import { BioPageView } from "@/components/bio/bio-page-view";
 import {
@@ -55,15 +49,7 @@ import {
   Textarea,
   type TabItem,
 } from "@/components/ui";
-import {
-  BLOCK_LABELS,
-  BUTTON_STYLE_LABELS,
-  THEME_LABELS,
-  bioFormSchema,
-  describeBlock,
-  newBlock,
-  type BioFormValues,
-} from "@/lib/bio-form";
+import { bioFormSchema, newBlock, type BioFormValues } from "@/lib/bio-form";
 import { BlockFields } from "./block-fields";
 import { createBiopageAction, deleteBiopageAction, updateBiopageAction } from "./actions";
 
@@ -79,14 +65,72 @@ type BioBuilderProps = {
 
 type TabId = "blocks" | "profile" | "design" | "seo";
 
-const TABS: readonly TabItem<TabId>[] = [
-  { id: "blocks", label: "Blocks" },
-  { id: "profile", label: "Profile" },
-  { id: "design", label: "Design" },
-  { id: "seo", label: "SEO" },
-];
-
 const ADDABLE: BioBlockType[] = ["link", "social", "header", "text", "image", "embed", "divider"];
+
+const BLOCK_KEYS = {
+  link: "block.link",
+  social: "block.social",
+  text: "block.text",
+  header: "block.header",
+  image: "block.image",
+  embed: "block.embed",
+  divider: "block.divider",
+} as const;
+
+const THEME_KEYS = {
+  minimal: "themeName.minimal",
+  midnight: "themeName.midnight",
+  sunset: "themeName.sunset",
+  forest: "themeName.forest",
+  mono: "themeName.mono",
+  candy: "themeName.candy",
+} as const;
+
+const BUTTON_STYLE_KEYS = {
+  solid: "buttonStyleName.solid",
+  outline: "buttonStyleName.outline",
+  soft: "buttonStyleName.soft",
+  pill: "buttonStyleName.pill",
+} as const;
+
+function bioFieldError(
+  message: string | undefined,
+  t: (key: string) => string,
+  te: (key: string) => string,
+): string | undefined {
+  if (!message) {
+    return undefined;
+  }
+  if (message === "displayNameRequired") {
+    return t("displayNameRequired");
+  }
+  if (message === "handleReserved") {
+    return t("handleReserved");
+  }
+  if (message === "handlePattern") {
+    return t("handlePattern");
+  }
+  return te("validation");
+}
+
+function describeBlock(block: BioBlock, t: (key: string, values?: { count: number }) => string): string {
+  switch (block.type) {
+    case "link":
+      return block.label || t("untitledLink");
+    case "social":
+      return t("profilesCount", { count: block.items.length });
+    case "text":
+      return block.body.slice(0, 48) || t("emptyText");
+    case "header":
+      return block.text || t("untitledHeading");
+    case "image":
+      return block.alt || block.url;
+    case "embed":
+      return `${block.provider} · ${block.url}`;
+    default:
+      return t("block.divider");
+  }
+}
 
 type BlockRowProps = {
   block: BioBlock;
@@ -97,6 +141,7 @@ type BlockRowProps = {
 };
 
 function BlockRow({ block, expanded, onToggle, onChange, onRemove }: BlockRowProps) {
+  const t = useTranslations("bio");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
   });
@@ -114,12 +159,12 @@ function BlockRow({ block, expanded, onToggle, onChange, onRemove }: BlockRowPro
       <div className="flex items-center gap-2 px-3 py-2.5">
         <button
           type="button"
-          aria-label="Reorder block"
+          aria-label={t("reorder")}
           className="flex size-8 shrink-0 cursor-grab items-center justify-center rounded-default border-0 bg-transparent text-fg-subtle hover:bg-surface"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-4" />
+          <Icon name="grip" className="text-sm" />
         </button>
 
         <button
@@ -127,28 +172,23 @@ function BlockRow({ block, expanded, onToggle, onChange, onRemove }: BlockRowPro
           onClick={onToggle}
           className="flex min-w-0 flex-1 items-center gap-2.5 border-0 bg-transparent text-left"
         >
-          <Badge tone="muted">{BLOCK_LABELS[block.type]}</Badge>
-          <span className="min-w-0 flex-1 truncate text-sm">{describeBlock(block)}</span>
+          <Badge tone="muted">{t(BLOCK_KEYS[block.type])}</Badge>
+          <span className="min-w-0 flex-1 truncate text-sm">{describeBlock(block, t)}</span>
         </button>
 
         <Button
           size="sm"
           icon
-          aria-label={block.visible ? "Hide block" : "Show block"}
+          aria-label={block.visible ? t("hideBlock") : t("showBlock")}
           onClick={() => onChange({ ...block, visible: !block.visible })}
         >
-          {block.visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+          {block.visible ? <Icon name="eye" className="text-sm" /> : <Icon name="eye-slash" className="text-sm" />}
         </Button>
-        <Button size="sm" icon aria-label="Remove block" onClick={onRemove}>
-          <Trash2 className="size-4" />
+        <Button size="sm" icon aria-label={t("removeBlock")} onClick={onRemove}>
+          <Icon name="trash" className="text-sm" />
         </Button>
-        <Button
-          size="sm"
-          icon
-          aria-label={expanded ? "Collapse" : "Expand"}
-          onClick={onToggle}
-        >
-          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        <Button size="sm" icon aria-label={expanded ? t("collapse") : t("expand")} onClick={onToggle}>
+          {expanded ? <Icon name="chevron-up" className="text-sm" /> : <Icon name="chevron-down" className="text-sm" />}
         </Button>
       </div>
 
@@ -169,10 +209,21 @@ export function BioBuilder({
   platformHostname,
 }: BioBuilderProps) {
   const router = useRouter();
+  const t = useTranslations("bio");
+  const tc = useTranslations("common");
+  const te = useTranslations("errors");
+  const actionMessage = useActionMessage();
   const [tab, setTab] = useState<TabId>("blocks");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const tabs: TabItem<TabId>[] = [
+    { id: "blocks", label: t("tabBlocks") },
+    { id: "profile", label: t("tabProfile") },
+    { id: "design", label: t("tabDesign") },
+    { id: "seo", label: t("tabSeo") },
+  ];
 
   const {
     register,
@@ -221,6 +272,11 @@ export function BioBuilder({
 
   function addBlock(type: BioBlockType): void {
     const block = newBlock(type, values.blocks.length);
+    if (block.type === "link") {
+      block.label = t("newLinkLabel");
+    } else if (block.type === "header") {
+      block.text = t("section");
+    }
     setBlocks([...values.blocks, block]);
     setExpanded(block.id);
     setTab("blocks");
@@ -234,7 +290,11 @@ export function BioBuilder({
         : await updateBiopageAction(biopageId ?? "", formValues);
 
     if (!result.ok) {
-      setFormError(result.error);
+      setFormError(
+        result.error === "handle_taken"
+          ? te("handle_taken", { handle: formValues.handle })
+          : actionMessage(result.error),
+      );
       return;
     }
 
@@ -247,13 +307,13 @@ export function BioBuilder({
   });
 
   async function remove(): Promise<void> {
-    if (!biopageId || !window.confirm("Delete this bio page? This cannot be undone.")) {
+    if (!biopageId || !window.confirm(t("deleteConfirm"))) {
       return;
     }
     setDeleting(true);
     const result = await deleteBiopageAction(biopageId);
     if (!result.ok) {
-      setFormError(result.error);
+      setFormError(actionMessage(result.error));
       setDeleting(false);
       return;
     }
@@ -269,22 +329,22 @@ export function BioBuilder({
     >
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="flex min-w-0 flex-col gap-6">
-          <Tabs items={TABS} value={tab} onChange={setTab} />
+          <Tabs items={tabs} value={tab} onChange={setTab} />
 
           <TabPanel active={tab === "blocks"}>
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap gap-2">
                 {ADDABLE.map((type) => (
                   <Chip key={type} onClick={() => addBlock(type)}>
-                    <Plus className="size-3.5" />
-                    {BLOCK_LABELS[type]}
+                    <Icon name="plus" className="text-xs" />
+                    {t(BLOCK_KEYS[type])}
                   </Chip>
                 ))}
               </div>
 
               {values.blocks.length === 0 ? (
                 <p className="m-0 rounded-default border border-dashed border-border px-5 py-10 text-center text-sm text-fg-muted">
-                  No blocks yet. Add a link button to get started.
+                  {t("noBlocks")}
                 </p>
               ) : (
                 <DndContext
@@ -323,14 +383,14 @@ export function BioBuilder({
           <TabPanel active={tab === "profile"}>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Handle"
-                error={errors.handle?.message}
-                hint={`Your page will live at ${publicUrl}`}
+                label={t("handle")}
+                error={bioFieldError(errors.handle?.message, t, te)}
+                hint={t("handleHint", { url: publicUrl })}
               >
                 <Input placeholder="acme" {...register("handle")} />
               </Field>
 
-              <Field label="Domain" hint="Custom domains must be verified first.">
+              <Field label={t("domain")} hint={t("domainHint")}>
                 <Select {...register("domainId")}>
                   <option value="">{platformHostname}</option>
                   {domains.map((domain) => (
@@ -341,24 +401,22 @@ export function BioBuilder({
                 </Select>
               </Field>
 
-              <Field label="Display name" error={errors.displayName?.message}>
+              <Field label={t("displayName")} error={bioFieldError(errors.displayName?.message, t, te)}>
                 <Input placeholder="Acme Studio" {...register("displayName")} />
               </Field>
 
-              <Field label="Avatar URL" error={errors.avatarUrl?.message}>
+              <Field label={t("avatarUrl")} error={bioFieldError(errors.avatarUrl?.message, t, te)}>
                 <Input placeholder="https://cdn.acme.com/avatar.jpg" {...register("avatarUrl")} />
               </Field>
 
-              <Field label="Bio" className="sm:col-span-2" error={errors.bio?.message}>
+              <Field label={t("bio")} className="sm:col-span-2" error={bioFieldError(errors.bio?.message, t, te)}>
                 <Textarea rows={3} maxLength={500} {...register("bio")} />
               </Field>
 
               <Card staticHover className="flex-row items-center justify-between gap-4 sm:col-span-2">
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">Published</span>
-                  <span className="block text-sm text-fg-muted">
-                    Unpublished pages return 404 to visitors but stay editable here.
-                  </span>
+                  <span className="block text-sm font-medium">{t("published")}</span>
+                  <span className="block text-sm text-fg-muted">{t("publishedHint")}</span>
                 </span>
                 <Switch
                   checked={values.published}
@@ -372,7 +430,7 @@ export function BioBuilder({
 
           <TabPanel active={tab === "design"}>
             <div className="flex flex-col gap-6">
-              <Section title="Theme" description="Palette applied to the whole page.">
+              <Section title={t("theme")} description={t("themeDesc")}>
                 <div className="flex flex-wrap gap-2">
                   {BIOPAGE_THEMES.map((theme) => (
                     <Chip
@@ -380,13 +438,13 @@ export function BioBuilder({
                       active={values.theme === theme}
                       onClick={() => setValue("theme", theme, { shouldDirty: true })}
                     >
-                      {THEME_LABELS[theme]}
+                      {t(THEME_KEYS[theme])}
                     </Chip>
                   ))}
                 </div>
               </Section>
 
-              <Section title="Button style" description="Applies to every link block.">
+              <Section title={t("buttonStyle")} description={t("buttonStyleDesc")}>
                 <div className="flex flex-wrap gap-2">
                   {BIOPAGE_BUTTON_STYLES.map((style) => (
                     <Chip
@@ -394,7 +452,7 @@ export function BioBuilder({
                       active={values.buttonStyle === style}
                       onClick={() => setValue("buttonStyle", style, { shouldDirty: true })}
                     >
-                      {BUTTON_STYLE_LABELS[style]}
+                      {t(BUTTON_STYLE_KEYS[style])}
                     </Chip>
                   ))}
                 </div>
@@ -405,16 +463,16 @@ export function BioBuilder({
           <TabPanel active={tab === "seo"}>
             <div className="flex flex-col gap-4">
               <Field
-                label="SEO title"
-                hint="Falls back to the display name."
-                error={errors.seoTitle?.message}
+                label={t("seoTitle")}
+                hint={t("seoTitleHint")}
+                error={bioFieldError(errors.seoTitle?.message, t, te)}
               >
                 <Input maxLength={120} {...register("seoTitle")} />
               </Field>
               <Field
-                label="SEO description"
-                hint="Falls back to the bio."
-                error={errors.seoDescription?.message}
+                label={t("seoDescription")}
+                hint={t("seoDescriptionHint")}
+                error={bioFieldError(errors.seoDescription?.message, t, te)}
               >
                 <Textarea rows={3} maxLength={300} {...register("seoDescription")} />
               </Field>
@@ -425,7 +483,7 @@ export function BioBuilder({
         <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-6 xl:self-start">
           <Card staticHover className="items-center gap-4">
             <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              Live preview
+              {t("livePreview")}
             </span>
             {/* Phone frame follows the Sec25Mobile pattern: fixed aspect, scrollable body. */}
             <div className="h-144 w-full max-w-80 overflow-y-auto rounded-default border border-border-strong bg-bg">
@@ -433,7 +491,7 @@ export function BioBuilder({
                 page={{
                   id: biopageId ?? "preview",
                   handle: values.handle,
-                  displayName: values.displayName || "Your name",
+                  displayName: values.displayName || t("yourName"),
                   bio: values.bio,
                   avatarUrl: values.avatarUrl === "" ? null : values.avatarUrl,
                   theme: values.theme,
@@ -445,11 +503,11 @@ export function BioBuilder({
               />
             </div>
             <div className="flex w-full flex-wrap items-center justify-center gap-2">
-              <CopyButton value={publicUrl} label="Copy URL" />
+              <CopyButton value={publicUrl} label={t("copyUrl")} />
               {mode === "edit" && values.published ? (
                 <Button size="sm" href={publicUrl}>
-                  <ExternalLink className="size-4" />
-                  Open
+                  <Icon name="external-link" className="text-sm" />
+                  {t("open")}
                 </Button>
               ) : null}
             </div>
@@ -457,10 +515,8 @@ export function BioBuilder({
 
           {mode === "edit" && biopageId ? (
             <Card staticHover className="gap-3">
-              <Badge tone="danger">Danger zone</Badge>
-              <p className="m-0 text-sm text-fg-muted">
-                Deleting the page frees the handle and removes every block.
-              </p>
+              <Badge tone="danger">{t("dangerZone")}</Badge>
+              <p className="m-0 text-sm text-fg-muted">{t("deleteHint")}</p>
               <Button
                 size="sm"
                 disabled={deleting}
@@ -468,8 +524,8 @@ export function BioBuilder({
                   void remove();
                 }}
               >
-                <Trash2 className="size-4" />
-                {deleting ? "Deleting…" : "Delete bio page"}
+                <Icon name="trash" className="text-sm" />
+                {deleting ? t("deleting") : t("deletePage")}
               </Button>
             </Card>
           ) : null}
@@ -481,16 +537,16 @@ export function BioBuilder({
       <SaveBar
         dirty={isDirty || mode === "create"}
         saving={isSubmitting}
-        message={mode === "create" ? "Ready to create" : "Unsaved changes"}
+        message={mode === "create" ? t("readyToCreate") : tc("unsavedChanges")}
         actions={
           <>
             {mode === "edit" ? (
               <Button size="sm" onClick={() => reset(defaultValues)} disabled={isSubmitting}>
-                Discard
+                {t("discard")}
               </Button>
             ) : null}
             <Button size="sm" type="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : mode === "create" ? "Create bio page" : "Save changes"}
+              {isSubmitting ? t("saving") : mode === "create" ? t("createPage") : t("saveChanges")}
             </Button>
           </>
         }

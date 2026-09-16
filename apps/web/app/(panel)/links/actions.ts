@@ -123,7 +123,7 @@ export async function deleteLinkAction(linkId: string): Promise<ActionResult> {
   try {
     const context = await requireWorkspace();
     if (context.role === "member") {
-      return fail("Only workspace admins can delete links");
+      return fail("delete_forbidden");
     }
 
     await deleteLink(context.workspace.id, linkId);

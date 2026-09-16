@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cx";
 
@@ -17,12 +19,15 @@ type CopyButtonProps = {
 
 export function CopyButton({
   value,
-  label = "Copy",
-  copiedLabel = "Copied",
+  label,
+  copiedLabel,
   iconOnly = false,
   size = "sm",
   className,
 }: CopyButtonProps) {
+  const t = useTranslations("common");
+  const resolvedLabel = label ?? t("copy");
+  const resolvedCopied = copiedLabel ?? t("copied");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -48,26 +53,26 @@ export function CopyButton({
         variant="ghost"
         size={size}
         icon={iconOnly}
-        aria-label={iconOnly ? (copied ? copiedLabel : label) : undefined}
-        title={iconOnly ? label : undefined}
+        aria-label={iconOnly ? (copied ? resolvedCopied : resolvedLabel) : undefined}
+        title={iconOnly ? resolvedLabel : undefined}
         className={cn(iconOnly ? undefined : "gap-1.5", className)}
         onClick={() => {
           void handleCopy();
         }}
       >
         {copied ? (
-          <Check className="size-3.5 text-accent-on-surface" aria-hidden="true" />
+          <Icon name="check" className="text-xs text-accent-on-surface" aria-hidden="true" />
         ) : (
-          <Copy className="size-3.5" aria-hidden="true" />
+          <Icon name="copy" className="text-xs" aria-hidden="true" />
         )}
-        {iconOnly ? null : copied ? copiedLabel : label}
+        {iconOnly ? null : copied ? resolvedCopied : resolvedLabel}
       </Button>
       {/*
         The swap to a tick is the only confirmation a sighted user gets; this
         gives a screen-reader user the same acknowledgement.
       */}
       <span role="status" aria-live="polite" className="sr-only">
-        {copied ? copiedLabel : ""}
+        {copied ? resolvedCopied : ""}
       </span>
     </>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 type SliderProps = {
@@ -9,7 +10,9 @@ type SliderProps = {
   ariaLabel?: string;
 };
 
-export function Slider({ slides, autoplayMs = 0, className, ariaLabel = "Carousel" }: SliderProps) {
+export function Slider({ slides, autoplayMs = 0, className, ariaLabel }: SliderProps) {
+  const t = useTranslations("common");
+  const resolvedLabel = ariaLabel ?? t("pagination");
   const [index, setIndex] = useState(0);
   const count = slides.length;
 
@@ -35,7 +38,7 @@ export function Slider({ slides, autoplayMs = 0, className, ariaLabel = "Carouse
         className="kit-slider__viewport"
         tabIndex={0}
         aria-roledescription="carousel"
-        aria-label={ariaLabel}
+        aria-label={resolvedLabel}
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft") {
             event.preventDefault();
@@ -71,10 +74,10 @@ export function Slider({ slides, autoplayMs = 0, className, ariaLabel = "Carouse
           ))}
         </div>
         <div className="kit-slider__nav">
-          <button type="button" className="kit-slider__btn" aria-label="Previous slide" onClick={() => goTo(index - 1)}>
+          <button type="button" className="kit-slider__btn" aria-label={t("previousSlide")} onClick={() => goTo(index - 1)}>
             ‹
           </button>
-          <button type="button" className="kit-slider__btn" aria-label="Next slide" onClick={() => goTo(index + 1)}>
+          <button type="button" className="kit-slider__btn" aria-label={t("nextSlide")} onClick={() => goTo(index + 1)}>
             ›
           </button>
         </div>

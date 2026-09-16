@@ -18,6 +18,7 @@
     "db:migrate": "pnpm --filter @short/db migrate",
     "db:push": "pnpm --filter @short/db push",
     "db:seed": "pnpm --filter @short/db seed",
+    "db:admin": "pnpm --filter @short/db admin",
     "ch:migrate": "pnpm --filter @short/analytics migrate"
   },
   "devDependencies": {

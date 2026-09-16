@@ -5,6 +5,14 @@ import { getRedis } from "./redis";
 
 export type HealthState = "ok" | "degraded" | "down" | "disabled";
 
+/** next-intl keys under `admin.system` for each probe result. */
+export const HEALTH_STATUS_KEYS = {
+  ok: "healthy",
+  degraded: "slow",
+  down: "down",
+  disabled: "notConfigured",
+} as const satisfies Record<HealthState, "healthy" | "slow" | "down" | "notConfigured">;
+
 export type HealthCheck = {
   id: string;
   label: string;
@@ -95,12 +103,12 @@ async function checkKv(): Promise<HealthCheck> {
 }
 
 async function checkStripe(): Promise<HealthCheck> {
-  if (!features().stripe) {
+  const { getStripe, stripeEnabled } = await import("./stripe");
+  if (!(await stripeEnabled())) {
     return disabled("stripe", "Stripe", "Keys not set — billing disabled");
   }
   return timed("stripe", "Stripe", async () => {
-    const { getStripe } = await import("./stripe");
-    const balance = await getStripe().balance.retrieve();
+    const balance = await (await getStripe()).balance.retrieve();
     return balance.livemode ? "live mode" : "test mode";
   });
 }

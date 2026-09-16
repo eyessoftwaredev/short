@@ -83,6 +83,9 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+export const WORKSPACE_KINDS = ["personal", "team"] as const;
+export type WorkspaceKind = (typeof WORKSPACE_KINDS)[number];
+
 /** A workspace. Better Auth's organization plugin calls it an organization. */
 export const organization = pgTable(
   "organization",
@@ -92,6 +95,8 @@ export const organization = pgTable(
     slug: text("slug").notNull(),
     logo: text("logo"),
     metadata: text("metadata"),
+    /** Better Auth ignores unknown columns; default covers plugin-created orgs. */
+    kind: text("kind").$type<WorkspaceKind>().notNull().default("personal"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("organization_slug_uq").on(table.slug)],

@@ -18,8 +18,9 @@ import {
 import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { auth } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { assertFeature } from "@/lib/quota";
-import { requireWorkspace, requireWorkspaceRole } from "@/lib/session";
+import { assertFeature, assertOwnerQuota, assertQuota } from "@/lib/quota";
+import { requireSession, requireWorkspace, requireWorkspaceRole } from "@/lib/session";
+import { createWorkspace, getPersonalWorkspaceId } from "@/lib/workspace";
 import { generateWebhookSecret, invalidateRelaySubscribers } from "@/lib/webhooks";
 
 const WORKSPACE_ROLES = ["owner", "admin", "member"] as const;
@@ -29,7 +30,7 @@ export async function updateProfileAction(name: string): Promise<ActionResult<nu
     const context = await requireWorkspace();
     const parsed = z.string().trim().min(2).max(80).safeParse(name);
     if (!parsed.success) {
-      return fail("Enter a name between 2 and 80 characters.");
+      return fail("name_length");
     }
 
     await getDb()
@@ -49,7 +50,7 @@ export async function updateWorkspaceAction(name: string): Promise<ActionResult<
     const context = await requireWorkspaceRole("admin");
     const parsed = z.string().trim().min(2).max(80).safeParse(name);
     if (!parsed.success) {
-      return fail("Enter a name between 2 and 80 characters.");
+      return fail("name_length");
     }
 
     await getDb()
@@ -96,8 +97,13 @@ export async function inviteMemberAction(
       .limit(1);
 
     if (existing) {
-      return fail("That person is already in this workspace.");
+      return fail("already_member");
     }
+    if (context.workspace.kind !== "team") {
+      return fail("invite_personal");
+    }
+
+    await assertQuota(context.workspace.id, context.plan, "members");
 
     await auth.api.createInvitation({
       body: {
@@ -150,7 +156,7 @@ export async function updateMemberRoleAction(
     const context = await requireWorkspaceRole("owner");
     const parsed = z.enum(WORKSPACE_ROLES).safeParse(role);
     if (!parsed.success) {
-      return fail("Pick a valid role.");
+      return fail("invalid_role");
     }
 
     const db = getDb();
@@ -161,7 +167,7 @@ export async function updateMemberRoleAction(
       .limit(1);
 
     if (!target) {
-      return fail("That member is not in this workspace.");
+      return fail("member_missing");
     }
 
     // Demoting the last owner would leave the workspace without anyone who can manage
@@ -173,7 +179,7 @@ export async function updateMemberRoleAction(
         .where(and(eq(member.organizationId, context.workspace.id), eq(member.role, "owner")));
 
       if (owners.length <= 1) {
-        return fail("Promote another owner before changing this one.");
+        return fail("last_owner");
       }
     }
 
@@ -208,10 +214,10 @@ export async function removeMemberAction(memberId: string): Promise<ActionResult
       .limit(1);
 
     if (!target) {
-      return fail("That member is not in this workspace.");
+      return fail("member_missing");
     }
     if (target.role === "owner") {
-      return fail("Change the owner's role before removing them.");
+      return fail("owner_remove");
     }
 
     await db.delete(member).where(eq(member.id, memberId));
@@ -240,7 +246,7 @@ export async function createApiKeyAction(name: string): Promise<ActionResult<{ k
 
     const parsed = z.string().trim().min(1).max(32).safeParse(name);
     if (!parsed.success) {
-      return fail("Give the key a name of up to 32 characters.");
+      return fail("key_name");
     }
 
     const created = await auth.api.createApiKey({
@@ -282,7 +288,7 @@ export async function revokeApiKeyAction(keyId: string): Promise<ActionResult<nu
       .returning({ id: apikey.id });
 
     if (deleted.length === 0) {
-      return fail("That key does not belong to this workspace.");
+      return fail("key_missing");
     }
 
     await recordAudit({
@@ -326,7 +332,7 @@ export async function createWebhookAction(
       .returning({ id: webhooks.id });
 
     if (!created) {
-      return fail("Could not save the endpoint. Try again.");
+      return fail("webhook_save");
     }
 
     await recordAudit({
@@ -387,6 +393,79 @@ export async function deleteWebhookAction(webhookId: string): Promise<ActionResu
     await invalidateRelaySubscribers();
     revalidatePath("/settings");
     return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function createTeamAction(
+  name: string,
+): Promise<ActionResult<{ workspaceId: string }>> {
+  try {
+    const context = await requireSession();
+    const parsed = z.string().trim().min(2).max(80).safeParse(name);
+    if (!parsed.success) {
+      return fail("name_length");
+    }
+
+    await assertOwnerQuota(context.user.id, context.accountPlan, "teams");
+    const workspace = await createWorkspace(context.user.id, parsed.data, "Team", "team");
+
+    await auth.api.setActiveOrganization({
+      headers: await headers(),
+      body: { organizationId: workspace.id },
+    });
+
+    await recordAudit({
+      workspaceId: workspace.id,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "team.created",
+      targetType: "workspace",
+      targetId: workspace.id,
+      metadata: { name: workspace.name },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/settings");
+    return ok({ workspaceId: workspace.id });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function deleteTeamAction(): Promise<ActionResult<{ workspaceId: string | null }>> {
+  try {
+    const context = await requireWorkspaceRole("owner");
+    if (context.workspace.kind !== "team") {
+      return fail("delete_personal");
+    }
+
+    const workspaceId = context.workspace.id;
+    const personalId = await getPersonalWorkspaceId(context.user.id);
+
+    await getDb().delete(organization).where(eq(organization.id, workspaceId));
+
+    if (personalId) {
+      await auth.api.setActiveOrganization({
+        headers: await headers(),
+        body: { organizationId: personalId },
+      });
+    }
+
+    await recordAudit({
+      workspaceId: personalId,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "team.deleted",
+      targetType: "workspace",
+      targetId: workspaceId,
+      metadata: { name: context.workspace.name },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/settings");
+    return ok({ workspaceId: personalId });
   } catch (error) {
     return toActionError(error);
   }

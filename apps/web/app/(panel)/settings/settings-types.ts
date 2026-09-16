@@ -61,8 +61,14 @@ export function parseSettingsTab(value: string | string[] | undefined): Settings
   return SETTINGS_TABS.includes(raw as SettingsTabId) ? (raw as SettingsTabId) : "profile";
 }
 
-export const ROLE_COPY: Record<string, { label: string; summary: string }> = {
-  owner: { label: "Owner", summary: "Billing, plan changes and everything an admin can do." },
-  admin: { label: "Admin", summary: "Manage links, domains, members and integrations." },
-  member: { label: "Member", summary: "Create and edit links, QR codes and bio pages." },
-};
+export const ROLE_COPY = {
+  owner: { label: "roleOwner", summary: "roleOwnerSummary" },
+  admin: { label: "roleAdmin", summary: "roleAdminSummary" },
+  member: { label: "roleMember", summary: "roleMemberSummary" },
+} as const;
+
+export type RoleId = keyof typeof ROLE_COPY;
+
+export function isRoleId(role: string): role is RoleId {
+  return role === "owner" || role === "admin" || role === "member";
+}

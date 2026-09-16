@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon, type IconName } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { AlertTriangle, CheckCircle2, Info, ShieldAlert, TriangleAlert } from "lucide-react";
 import { Button, CopyButton, Modal, Switch } from "@/components/ui";
 import { cn } from "@/lib/cx";
 import type { ConfirmRequest } from "./settings-types";
@@ -14,10 +16,10 @@ const BANNER_TONES: Record<BannerTone, { box: string; icon: string }> = {
   info: { box: "border-border-strong bg-surface-subtle", icon: "text-fg-muted" },
 };
 
-const BANNER_ICONS: Record<BannerTone, typeof Info> = {
-  danger: AlertTriangle,
-  accent: CheckCircle2,
-  info: Info,
+const BANNER_ICONS: Record<BannerTone, IconName> = {
+  danger: "warning",
+  accent: "circle-check",
+  info: "circle-info",
 };
 
 export function SettingsBanner({
@@ -29,7 +31,7 @@ export function SettingsBanner({
   children: ReactNode;
   onDismiss?: () => void;
 }) {
-  const Icon = BANNER_ICONS[tone];
+  const tc = useTranslations("common");
   return (
     <div
       role={tone === "danger" ? "alert" : "status"}
@@ -38,11 +40,11 @@ export function SettingsBanner({
         BANNER_TONES[tone].box,
       )}
     >
-      <Icon className={cn("mt-0.5 size-4 shrink-0", BANNER_TONES[tone].icon)} aria-hidden="true" />
+      <Icon name={BANNER_ICONS[tone]} className={cn("mt-0.5 shrink-0 text-sm", BANNER_TONES[tone].icon)} />
       <p className="m-0 min-w-0 flex-1 text-sm text-fg-muted">{children}</p>
       {onDismiss ? (
-        <Button variant="ghost" size="sm" aria-label="Dismiss message" onClick={onDismiss}>
-          Dismiss
+        <Button variant="ghost" size="sm" aria-label={tc("dismiss")} onClick={onDismiss}>
+          {tc("dismiss")}
         </Button>
       ) : null}
     </div>
@@ -73,9 +75,11 @@ export function DangerButton({ className, children, ...props }: DangerButtonProp
   );
 }
 
+export type SecretKind = "apiKey" | "signingSecret";
+
 type SecretModalProps = {
   open: boolean;
-  kind: "API key" | "Signing secret";
+  kind: SecretKind;
   secret: string;
   /** What the reader has to do with the value once they leave this dialog. */
   usage: string;
@@ -87,7 +91,12 @@ type SecretModalProps = {
  * click on the overlay cannot lose a value that can never be read again.
  */
 export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModalProps) {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [acknowledged, setAcknowledged] = useState(false);
+  const kindLabel = kind === "apiKey" ? t("secretKindApi") : t("secretKindSigning");
+  const title = kind === "apiKey" ? t("secretTitleApi") : t("secretTitleSigning");
+  const copyLabel = kind === "apiKey" ? t("copyApiKey") : t("copySigningSecret");
 
   function close(): void {
     if (!acknowledged) {
@@ -100,28 +109,26 @@ export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModa
   return (
     <Modal
       open={open}
-      title={`Copy your ${kind.toLowerCase()}`}
-      description={`This is the only time the full value is shown — it is stored hashed and cannot be read again.`}
+      title={title}
+      description={t("secretDescription")}
       onClose={close}
       footer={
         <>
-          <CopyButton value={secret} label={`Copy ${kind.toLowerCase()}`} size="md" />
+          <CopyButton value={secret} label={copyLabel} size="md" />
           <Button variant="primary" disabled={!acknowledged} onClick={close}>
-            Done
+            {tc("done")}
           </Button>
         </>
       }
     >
       <div className="flex min-w-0 flex-col gap-4">
         <div className="flex min-w-0 items-start gap-3 rounded-default border border-warn bg-warn-surface px-3.5 py-3">
-          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warn-ink" aria-hidden="true" />
-          <p className="m-0 min-w-0 text-sm text-fg-muted">
-            Store it in a secret manager now. If you lose it you will have to issue a new one.
-          </p>
+          <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-warn-ink" aria-hidden="true" />
+          <p className="m-0 min-w-0 text-sm text-fg-muted">{t("secretStoreHint")}</p>
         </div>
 
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{kind}</span>
+          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{kindLabel}</span>
           <code className="block min-w-0 rounded-default border border-border-strong bg-surface-subtle px-3.5 py-3 font-mono text-sm break-all text-ink select-all">
             {secret}
           </code>
@@ -133,9 +140,9 @@ export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModa
           <Switch
             checked={acknowledged}
             onCheckedChange={setAcknowledged}
-            aria-label="I have stored this value somewhere safe"
+            aria-label={t("secretAck")}
           />
-          <span className="min-w-0 text-sm">I have stored this value somewhere safe</span>
+          <span className="min-w-0 text-sm">{t("secretAck")}</span>
         </label>
       </div>
     </Modal>
@@ -149,6 +156,8 @@ type ConfirmDialogProps = {
 };
 
 export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps) {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   return (
     <Modal
       open={request !== null}
@@ -158,7 +167,7 @@ export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps
       footer={
         <>
           <Button disabled={pending} onClick={onCancel}>
-            Cancel
+            {tc("cancel")}
           </Button>
           <DangerButton
             disabled={pending}
@@ -166,14 +175,14 @@ export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps
               request?.onConfirm();
             }}
           >
-            {pending ? "Working…" : (request?.confirmLabel ?? "Confirm")}
+            {pending ? tc("working") : (request?.confirmLabel ?? t("confirm"))}
           </DangerButton>
         </>
       }
     >
       {request?.consequences && request.consequences.length > 0 ? (
         <div className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+          <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
           <ul className="m-0 flex min-w-0 list-none flex-col gap-1.5 p-0 text-sm text-fg-muted">
             {request.consequences.map((line) => (
               <li key={line} className="min-w-0">

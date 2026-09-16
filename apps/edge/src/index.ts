@@ -20,6 +20,39 @@ import { buildEvent, enqueue, type TrackContext } from "./track";
 /** Paths the worker answers itself instead of treating as a slug. */
 const PASSTHROUGH_PREFIXES = ["/.well-known/", "/cdn-cgi/"];
 
+/**
+ * Panel routes that must never be resolved as a short-link slug. Apex visitors who
+ * type these land on the origin instead of a 404 or a stolen slug.
+ */
+const PLATFORM_PATHS = new Set([
+  "/login",
+  "/register",
+  "/forgot",
+  "/reset",
+  "/onboarding",
+  "/dashboard",
+  "/analytics",
+  "/links",
+  "/qr",
+  "/bio",
+  "/domains",
+  "/settings",
+  "/billing",
+  "/docs",
+  "/admin",
+  "/invite",
+]);
+
+const PLATFORM_PREFIXES = ["/_next/", "/api/", "/invite/", "/admin/"];
+
+function isPlatformPath(pathname: string): boolean {
+  if (pathname === "/") {
+    return true;
+  }
+  const first = `/${pathname.split("/").filter(Boolean)[0] ?? ""}`;
+  return PLATFORM_PATHS.has(first) || PLATFORM_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 const ROBOTS_BODY = "User-agent: *\nDisallow: /\n";
 
 /** Gate cookies are valid for a day, and the stamp is signed so the server enforces it. */
@@ -229,6 +262,10 @@ export default {
     // black-hole the app and let the passthrough below recurse into this worker.
     if (hostname === new URL(env.ORIGIN_URL).hostname) {
       return fetch(request);
+    }
+
+    if (isPlatformPath(pathname)) {
+      return redirect(new URL(pathname + url.search, env.ORIGIN_URL).toString(), true);
     }
 
     if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST") {

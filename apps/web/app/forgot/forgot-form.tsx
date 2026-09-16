@@ -1,12 +1,14 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
 import { useState, type FormEvent } from "react";
-import { MailCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { AuthAlert, AuthHeading } from "../_auth/auth-shell";
+import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
 
 export function ForgotForm() {
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
@@ -32,25 +34,19 @@ export function ForgotForm() {
           className="flex size-11 items-center justify-center rounded-default bg-accent-surface text-accent-ink"
           aria-hidden="true"
         >
-          <MailCheck className="size-5" />
+          <Icon name="envelope-circle-check" className="text-lg" />
         </span>
 
-        <AuthHeading
-          title="Check your inbox"
-          description="If that address has an account, a reset link is already on its way."
-        />
+        <AuthHeading title={t("forgotSentTitle")} description={t("forgotSentDescription")} />
 
         <div className="flex min-w-0 flex-col gap-1.5 rounded-default border border-border bg-surface-subtle px-4 py-3.5">
           <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            Requested for
+            {t("forgotRequestedFor")}
           </span>
           <span className="min-w-0 font-mono text-sm break-all text-ink">{email}</span>
         </div>
 
-        <AuthAlert tone="info">
-          We deliberately show this message for every address, so nobody can use the form to
-          discover who has an account.
-        </AuthAlert>
+        <AuthAlert tone="info">{t("forgotBlind")}</AuthAlert>
 
         <div className="flex flex-wrap gap-2.5">
           <Button
@@ -58,10 +54,10 @@ export function ForgotForm() {
               setSent(false);
             }}
           >
-            Try another address
+            {t("forgotAnother")}
           </Button>
           <Button variant="ghost" href="/login">
-            Back to sign in
+            {t("verifyBackToSignIn")}
           </Button>
         </div>
       </div>
@@ -70,10 +66,7 @@ export function ForgotForm() {
 
   return (
     <>
-      <AuthHeading
-        title="Reset your password"
-        description="We will email you a link to choose a new one."
-      />
+      <AuthHeading title={t("forgotTitle")} description={t("forgotDescription")} />
 
       <form
         className="flex min-w-0 flex-col gap-4"
@@ -82,10 +75,7 @@ export function ForgotForm() {
           void handleSubmit(event);
         }}
       >
-        <Field
-          label="Email"
-          hint="Use the address you signed up with — we cannot confirm which one that is."
-        >
+        <Field label={t("email")} hint={t("forgotHint")}>
           <Input
             type="email"
             name="email"
@@ -98,14 +88,11 @@ export function ForgotForm() {
         </Field>
 
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
-          {pending ? "Sending…" : "Send reset link"}
+          {pending ? t("forgotSending") : t("forgotSubmit")}
         </Button>
       </form>
 
-      <p className="m-0 text-sm text-fg-muted">
-        Signed in on another device? You can change your password from{" "}
-        <span className="text-ink">Settings → Security</span> without using this form.
-      </p>
+      <p className="m-0 text-sm text-fg-muted">{t("forgotSettingsHint")}</p>
     </>
   );
 }

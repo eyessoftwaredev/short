@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
-import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cx";
 
@@ -27,6 +29,7 @@ export function Sheet({
   side = "right",
   size = "md",
 }: SheetProps) {
+  const t = useTranslations("common");
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -69,8 +72,8 @@ export function Sheet({
             <h3 className="m-0 truncate text-lg font-semibold">{title}</h3>
             {description ? <p className="mt-1 text-sm text-fg-muted">{description}</p> : null}
           </div>
-          <Button variant="ghost" icon aria-label="Close" onClick={onClose}>
-            <X className="size-4" />
+          <Button variant="ghost" icon aria-label={t("close")} onClick={onClose}>
+            <Icon name="xmark" className="text-sm" />
           </Button>
         </div>
 

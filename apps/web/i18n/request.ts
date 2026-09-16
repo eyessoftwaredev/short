@@ -1,22 +1,20 @@
 import { cookies } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
+import { getPlatformBrand } from "@/lib/brand";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "./locales";
 
-export const LOCALES = ["tr", "en"] as const;
-export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = "tr";
-export const LOCALE_COOKIE = "short-locale";
-
-function isLocale(value: string | undefined): value is Locale {
-  return LOCALES.includes(value as Locale);
-}
+export { DEFAULT_LOCALE, isLocale, LOCALES, LOCALE_COOKIE, type Locale } from "./locales";
 
 /**
  * Locale is stored in a cookie rather than in the URL: short links own the path space,
- * so a `/tr/...` prefix would collide with slugs.
+ * so a `/tr/...` prefix would collide with slugs. Cookie wins; otherwise the admin
+ * default on `platform_settings`.
  */
 export default getRequestConfig(async () => {
-  const stored = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const locale: Locale = isLocale(stored) ? stored : DEFAULT_LOCALE;
+  const stored = (await cookies()).get("short-locale")?.value;
+  const brand = await getPlatformBrand();
+  const fromBrand: Locale = brand.defaultLocale === "tr" ? "tr" : DEFAULT_LOCALE;
+  const locale: Locale = isLocale(stored) ? stored : fromBrand;
 
   return {
     locale,

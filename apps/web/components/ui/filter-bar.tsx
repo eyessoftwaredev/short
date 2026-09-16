@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useId, type ReactNode } from "react";
-import { Search, X } from "lucide-react";
 import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/cx";
 
@@ -40,12 +42,14 @@ export function FilterBar<T extends string>({
   search,
   onSearchChange,
   onSearchSubmit,
-  searchPlaceholder = "Search",
+  searchPlaceholder,
   searchLabel,
   actions,
   pending = false,
   className,
 }: FilterBarProps<T>) {
+  const t = useTranslations("common");
+  const resolvedPlaceholder = searchPlaceholder ?? t("search");
   const searchId = useId();
   const showClear = onSearchSubmit != null && search != null && search !== "";
 
@@ -54,12 +58,9 @@ export function FilterBar<T extends string>({
       {onSearchChange ? (
         <div className="relative min-w-52 flex-1">
           <label htmlFor={searchId} className="sr-only">
-            {searchLabel ?? searchPlaceholder}
+            {searchLabel ?? resolvedPlaceholder}
           </label>
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-subtle"
-            aria-hidden="true"
-          />
+          <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 text-sm -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
           <input
             id={searchId}
             type="search"
@@ -71,20 +72,20 @@ export function FilterBar<T extends string>({
                 onSearchSubmit(event.currentTarget.value);
               }
             }}
-            placeholder={searchPlaceholder}
+            placeholder={resolvedPlaceholder}
             className={cn("h-9 w-full py-2 pl-9", showClear ? "pr-9" : "pr-3")}
           />
           {showClear ? (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label={t("clearSearch")}
               onClick={() => {
                 onSearchChange("");
                 onSearchSubmit?.("");
               }}
               className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-fg-subtle transition duration-150 hover:bg-surface hover:text-ink"
             >
-              <X className="size-3.5" aria-hidden="true" />
+              <Icon name="xmark" className="text-xs" aria-hidden="true" />
             </button>
           ) : null}
         </div>

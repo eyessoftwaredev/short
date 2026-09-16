@@ -1,10 +1,12 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ExternalLink, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { AbVariant } from "@short/core";
 import {
   Badge,
@@ -24,6 +26,7 @@ import {
   Textarea,
   type TabItem,
 } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { linkFormSchema, type LinkFormValues } from "@/lib/link-form";
 import { createLinkAction, updateLinkAction, type SavedLink } from "./actions";
 import { RuleBuilder } from "./rule-builder";
@@ -33,12 +36,23 @@ export type FolderOption = { id: string; name: string };
 
 type TabId = "basics" | "targeting" | "campaign" | "advanced";
 
-const TABS: TabItem<TabId>[] = [
-  { id: "basics", label: "Basics" },
-  { id: "targeting", label: "Targeting" },
-  { id: "campaign", label: "Campaign" },
-  { id: "advanced", label: "Advanced" },
-];
+function fieldError(
+  message: string | undefined,
+  t: ReturnType<typeof useTranslations>,
+): string | undefined {
+  if (!message) {
+    return undefined;
+  }
+  if (
+    message === "pickDomain" ||
+    message === "destinationRequired" ||
+    message === "slugPattern" ||
+    message === "slugReserved"
+  ) {
+    return t(message);
+  }
+  return message;
+}
 
 type LinkFormProps = {
   mode: "create" | "edit";
@@ -66,11 +80,21 @@ export function LinkForm({
   canCloak,
   hasPassword = false,
 }: LinkFormProps) {
+  const t = useTranslations("links");
+  const tc = useTranslations("common");
   const router = useRouter();
+  const actionMessage = useActionMessage();
   const [tab, setTab] = useState<TabId>("basics");
   const [rulesOpen, setRulesOpen] = useState(false);
   const [saved, setSaved] = useState<SavedLink | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const tabs: TabItem<TabId>[] = [
+    { id: "basics", label: t("tabBasics") },
+    { id: "targeting", label: t("tabTargeting") },
+    { id: "campaign", label: t("tabCampaign") },
+    { id: "advanced", label: t("tabAdvanced") },
+  ];
 
   const {
     register,
@@ -91,28 +115,32 @@ export function LinkForm({
   );
 
   const previewUrl = selectedDomain
-    ? `https://${selectedDomain.hostname}/${values.slug || "auto-generated"}`
+    ? `https://${selectedDomain.hostname}/${values.slug || t("slugAuto")}`
     : "";
 
   const onSubmit = handleSubmit(async (formValues) => {
     setFormError(null);
-    const result =
-      mode === "create"
-        ? await createLinkAction(formValues)
-        : await updateLinkAction(linkId ?? "", formValues);
+    try {
+      const result =
+        mode === "create"
+          ? await createLinkAction(formValues)
+          : await updateLinkAction(linkId ?? "", formValues);
 
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
-    }
+      if (!result.ok) {
+        setFormError(actionMessage(result.error));
+        return;
+      }
 
-    setSaved(result.data);
-    if (mode === "create") {
-      router.push(`/links/${result.data.id}`);
-      return;
+      setSaved(result.data);
+      if (mode === "create") {
+        router.push(`/links/${result.data.id}`);
+        return;
+      }
+      reset(formValues);
+      router.refresh();
+    } catch {
+      setFormError(actionMessage("generic"));
     }
-    reset(formValues);
-    router.refresh();
   });
 
   const addVariant = (): void => {
@@ -127,20 +155,20 @@ export function LinkForm({
         void onSubmit(event);
       }}
     >
-      <Tabs items={TABS} value={tab} onChange={setTab} />
+      <Tabs items={tabs} value={tab} onChange={setTab} />
 
       <TabPanel active={tab === "basics"}>
         <div className="flex flex-col gap-4">
           <Field
-            label="Destination URL"
-            error={errors.destination?.message}
-            hint="Where visitors land when no rule matches"
+            label={t("destination")}
+            error={fieldError(errors.destination?.message, t)}
+            hint={t("destinationHint")}
           >
-            <Input placeholder="https://acme.com/campaign" {...register("destination")} />
+            <Input placeholder={t("destinationPlaceholder")} {...register("destination")} />
           </Field>
 
           <Grid columns={2}>
-            <Field label="Domain" error={errors.domainId?.message}>
+            <Field label={t("domain")} error={fieldError(errors.domainId?.message, t)}>
               <Select {...register("domainId")}>
                 {domains.map((domain) => (
                   <option key={domain.id} value={domain.id}>
@@ -150,12 +178,8 @@ export function LinkForm({
               </Select>
             </Field>
 
-            <Field
-              label="Short link"
-              error={errors.slug?.message}
-              hint="Leave empty to generate one"
-            >
-              <Input placeholder="spring-sale" {...register("slug")} />
+            <Field label={t("shortLink")} error={errors.slug?.message} hint={t("slugHint")}>
+              <Input placeholder={t("slugPlaceholder")} {...register("slug")} />
             </Field>
           </Grid>
 
@@ -168,10 +192,10 @@ export function LinkForm({
                   <Button
                     variant="ghost"
                     icon
-                    aria-label="Open short link"
+                    aria-label={t("openShortLink")}
                     onClick={() => window.open(previewUrl, "_blank", "noreferrer")}
                   >
-                    <ExternalLink className="size-4" />
+                    <Icon name="external-link" className="text-sm" />
                   </Button>
                 ) : null}
               </div>
@@ -179,12 +203,12 @@ export function LinkForm({
           ) : null}
 
           <Grid columns={2}>
-            <Field label="Title" hint="Used for previews and cloaked pages">
+            <Field label={t("titleField")} hint={t("titleHint")}>
               <Input {...register("title")} />
             </Field>
-            <Field label="Folder">
+            <Field label={t("folder")}>
               <Select {...register("folderId")}>
-                <option value="">No folder</option>
+                <option value="">{t("noFolder")}</option>
                 {folders.map((folder) => (
                   <option key={folder.id} value={folder.id}>
                     {folder.name}
@@ -194,16 +218,16 @@ export function LinkForm({
             </Field>
           </Grid>
 
-          <Field label="Description">
+          <Field label={t("descriptionField")}>
             <Textarea rows={3} {...register("description")} />
           </Field>
 
           <Grid columns={2}>
-            <Field label="Preview image URL">
-              <Input placeholder="https://acme.com/og.png" {...register("image")} />
+            <Field label={t("previewImage")}>
+              <Input placeholder={t("imagePlaceholder")} {...register("image")} />
             </Field>
-            <Field label="Tags" hint="Comma separated">
-              <Input placeholder="campaign, q4" {...register("tagsText")} />
+            <Field label={t("tags")} hint={t("tagsHint")}>
+              <Input placeholder={t("tagsPlaceholder")} {...register("tagsText")} />
             </Field>
           </Grid>
         </div>
@@ -212,54 +236,50 @@ export function LinkForm({
       <TabPanel active={tab === "targeting"}>
         <div className="flex flex-col gap-6">
           <Section
-            title="Targeting rules"
+            title={t("targetingRules")}
             description={
               values.rules.length === 0
-                ? "Everyone goes to the default destination."
-                : `${values.rules.length} rule${values.rules.length === 1 ? "" : "s"} configured.`
+                ? t("rulesEmpty")
+                : t("rulesCount", { count: values.rules.length })
             }
             actions={
               <Button variant="primary" onClick={() => setRulesOpen(true)}>
-                <SlidersHorizontal className="size-4" />
-                Configure rules
+                <Icon name="sliders" className="text-sm" />
+                {t("configureRules")}
               </Button>
             }
           >
             <div className="flex flex-wrap gap-2">
               {values.rules.map((rule) => (
                 <Badge key={rule.id} tone="muted">
-                  #{rule.priority} → {rule.destination || "not set"}
+                  {t("ruleBadge", {
+                    priority: rule.priority,
+                    destination: rule.destination || t("notSet"),
+                  })}
                 </Badge>
               ))}
             </div>
           </Section>
 
-          <Section
-            title="Deep links"
-            description="Send app users straight into the native app when the OS matches."
-          >
+          <Section title={t("deepLinks")} description={t("deepLinksDesc")}>
             <Grid columns={2}>
-              <Field label="iOS destination">
-                <Input placeholder="myapp://product/42" {...register("iosDestination")} />
+              <Field label={t("iosDestination")}>
+                <Input placeholder={t("deepLinkPlaceholder")} {...register("iosDestination")} />
               </Field>
-              <Field label="Android destination">
-                <Input placeholder="myapp://product/42" {...register("androidDestination")} />
+              <Field label={t("androidDestination")}>
+                <Input placeholder={t("deepLinkPlaceholder")} {...register("androidDestination")} />
               </Field>
             </Grid>
           </Section>
 
           <Section
-            title="A/B test"
-            description={
-              canAbTest
-                ? "Traffic is split deterministically, so a visitor always sees the same variant."
-                : "A/B testing requires the Pro plan."
-            }
+            title={t("abTest")}
+            description={canAbTest ? t("abTestDesc") : t("abTestPaywall")}
             actions={
               canAbTest ? (
                 <Button size="sm" onClick={addVariant}>
-                  <Plus className="size-4" />
-                  Add variant
+                  <Icon name="plus" className="text-sm" />
+                  {t("addVariant")}
                 </Button>
               ) : null
             }
@@ -267,10 +287,10 @@ export function LinkForm({
             <div className="flex flex-col gap-3">
               {values.abVariants.map((variant, index) => (
                 <div key={variant.id} className="flex items-end gap-2">
-                  <Field label={`Variant ${index + 1}`} className="flex-1">
+                  <Field label={t("variant", { n: index + 1 })} className="flex-1">
                     <Input
                       value={variant.destination}
-                      placeholder="https://acme.com/variant-b"
+                      placeholder={t("variantPlaceholder")}
                       onChange={(event) =>
                         setValue(
                           "abVariants",
@@ -284,7 +304,7 @@ export function LinkForm({
                       }
                     />
                   </Field>
-                  <Field label="Weight" className="w-24">
+                  <Field label={t("weight")} className="w-24">
                     <Input
                       type="number"
                       min={0}
@@ -306,7 +326,7 @@ export function LinkForm({
                   <Button
                     variant="ghost"
                     icon
-                    aria-label="Remove variant"
+                    aria-label={t("removeVariant")}
                     onClick={() =>
                       setValue(
                         "abVariants",
@@ -315,12 +335,12 @@ export function LinkForm({
                       )
                     }
                   >
-                    <Trash2 className="size-4 text-danger" />
+                    <Icon name="trash" className="text-sm text-danger" />
                   </Button>
                 </div>
               ))}
               {values.abVariants.length === 1 ? (
-                <p className="m-0 text-sm text-danger">An A/B test needs at least two variants.</p>
+                <p className="m-0 text-sm text-danger">{t("abNeedsTwo")}</p>
               ) : null}
             </div>
           </Section>
@@ -329,34 +349,29 @@ export function LinkForm({
 
       <TabPanel active={tab === "campaign"}>
         <div className="flex flex-col gap-4">
-          <p className="m-0 text-sm text-fg-muted">
-            These parameters are appended to the destination. Values arriving on the short link
-            itself override them.
-          </p>
+          <p className="m-0 text-sm text-fg-muted">{t("campaignIntro")}</p>
           <Grid columns={2}>
-            <Field label="utm_source">
-              <Input placeholder="newsletter" {...register("utmSource")} />
+            <Field label={t("utmSource")}>
+              <Input placeholder={t("utmSourcePlaceholder")} {...register("utmSource")} />
             </Field>
-            <Field label="utm_medium">
-              <Input placeholder="email" {...register("utmMedium")} />
+            <Field label={t("utmMedium")}>
+              <Input placeholder={t("utmMediumPlaceholder")} {...register("utmMedium")} />
             </Field>
-            <Field label="utm_campaign">
-              <Input placeholder="spring-sale" {...register("utmCampaign")} />
+            <Field label={t("utmCampaign")}>
+              <Input placeholder={t("utmCampaignPlaceholder")} {...register("utmCampaign")} />
             </Field>
-            <Field label="utm_term">
+            <Field label={t("utmTerm")}>
               <Input {...register("utmTerm")} />
             </Field>
-            <Field label="utm_content">
+            <Field label={t("utmContent")}>
               <Input {...register("utmContent")} />
             </Field>
           </Grid>
 
           <Card staticHover className="flex-row items-center justify-between gap-4">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">Forward query parameters</span>
-              <span className="block text-sm text-fg-muted">
-                Pass any extra parameters from the short link through to the destination.
-              </span>
+              <span className="block text-sm font-medium">{t("forwardQuery")}</span>
+              <span className="block text-sm text-fg-muted">{t("forwardQueryDesc")}</span>
             </span>
             <Switch
               checked={values.forwardQuery}
@@ -371,22 +386,22 @@ export function LinkForm({
       <TabPanel active={tab === "advanced"}>
         <div className="flex flex-col gap-4">
           <Grid columns={2}>
-            <Field label="Expires at" error={errors.expiresAt?.message}>
+            <Field label={t("expiresAt")} error={errors.expiresAt?.message}>
               <Input type="datetime-local" {...register("expiresAt")} />
             </Field>
-            <Field label="Destination after expiry">
-              <Input placeholder="https://acme.com/expired" {...register("expiredDestination")} />
+            <Field label={t("expiredDestination")}>
+              <Input placeholder={t("expiredPlaceholder")} {...register("expiredDestination")} />
             </Field>
           </Grid>
 
           <Field
-            label="Password"
+            label={t("password")}
             hint={
               !canProtect
-                ? "Password protection requires the Pro plan."
+                ? t("passwordPaywall")
                 : hasPassword
-                  ? "Leave empty to keep the current password, or enter - to remove it."
-                  : "Visitors must enter this before being redirected."
+                  ? t("passwordKeep")
+                  : t("passwordHint")
             }
           >
             <Input type="password" disabled={!canProtect} {...register("password")} />
@@ -394,11 +409,9 @@ export function LinkForm({
 
           <Card staticHover className="flex-row items-center justify-between gap-4">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">Cloak the destination</span>
+              <span className="block text-sm font-medium">{t("cloak")}</span>
               <span className="block text-sm text-fg-muted">
-                {canCloak
-                  ? "Renders the destination in a frame so the short URL stays in the address bar."
-                  : "Cloaking requires the Business plan."}
+                {canCloak ? t("cloakDesc") : t("cloakPaywall")}
               </span>
             </span>
             <Switch
@@ -410,9 +423,11 @@ export function LinkForm({
 
           <Card staticHover className="flex-row items-center justify-between gap-4">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">Discourage search engines</span>
+              <span className="block text-sm font-medium">{t("noIndex")}</span>
               <span className="block text-sm text-fg-muted">
-                Sends <code className="font-mono text-xs">noindex, nofollow</code> on the redirect.
+                {t.rich("noIndexDesc", {
+                  code: (chunks) => <code className="font-mono text-xs">{chunks}</code>,
+                })}
               </span>
             </span>
             <Switch
@@ -424,10 +439,8 @@ export function LinkForm({
           {mode === "edit" ? (
             <Card staticHover className="flex-row items-center justify-between gap-4">
               <span className="min-w-0">
-                <span className="block text-sm font-medium">Archive</span>
-                <span className="block text-sm text-fg-muted">
-                  Archived links stop redirecting and fall back to the domain&apos;s not-found URL.
-                </span>
+                <span className="block text-sm font-medium">{tc("archive")}</span>
+                <span className="block text-sm text-fg-muted">{t("archiveDesc")}</span>
               </span>
               <Switch
                 checked={values.archived}
@@ -436,7 +449,7 @@ export function LinkForm({
             </Card>
           ) : null}
 
-          <Field label="Internal notes">
+          <Field label={t("notes")}>
             <Textarea rows={3} {...register("comments")} />
           </Field>
         </div>
@@ -444,20 +457,20 @@ export function LinkForm({
 
       {formError ? <p className="m-0 text-sm text-danger">{formError}</p> : null}
       {saved && mode === "edit" ? (
-        <p className="m-0 text-sm text-accent-hover">Saved. The edge is already serving it.</p>
+        <p className="m-0 text-sm text-accent-hover">{t("savedLive")}</p>
       ) : null}
 
       <SaveBar
         dirty={isDirty || mode === "create"}
         saving={isSubmitting}
-        message={mode === "create" ? "Ready to create" : "Unsaved changes"}
+        message={mode === "create" ? t("readyToCreate") : tc("unsavedChanges")}
         actions={
           <>
             <Button size="sm" onClick={() => reset(defaultValues)} disabled={isSubmitting}>
-              Discard
+              {t("discard")}
             </Button>
             <Button size="sm" variant="primary" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : mode === "create" ? "Create link" : "Save changes"}
+              {isSubmitting ? t("saving") : mode === "create" ? t("createLink") : t("saveChanges")}
             </Button>
           </>
         }
@@ -467,12 +480,12 @@ export function LinkForm({
         open={rulesOpen}
         side="right"
         size="lg"
-        title="Targeting rules"
-        description="Route visitors by geography, device, language, referrer or schedule."
+        title={t("targetingRules")}
+        description={t("rulesSheetDesc")}
         onClose={() => setRulesOpen(false)}
         footer={
           <Button variant="primary" onClick={() => setRulesOpen(false)}>
-            Done
+            {tc("done")}
           </Button>
         }
       >

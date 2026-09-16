@@ -1,34 +1,14 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { Mail, ShieldCheck, Users } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
-import { getPublicInvite } from "@/lib/team";
+import { getPublicInvite, isInviteUsable, userExistsByEmail } from "@/lib/team";
 import { AuthShell, type AuthHighlight } from "../../_auth/auth-shell";
 import { InviteForm } from "./invite-form";
 
 export const metadata: Metadata = { title: "Workspace invite" };
-
-const HIGHLIGHTS: readonly AuthHighlight[] = [
-  {
-    id: "seat",
-    icon: <Users className="size-4" />,
-    title: "A seat on their workspace",
-    body: "You will see the same links, QR codes and bio pages as the rest of the team.",
-  },
-  {
-    id: "role",
-    icon: <ShieldCheck className="size-4" />,
-    title: "Role already chosen",
-    body: "The person who invited you picked what you can change. An owner can raise it later.",
-  },
-  {
-    id: "inbox",
-    icon: <Mail className="size-4" />,
-    title: "Tied to one address",
-    body: "Accept with the inbox the invite was sent to — another account cannot claim it.",
-  },
-];
 
 type Params = Promise<{ id: string }>;
 
@@ -43,19 +23,49 @@ export default async function InvitePage({ params }: { params: Params }) {
     notFound();
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const [session, t] = await Promise.all([
+    auth.api.getSession({ headers: await headers() }),
+    getTranslations("auth"),
+  ]);
   const expired = invite.expiresAt.getTime() < Date.now();
-  const usable = invite.status === "pending" && !expired;
+  const usable = isInviteUsable(invite);
+  const accountExists = usable ? await userExistsByEmail(invite.email) : false;
+
+  const highlights: readonly AuthHighlight[] = [
+    {
+      id: "seat",
+      icon: <Icon name="users" className="text-sm" />,
+      title: t("inviteHighlightSeatTitle"),
+      body: t("inviteHighlightSeatBody"),
+    },
+    {
+      id: "role",
+      icon: <Icon name="shield" className="text-sm" />,
+      title: t("inviteHighlightRoleTitle"),
+      body: t("inviteHighlightRoleBody"),
+    },
+    {
+      id: "inbox",
+      icon: <Icon name="envelope" className="text-sm" />,
+      title: t("inviteHighlightInboxTitle"),
+      body: t("inviteHighlightInboxBody"),
+    },
+  ];
 
   return (
     <AuthShell
-      railTitle="You have been invited."
-      railBody={`${invite.workspaceName} wants you on the team. Accept and you are in.`}
-      highlights={HIGHLIGHTS}
-      crossLink={{ prompt: "Already a member?", label: "Sign in", href: "/login" }}
+      railTitle={t("inviteRailTitle")}
+      railBody={t("inviteRailBody", { workspace: invite.workspaceName })}
+      highlights={highlights}
+      crossLink={{
+        prompt: t("inviteAlreadyMember"),
+        label: t("signIn"),
+        href: `/login?next=${encodeURIComponent(`/invite/${invite.id}`)}`,
+      }}
     >
       <InviteForm
         sessionEmail={session?.user.email ?? null}
+        accountExists={accountExists}
         invite={{
           id: invite.id,
           email: invite.email,

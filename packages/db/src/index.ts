@@ -1,6 +1,7 @@
 export { getDb, getSql, schema, type Database } from "./client";
 export * from "./schema";
 export {
+  aliasedTable,
   and,
   asc,
   count,

@@ -8,6 +8,8 @@ const serverSchema = z.object({
   DATABASE_URL: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
   BETTER_AUTH_URL: z.string().url(),
+  /** Envelope key for secrets at rest. Rotating it independently of auth does not brick sessions. */
+  SECRET_ENCRYPTION_KEY: z.string().min(32, "SECRET_ENCRYPTION_KEY must be at least 32 characters"),
 
   APP_URL: z.string().url(),
   /** Default short domain used when a workspace has not added one of its own. */
@@ -16,6 +18,8 @@ const serverSchema = z.object({
   CUSTOM_HOSTNAME_TARGET: z.string().min(1).default("cname.short.app"),
 
   REDIS_URL: z.string().min(1).optional(),
+  /** Isolates keys when more than one brand shares a Redis instance (`short:` / `kisa:`). */
+  REDIS_KEY_PREFIX: z.string().min(1).default("short:"),
 
   CLICKHOUSE_URL: z.string().min(1).default("http://localhost:8123"),
   CLICKHOUSE_USER: z.string().default("default"),
@@ -68,7 +72,6 @@ export function serverEnv(): ServerEnv {
 export function features(): {
   google: boolean;
   email: boolean;
-  stripe: boolean;
   cloudflare: boolean;
   redis: boolean;
 } {
@@ -76,7 +79,6 @@ export function features(): {
   return {
     google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     email: Boolean(env.RESEND_API_KEY),
-    stripe: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET),
     cloudflare: Boolean(env.CF_ACCOUNT_ID && env.CF_API_TOKEN && env.CF_KV_NAMESPACE_ID),
     redis: Boolean(env.REDIS_URL),
   };

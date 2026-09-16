@@ -1,7 +1,9 @@
 "use client";
 
+import { Icon } from "@/components/kit/icon";
+
+import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
-import { Check, Eye, EyeOff, Minus } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/cx";
 
@@ -18,10 +20,10 @@ type PasswordFieldProps = {
 };
 
 const STRENGTH = [
-  { label: "Too short", bar: "bg-border-strong", text: "text-fg-subtle" },
-  { label: "Weak", bar: "bg-danger", text: "text-danger" },
-  { label: "Fair", bar: "bg-warn", text: "text-warn-ink" },
-  { label: "Strong", bar: "bg-accent", text: "text-accent-ink" },
+  { key: "passwordTooShort", bar: "bg-border-strong", text: "text-fg-subtle" },
+  { key: "passwordWeak", bar: "bg-danger", text: "text-danger" },
+  { key: "passwordFair", bar: "bg-warn", text: "text-warn-ink" },
+  { key: "passwordStrong", bar: "bg-accent", text: "text-accent-ink" },
 ] as const;
 
 function scorePassword(value: string, min: number): number {
@@ -37,7 +39,7 @@ function scorePassword(value: string, min: number): number {
 }
 
 export function PasswordField({
-  label = "Password",
+  label,
   value,
   onChange,
   autoComplete,
@@ -46,6 +48,8 @@ export function PasswordField({
   requirements = false,
   invalid = false,
 }: PasswordFieldProps) {
+  const t = useTranslations("auth");
+  const resolvedLabel = label ?? t("passwordLabel");
   const [visible, setVisible] = useState(false);
   const describedBy = useId();
 
@@ -56,7 +60,7 @@ export function PasswordField({
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <Field label={label}>
+      <Field label={resolvedLabel}>
         <span className="relative flex min-w-0 items-center">
           <Input
             type={visible ? "text" : "password"}
@@ -74,14 +78,14 @@ export function PasswordField({
             <Button
               variant="ghost"
               icon
-              aria-label={visible ? "Hide password" : "Show password"}
+              aria-label={visible ? t("hidePassword") : t("showPassword")}
               aria-pressed={visible}
               onClick={() => setVisible((prev) => !prev)}
             >
               {visible ? (
-                <EyeOff className="size-4 text-fg-muted" aria-hidden="true" />
+                <Icon name="eye-slash" className="text-sm text-fg-muted" aria-hidden="true" />
               ) : (
-                <Eye className="size-4 text-fg-muted" aria-hidden="true" />
+                <Icon name="eye" className="text-sm text-fg-muted" aria-hidden="true" />
               )}
             </Button>
           </span>
@@ -97,11 +101,11 @@ export function PasswordField({
             )}
           >
             {longEnough ? (
-              <Check className="size-3.5 shrink-0" aria-hidden="true" />
+              <Icon name="check" className="text-xs shrink-0" aria-hidden="true" />
             ) : (
-              <Minus className="size-3.5 shrink-0" aria-hidden="true" />
+              <Icon name="minus" className="text-xs shrink-0" aria-hidden="true" />
             )}
-            Required: at least {minLength} characters
+            {t("passwordRequired", { min: minLength ?? min })}
           </p>
 
           <div className="flex min-w-0 items-center gap-2.5">
@@ -120,12 +124,12 @@ export function PasswordField({
               className={cn("shrink-0 font-mono text-xs tabular-nums", strength.text)}
               aria-live="polite"
             >
-              {value.length === 0 ? "—" : strength.label}
+              {value.length === 0 ? "—" : t(strength.key)}
             </span>
           </div>
 
           <p className="m-0 text-xs text-fg-subtle">
-            Mixing letters, numbers and symbols makes it harder to guess.
+            {t("passwordMixHint")}
           </p>
         </div>
       ) : null}

@@ -1,5 +1,6 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import { BarChart3 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, Hero } from "@/components/ui";
@@ -9,12 +10,15 @@ import { toQrForm } from "@/lib/qr-form";
 import { requireWorkspace } from "@/lib/session";
 import { QrDesigner, type QrLinkOption } from "../qr-designer";
 
-export const metadata: Metadata = { title: "Edit QR code" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("qr");
+  return { title: t("editTitle") };
+}
 
 type Params = Promise<{ id: string }>;
 
 export default async function EditQrPage({ params }: { params: Params }) {
-  const context = await requireWorkspace();
+  const [context, t] = await Promise.all([requireWorkspace(), getTranslations("qr")]);
   const { id } = await params;
 
   const record = await getQrCode(context.workspace.id, id);
@@ -47,19 +51,19 @@ export default async function EditQrPage({ params }: { params: Params }) {
   return (
     <PanelShell
       title={record.name}
-      crumbs={[{ label: context.workspace.name }, { label: "QR codes", href: "/qr" }]}
+      crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
       topbarActions={
         <Button href={`/links/${record.linkId}/stats`}>
-          <BarChart3 className="size-4" />
-          Scan statistics
+          <Icon name="chart-line" className="text-sm" />
+          {t("scanStats")}
         </Button>
       }
     >
       <Hero
         variant="compact"
-        eyebrow="QR designer"
+        eyebrow={t("designer")}
         title={record.name}
-        description={`Encodes ${shortUrl(record.hostname, record.slug)} — edit that link to re-target every printed copy.`}
+        description={t("encodes", { url: shortUrl(record.hostname, record.slug) })}
       />
       <QrDesigner
         mode="edit"

@@ -20,6 +20,7 @@ Create a **Docker Compose** resource pointing at this repository with
 | --- | --- |
 | `APP_URL` | Public panel URL, e.g. `https://app.short.app`. Also used as `BETTER_AUTH_URL`. |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 48` |
+| `SECRET_ENCRYPTION_KEY` | `openssl rand -base64 48`. Decrypts Stripe and Cloudflare secrets stored in Postgres. |
 | `PLATFORM_SHORT_DOMAIN` | Default short domain, e.g. `sho.rt` |
 | `CUSTOM_HOSTNAME_TARGET` | What customers CNAME to, e.g. `cname.short.app` |
 | `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `CLICKHOUSE_PASSWORD` | Generated once, never rotated in place without a maintenance window |
@@ -28,8 +29,9 @@ Create a **Docker Compose** resource pointing at this repository with
 
 Optional integrations (`CF_*`, `GOOGLE_*`, `RESEND_API_KEY`, `STRIPE_*`) can be left
 empty — `/admin/system` renders each unset integration as *disabled* rather than
-failing. Without `CF_*` the panel keeps working but link changes are not pushed to KV,
-so the edge will serve stale data.
+failing. Stripe keys can also be pasted in `/admin/system` and are stored encrypted;
+env `STRIPE_*` remains a fallback for local boot. Without `CF_*` the panel keeps
+working but link changes are not pushed to KV, so the edge will serve stale data.
 
 Expose only `web` through Coolify's proxy. ClickHouse's HTTP port has to be reachable
 from Cloudflare for the ingest worker; put it behind a separate subdomain with TLS and
@@ -124,7 +126,9 @@ polls `GET /custom_hostnames/{id}` for the DNS and SSL state.
 Point a webhook endpoint at `https://app.short.app/api/webhooks/stripe` subscribed to
 `checkout.session.completed`, `customer.subscription.created`,
 `customer.subscription.updated`, `customer.subscription.deleted` and
-`invoice.payment_failed`. Paste the signing secret into `STRIPE_WEBHOOK_SECRET`.
+`invoice.payment_failed`. Paste the restricted key and signing secret in
+`/admin/system` (stored encrypted). `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`
+remain an env fallback until the admin form is saved.
 
 Plan rows carry the Stripe price ids (`stripePriceMonthlyId` / `stripePriceYearlyId`);
 set them in `/admin/plans` after creating the prices. A plan without a price id renders

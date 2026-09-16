@@ -265,7 +265,7 @@ app.get("/links/:id/stats", async (c) => {
     throw new ApiError(404, "not_found", "No link with that id in this workspace.");
   }
 
-  const range = resolveRange(c.req.query("range"));
+  const range = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
   const scope = { workspaceId: workspace.id, linkId: id, from: range.from, to: range.to };
 
   const [summary, timeseries, breakdowns] = await Promise.all([
@@ -286,7 +286,7 @@ app.get("/links/:id/stats", async (c) => {
 
 app.get("/analytics", async (c) => {
   const { workspace } = c.get("api");
-  const range = resolveRange(c.req.query("range"));
+  const range = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
   const scope = { workspaceId: workspace.id, from: range.from, to: range.to };
 
   const [summary, timeseries, breakdowns] = await Promise.all([

@@ -1,21 +1,4 @@
-import type { LucideIcon } from "lucide-react";
-import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  Building2,
-  Contact,
-  CreditCard,
-  Globe,
-  Layers,
-  LayoutDashboard,
-  Link2,
-  QrCode,
-  ScrollText,
-  Settings,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import type { IconName } from "@/components/kit/icon";
 
 /** Workspace membership roles plus the platform-level superadmin. */
 export type PanelRole = "owner" | "admin" | "member" | "superadmin";
@@ -26,7 +9,7 @@ export type NavItem = {
   id: string;
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: IconName;
   count?: string;
   roles: PanelRole[];
 };
@@ -50,14 +33,14 @@ export const navGroups: NavGroup[] = [
         id: "dashboard",
         label: "Dashboard",
         href: "/dashboard",
-        icon: LayoutDashboard,
+        icon: "gauge-high",
         roles: ["owner", "admin", "member", "superadmin"],
       },
       {
         id: "analytics",
         label: "Analytics",
         href: "/analytics",
-        icon: BarChart3,
+        icon: "chart-line",
         roles: ["owner", "admin", "member", "superadmin"],
       },
     ],
@@ -69,21 +52,21 @@ export const navGroups: NavGroup[] = [
         id: "links",
         label: "Links",
         href: "/links",
-        icon: Link2,
+        icon: "link",
         roles: ["owner", "admin", "member", "superadmin"],
       },
       {
         id: "qr",
         label: "QR codes",
         href: "/qr",
-        icon: QrCode,
+        icon: "qrcode",
         roles: ["owner", "admin", "member", "superadmin"],
       },
       {
         id: "bio",
         label: "Bio pages",
         href: "/bio",
-        icon: Contact,
+        icon: "address-card",
         roles: ["owner", "admin", "member", "superadmin"],
       },
     ],
@@ -95,78 +78,77 @@ export const navGroups: NavGroup[] = [
         id: "domains",
         label: "Domains",
         href: "/domains",
-        icon: Globe,
+        icon: "globe",
         roles: ["owner", "admin", "superadmin"],
       },
       {
         id: "settings",
         label: "Settings",
         href: "/settings",
-        icon: Settings,
+        icon: "gear",
         roles: ["owner", "admin", "member", "superadmin"],
       },
       {
         id: "billing",
         label: "Billing",
         href: "/billing",
-        icon: CreditCard,
+        icon: "credit-card",
         roles: ["owner", "superadmin"],
       },
       {
         id: "docs",
         label: "Components",
         href: "/docs",
-        icon: BookOpen,
-        roles: ["owner", "admin", "member", "superadmin"],
+        icon: "book",
+        roles: ["superadmin"],
       },
     ],
   },
   {
     label: "Platform",
     items: [
-      { id: "admin", label: "Overview", href: "/admin", icon: ShieldCheck, roles: ["superadmin"] },
-      { id: "admin-users", label: "Users", href: "/admin/users", icon: Users, roles: ["superadmin"] },
+      { id: "admin", label: "Overview", href: "/admin", icon: "shield", roles: ["superadmin"] },
+      { id: "admin-brand", label: "Brand", href: "/admin/brand", icon: "palette", roles: ["superadmin"] },
+      { id: "admin-users", label: "Users", href: "/admin/users", icon: "users", roles: ["superadmin"] },
       {
         id: "admin-workspaces",
         label: "Workspaces",
         href: "/admin/workspaces",
-        icon: Building2,
+        icon: "building",
         roles: ["superadmin"],
       },
       {
         id: "admin-links",
         label: "All links",
         href: "/admin/links",
-        icon: Link2,
+        icon: "link",
         roles: ["superadmin"],
       },
       {
         id: "admin-domains",
         label: "All domains",
         href: "/admin/domains",
-        icon: Globe,
+        icon: "globe",
         roles: ["superadmin"],
       },
-      { id: "admin-plans", label: "Plans", href: "/admin/plans", icon: Layers, roles: ["superadmin"] },
+      { id: "admin-plans", label: "Plans", href: "/admin/plans", icon: "layer-group", roles: ["superadmin"] },
       {
         id: "admin-system",
         label: "System",
         href: "/admin/system",
-        icon: Activity,
+        icon: "pulse",
         roles: ["superadmin"],
       },
       {
         id: "admin-audit",
         label: "Audit log",
         href: "/admin/audit",
-        icon: ScrollText,
+        icon: "scroll",
         roles: ["superadmin"],
       },
     ],
   },
 ];
-
-export const brandName = "Short";
 
 /**
  * Superadmins see the Platform group in addition to everything a workspace owner sees,

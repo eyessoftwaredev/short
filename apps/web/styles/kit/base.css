@@ -14,7 +14,7 @@
 }
 
 .eyesone a { color: var(--accent); text-decoration: none; }
-a:hover { color: var(--accent-hover); text-decoration: underline; }
+.eyesone a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .eyesone input, .eyesone button, .eyesone textarea, .eyesone select {
   font-family: inherit;

@@ -112,8 +112,8 @@ export const handleSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(SLUG_PATTERN, { message: "Use letters, numbers, dot, dash or underscore" })
-  .refine((handle) => !isReservedSlug(handle), { message: "This handle is reserved" });
+  .regex(SLUG_PATTERN, { message: "handlePattern" })
+  .refine((handle) => !isReservedSlug(handle), { message: "handleReserved" });
 
 export const biopageInputSchema = z.object({
   handle: handleSchema,

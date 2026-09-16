@@ -449,6 +449,28 @@
   color: var(--on-accent);
 }
 
+/* Next <Link> renders <a>. `.eyesone a` is more specific than `.kit-btn--primary`
+   and paints accent-on-accent until hover. Anchor + visited/hover/focus must
+   keep the button ink, not the link ink. */
+.eyesone a.kit-btn,
+.eyesone a.kit-btn:link,
+.eyesone a.kit-btn:visited,
+.eyesone a.kit-btn:hover,
+.eyesone a.kit-btn:focus-visible,
+.eyesone a.kit-btn:active {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.eyesone a.kit-btn--primary,
+.eyesone a.kit-btn--primary:link,
+.eyesone a.kit-btn--primary:visited,
+.eyesone a.kit-btn--primary:hover,
+.eyesone a.kit-btn--primary:focus-visible,
+.eyesone a.kit-btn--primary:active {
+  color: var(--on-accent);
+}
+
 .kit-btn--ghost {
   border-color: transparent;
   background: transparent;
@@ -789,6 +811,31 @@
   color: var(--inverse);
 }
 
+.kit-hero--inverse .kit-btn--primary:hover {
+  border-color: var(--accent-bright);
+  background: var(--accent-bright);
+  color: var(--inverse);
+}
+
+.eyesone .kit-hero--inverse a.kit-btn,
+.eyesone .kit-hero--inverse a.kit-btn:link,
+.eyesone .kit-hero--inverse a.kit-btn:visited,
+.eyesone .kit-hero--inverse a.kit-btn:hover,
+.eyesone .kit-hero--inverse a.kit-btn:focus-visible,
+.eyesone .kit-hero--inverse a.kit-btn:active {
+  color: var(--on-inverse);
+  text-decoration: none;
+}
+
+.eyesone .kit-hero--inverse a.kit-btn--primary,
+.eyesone .kit-hero--inverse a.kit-btn--primary:link,
+.eyesone .kit-hero--inverse a.kit-btn--primary:visited,
+.eyesone .kit-hero--inverse a.kit-btn--primary:hover,
+.eyesone .kit-hero--inverse a.kit-btn--primary:focus-visible,
+.eyesone .kit-hero--inverse a.kit-btn--primary:active {
+  color: var(--inverse);
+}
+
 .kit-section {
   display: flex;
   flex-direction: column;
@@ -945,6 +992,15 @@
 
 .kit-orbit--inverse .kit-orbit__body {
   background: var(--inverse);
+}
+
+.kit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .kit-card {
@@ -2472,4 +2528,80 @@
   font-size: 10px;
   display: grid;
   place-items: center;
+}
+
+.kit-consent {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 80;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.kit-consent__card {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 48rem;
+  margin-inline: auto;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-default);
+  background: var(--bg);
+  box-shadow: var(--shadow-lift);
+}
+
+.kit-consent__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.kit-consent__body,
+.kit-consent__hint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.kit-consent__categories {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.kit-consent__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.kit-consent__cat {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 550;
+}
+
+.kit-consent__lock {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.kit-consent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

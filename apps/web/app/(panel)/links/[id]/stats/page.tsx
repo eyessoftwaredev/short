@@ -1,14 +1,8 @@
+import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  BarChart3,
-  Globe2,
-  MousePointerClick,
-  Pencil,
-  Repeat2,
-  Users,
-} from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
 import { RangePicker } from "@/components/charts/range-picker";
 import { StatsBreakdowns } from "@/components/charts/stats-breakdowns";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
@@ -32,9 +26,19 @@ import { loadBreakdownSet, loadRecentEvents, loadSummary, loadTimeseries } from 
 import { formatDateTime, formatNumber, parseClickhouseDate, truncateMiddle } from "@/lib/format";
 import { getLink, shortUrl } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
-import { countryName, deltaPercent, formatDelta, resolveRange, titleCase } from "@/lib/stats";
+import {
+  countryName,
+  deltaPercent,
+  formatDelta,
+  localizedRangeLabel,
+  resolveRange,
+  titleCase,
+} from "@/lib/stats";
 
-export const metadata: Metadata = { title: "Link statistics" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("stats");
+  return { title: t("statistics") };
+}
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -57,7 +61,8 @@ export default async function LinkStatsPage({
   const context = await requireWorkspace();
   const { id } = await params;
   const raw = await searchParams;
-  const range = resolveRange(raw.range);
+  const locale = await getLocale();
+  const range = resolveRange(raw.range, raw.from, raw.to, locale);
 
   const link = await getLink(context.workspace.id, id);
   if (!link) {
@@ -71,12 +76,21 @@ export default async function LinkStatsPage({
     to: range.to,
   };
 
-  const [summary, series, breakdowns, recent] = await Promise.all([
+  const [summary, series, breakdowns, recent, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),
     loadTimeseries(scope, range.granularity),
     loadBreakdownSet(scope),
     loadRecentEvents(scope, 25),
+    getTranslations("panel"),
+    getTranslations("common"),
+    getTranslations("stats"),
+    getTranslations("nav"),
   ]);
+
+  const rangeLabel = localizedRangeLabel(range, ts);
+  const noneDelta = ts("deltaNone");
+  const unknown = ts("unknown");
+  const granularityLabel = range.granularity === "hour" ? ts("hour") : ts("day");
 
   const url = shortUrl(link.hostname, link.slug);
   const returning = summary.clicks - summary.visitors;
@@ -86,22 +100,26 @@ export default async function LinkStatsPage({
 
   return (
     <PanelShell
-      title="Statistics"
+      title={ts("statistics")}
       crumbs={[
         { label: context.workspace.name },
-        { label: "Links", href: "/links" },
+        { label: tn("links"), href: "/links" },
         { label: `${link.hostname}/${link.slug}`, href: `/links/${link.id}` },
       ]}
       topbarActions={
         <Button href={`/links/${link.id}`}>
-          <Pencil className="size-4" />
-          Edit link
+          <Icon name="pen" className="text-sm" />
+          {t("editLink")}
         </Button>
       }
     >
       <Hero
         variant="compact"
-        eyebrow={`Last ${range.label}`}
+        eyebrow={
+          range.comparePrevious
+            ? ts("lastRange", { range: rangeLabel })
+            : ts("rangeEyebrowAll", { range: rangeLabel })
+        }
         title={`${link.hostname}/${link.slug}`}
         description={
           <span className="flex flex-col gap-1">
@@ -118,7 +136,7 @@ export default async function LinkStatsPage({
         }
         actions={
           <>
-            <CopyButton value={url} label="Copy link" />
+            <CopyButton value={url} label={tc("copy")} />
             <RangePicker value={range.key} />
           </>
         }
@@ -126,50 +144,62 @@ export default async function LinkStatsPage({
 
       <Grid columns={4}>
         <Card
-          icon={<MousePointerClick className="size-4" />}
-          label="Clicks"
+          icon={<Icon name="arrow-pointer" className="text-sm" />}
+          label={ts("clicks")}
           value={formatNumber(summary.clicks)}
           trend={trendOf(summary.clicks, summary.previousClicks)}
           delta={
             <>
-              {formatDelta(summary.clicks, summary.previousClicks)}{" "}
-              <span className="text-fg-subtle">vs previous period</span>
+              {range.comparePrevious ? (
+                <>
+                  {formatDelta(summary.clicks, summary.previousClicks, noneDelta)}{" "}
+                  <span className="text-fg-subtle">{ts("vsPreviousPeriod")}</span>
+                </>
+              ) : (
+                <span className="text-fg-subtle">{rangeLabel}</span>
+              )}
             </>
           }
         />
         <Card
-          icon={<Users className="size-4" />}
-          label="Unique visitors"
+          icon={<Icon name="users" className="text-sm" />}
+          label={t("uniqueVisitors")}
           value={formatNumber(summary.visitors)}
           trend={trendOf(summary.visitors, summary.previousVisitors)}
           delta={
             <>
-              {formatDelta(summary.visitors, summary.previousVisitors)}{" "}
-              <span className="text-fg-subtle">vs previous period</span>
+              {range.comparePrevious ? (
+                <>
+                  {formatDelta(summary.visitors, summary.previousVisitors, noneDelta)}{" "}
+                  <span className="text-fg-subtle">{ts("vsPreviousPeriod")}</span>
+                </>
+              ) : (
+                <span className="text-fg-subtle">{rangeLabel}</span>
+              )}
             </>
           }
         />
         <Card
-          icon={<Repeat2 className="size-4" />}
-          label="Repeat clicks"
+          icon={<Icon name="repeat" className="text-sm" />}
+          label={ts("repeatClicks")}
           value={formatNumber(Math.max(returning, 0))}
-          delta="clicks beyond the first per visitor"
+          delta={ts("repeatClicksDelta")}
         />
         <Card
-          icon={<Globe2 className="size-4" />}
-          label="Countries"
+          icon={<Icon name="earth" className="text-sm" />}
+          label={ts("countries")}
           value={formatNumber(summary.countries)}
-          delta="distinct countries"
+          delta={ts("distinctCountries")}
         />
       </Grid>
 
       <Section
-        title="Click trend"
-        description={`${range.granularity === "hour" ? "Hourly" : "Daily"} clicks and unique visitors.`}
+        title={t("clickTrend")}
+        description={range.granularity === "hour" ? t("clickTrendDescHour") : t("clickTrendDescDay")}
         meta={
           series.length > 0 ? (
             <span className="numeric font-mono">
-              peak {formatNumber(peakClicks)} / {range.granularity}
+              {t("peak", { value: formatNumber(peakClicks), granularity: granularityLabel })}
             </span>
           ) : null
         }
@@ -178,24 +208,24 @@ export default async function LinkStatsPage({
           {series.length === 0 ? (
             <EmptyState
               size="sm"
-              icon={<BarChart3 className="size-4" />}
-              title="No clicks in this range"
-              description="This link has not been opened between these dates. Try a wider range."
+              icon={<Icon name="chart-line" className="text-sm" />}
+              title={t("noClicksRange")}
+              description={ts("noClicksLinkBody")}
             />
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-pill bg-chart-1" aria-hidden="true" />
-                  Clicks
+                  {ts("clicks")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="size-2 rounded-pill bg-chart-2" aria-hidden="true" />
-                  Unique visitors
+                  {t("uniqueVisitors")}
                 </span>
                 {singleBucket ? (
                   <span className="ml-auto text-fg-subtle">
-                    Only one {range.granularity} of data in this range.
+                    {ts("singleBucket", { granularity: granularityLabel })}
                   </span>
                 ) : null}
               </div>
@@ -205,46 +235,44 @@ export default async function LinkStatsPage({
         </Card>
       </Section>
 
-      <Section title="Breakdown" description="Where the traffic comes from and what it runs on.">
+      <Section title={ts("breakdown")} description={ts("breakdownLinkDesc")}>
         {hasTraffic ? (
           <StatsBreakdowns data={breakdowns} />
         ) : (
           <EmptyState
             size="sm"
-            icon={<Globe2 className="size-4" />}
-            title="Nothing to break down yet"
-            description="Country, device and referrer splits appear after this link's first click."
+            icon={<Icon name="earth" className="text-sm" />}
+            title={ts("nothingToBreakDown")}
+            description={ts("nothingToBreakDownLinkBody")}
           />
         )}
       </Section>
 
       <Section
-        title="Recent clicks"
-        description="Last 25 events for this link."
+        title={ts("recentClicks")}
+        description={ts("recentClicksDesc")}
         meta={
           recent.length > 0 ? (
-            <span className="numeric font-mono">{recent.length} events</span>
+            <span className="numeric font-mono">{ts("eventsCount", { count: recent.length })}</span>
           ) : null
         }
       >
         {recent.length === 0 ? (
           <EmptyState
             size="sm"
-            icon={<MousePointerClick className="size-4" />}
-            title="Nothing recorded yet"
-            description="Individual click events show up here within seconds of the first visit."
+            icon={<Icon name="arrow-pointer" className="text-sm" />}
+            title={ts("nothingRecorded")}
+            description={ts("nothingRecordedBody")}
           />
         ) : (
-          // 25 rows of five columns is exactly the case density is for: the
-          // whole event log should be scannable without scrolling twice.
-          <Table stickyHeader density="compact" label="Recent click events">
+          <Table stickyHeader density="compact" label={ts("recentEventsTable")}>
             <TableHead sticky>
               <TableRow>
-                <TableHeaderCell className="w-40">When</TableHeaderCell>
-                <TableHeaderCell className="w-48">Location</TableHeaderCell>
-                <TableHeaderCell className="w-56">Device</TableHeaderCell>
-                <TableHeaderCell className="w-40">Referrer</TableHeaderCell>
-                <TableHeaderCell>Destination</TableHeaderCell>
+                <TableHeaderCell className="w-40">{ts("when")}</TableHeaderCell>
+                <TableHeaderCell className="w-48">{ts("location")}</TableHeaderCell>
+                <TableHeaderCell className="w-56">{ts("device")}</TableHeaderCell>
+                <TableHeaderCell className="w-40">{ts("referrer")}</TableHeaderCell>
+                <TableHeaderCell>{ts("destination")}</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -254,14 +282,15 @@ export default async function LinkStatsPage({
                     {formatDateTime(parseClickhouseDate(event.ts))}
                   </TableCell>
                   <TableCell truncate>
-                    {countryName(event.country)}
+                    {countryName(event.country, locale, unknown)}
                     {event.city ? ` · ${event.city}` : ""}
                   </TableCell>
                   <TableCell truncate className="text-fg-muted">
-                    {titleCase(event.device)} · {titleCase(event.os)} · {titleCase(event.browser)}
+                    {titleCase(event.device, unknown)} · {titleCase(event.os, unknown)} ·{" "}
+                    {titleCase(event.browser, unknown)}
                   </TableCell>
                   <TableCell truncate className="text-fg-muted">
-                    {event.referrerDomain === "" ? "Direct" : event.referrerDomain}
+                    {event.referrerDomain === "" ? ts("direct") : event.referrerDomain}
                   </TableCell>
                   <TableCell truncate className="font-mono text-xs text-fg-subtle">
                     {truncateMiddle(event.destination, 40)}

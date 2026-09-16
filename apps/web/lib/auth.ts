@@ -6,8 +6,10 @@ import { nextCookies } from "better-auth/next-js";
 import { admin, organization as organizationPlugin } from "better-auth/plugins";
 import { defaultAc, defaultStatements, userAc } from "better-auth/plugins/admin/access";
 import { sendEmail } from "./email";
+import { interpolateEmail, loadBrandEmailContext } from "./email-copy";
 import { invitationTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email-templates";
 import { features, serverEnv } from "./env";
+import { hasPendingInviteForEmail } from "./team";
 import { createWorkspace } from "./workspace";
 
 /** Platform-level role stored on `user.role` (the admin plugin's field). */
@@ -60,8 +62,13 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     minPasswordLength: 10,
     sendResetPassword: async ({ user, url }) => {
-      const template = resetPasswordTemplate(url);
-      await sendEmail({ to: user.email, subject: "Reset your password", ...template });
+      const ctx = await loadBrandEmailContext();
+      const template = resetPasswordTemplate(url, ctx);
+      await sendEmail({
+        to: user.email,
+        subject: `${ctx.copy.resetSubject} · ${ctx.brandName}`,
+        ...template,
+      });
     },
   },
 
@@ -69,8 +76,16 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      const template = verifyEmailTemplate(url);
-      await sendEmail({ to: user.email, subject: "Confirm your email", ...template });
+      if (await hasPendingInviteForEmail(user.email)) {
+        return;
+      }
+      const ctx = await loadBrandEmailContext();
+      const template = verifyEmailTemplate(url, ctx);
+      await sendEmail({
+        to: user.email,
+        subject: `${ctx.copy.verifySubject} · ${ctx.brandName}`,
+        ...template,
+      });
     },
   },
 
@@ -86,14 +101,15 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        // Every new user gets a personal workspace on the free plan so the panel never
-        // has to render a "no workspace" state.
+        // Every new user gets a personal workspace and a user-scoped subscription so
+        // the panel never has to render a "no workspace" state.
         after: async (created) => {
           try {
             await createWorkspace(
               created.id,
               created.name,
               created.email.split("@")[0] ?? "Workspace",
+              "personal",
             );
           } catch (error) {
             console.error("failed to create personal workspace", error);
@@ -106,20 +122,25 @@ export const auth = betterAuth({
   plugins: [
     organizationPlugin({
       allowUserToCreateOrganization: true,
-      organizationLimit: 10,
+      organizationLimit: 50,
       creatorRole: "owner",
       membershipLimit: 100,
       invitationExpiresIn: 60 * 60 * 48,
       sendInvitationEmail: async (data) => {
         const url = `${env().APP_URL}/invite/${data.id}`;
+        const ctx = await loadBrandEmailContext();
         const template = invitationTemplate({
           url,
           workspaceName: data.organization.name,
           inviterName: data.inviter.user.name || data.inviter.user.email,
+          ctx,
         });
         await sendEmail({
           to: data.email,
-          subject: `Join ${data.organization.name} on Short`,
+          subject: interpolateEmail(ctx.copy.inviteSubject, {
+            workspace: data.organization.name,
+            brand: ctx.brandName,
+          }),
           ...template,
         });
       },

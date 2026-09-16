@@ -1,7 +1,9 @@
 "use client";
 
-import { AlertTriangle, Plus, Trash2, Webhook } from "lucide-react";
+import { Icon } from "@/components/kit/icon";
+
 import { WEBHOOK_EVENTS, type WebhookEvent } from "@short/core";
+import { useTranslations } from "next-intl";
 import {
   Badge,
   Button,
@@ -55,13 +57,15 @@ export function SettingsWebhooks({
   run,
   requestConfirm,
 }: SettingsWebhooksProps) {
+  const t = useTranslations("settings");
+
   if (!hasFeature) {
     return (
       <Paywall
-        plan="Business"
-        title="Push events into your own systems"
-        description="Get a signed POST the moment a link is created, edited or clicked — no polling required."
-        actionLabel="Compare plans"
+        plan={t("paywallPlan")}
+        title={t("hooksPaywallTitle")}
+        description={t("hooksPaywallBody")}
+        actionLabel={t("comparePlans")}
         preview={
           <>
             <span className="font-mono text-sm font-medium">POST https://api.acme.com/hooks</span>
@@ -79,35 +83,29 @@ export function SettingsWebhooks({
     <div className="flex min-w-0 flex-col gap-6">
       <Card staticHover className="gap-2">
         <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-          Verifying deliveries
+          {t("verifyingDeliveries")}
         </span>
-        <p className="m-0 text-sm leading-relaxed text-fg-muted">
-          Every request is signed with HMAC-SHA256 over the raw body. Compare your own digest
-          against the header below and reject anything that does not match.
-        </p>
+        <p className="m-0 text-sm leading-relaxed text-fg-muted">{t("verifyingBody")}</p>
         <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-default border border-border bg-surface-subtle px-3 py-2">
           <code className="min-w-0 flex-1 truncate font-mono text-sm text-ink">
             {SIGNATURE_HEADER}
           </code>
-          <CopyButton value={SIGNATURE_HEADER} label="Copy" />
+          <CopyButton value={SIGNATURE_HEADER} />
         </div>
       </Card>
 
       {canManage ? (
         <Card staticHover className="gap-4">
           <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <Plus className="size-3.5" aria-hidden="true" />
-            Add an endpoint
+            <Icon name="plus" className="text-xs" aria-hidden="true" />
+            {t("addEndpoint")}
           </span>
 
-          <Field
-            label="Endpoint URL"
-            hint="Must accept POST over HTTPS and answer within a few seconds."
-          >
+          <Field label={t("endpointUrl")} hint={t("endpointUrlHint")}>
             <Input
               type="url"
               inputMode="url"
-              placeholder="https://api.acme.com/hooks/short"
+              placeholder={t("endpointUrlPlaceholder")}
               value={hookUrl}
               onChange={(event) => onHookUrlChange(event.target.value)}
             />
@@ -115,7 +113,7 @@ export function SettingsWebhooks({
 
           <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
             <legend className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2 p-0 text-sm font-medium">
-              <span>Events to send</span>
+              <span>{t("eventsToSend")}</span>
             </legend>
             <div className="flex min-w-0 flex-wrap gap-2">
               {WEBHOOK_EVENTS.map((event) => {
@@ -139,14 +137,14 @@ export function SettingsWebhooks({
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-fg-subtle tabular-nums">
-                {hookEvents.length} of {WEBHOOK_EVENTS.length} selected
+                {t("eventsSelected", { selected: hookEvents.length, total: WEBHOOK_EVENTS.length })}
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => onHookEventsChange(allSelected ? [] : [...WEBHOOK_EVENTS])}
               >
-                {allSelected ? "Clear all" : "Select all"}
+                {allSelected ? t("clearAll") : t("selectAll")}
               </Button>
             </div>
           </fieldset>
@@ -157,8 +155,8 @@ export function SettingsWebhooks({
               disabled={pending || hookUrl.trim() === "" || hookEvents.length === 0}
               onClick={onCreateHook}
             >
-              <Plus className="size-4" aria-hidden="true" />
-              {pending ? "Adding…" : "Add endpoint"}
+              <Icon name="plus" className="text-sm" aria-hidden="true" />
+              {pending ? t("adding") : t("addEndpointButton")}
             </Button>
           </div>
         </Card>
@@ -166,10 +164,10 @@ export function SettingsWebhooks({
 
       {webhookRows.length === 0 ? (
         <EmptyState
-          icon={<Webhook className="size-5" />}
-          eyebrow="Webhooks"
-          title="No endpoints yet"
-          description="Add an endpoint to receive link and bio page events the moment they happen."
+          icon={<Icon name="bolt" className="text-lg" />}
+          eyebrow={t("hooksEmptyEyebrow")}
+          title={t("hooksEmptyTitle")}
+          description={t("hooksEmptyBody")}
         />
       ) : (
         <div className="flex min-w-0 flex-col gap-3">
@@ -182,12 +180,14 @@ export function SettingsWebhooks({
                   </span>
                   <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-subtle">
                     <Badge tone={deliveryTone(row.lastStatus)}>
-                      {row.lastStatus === null ? "No deliveries" : `HTTP ${row.lastStatus}`}
+                      {row.lastStatus === null
+                        ? t("noDeliveries")
+                        : t("httpStatus", { status: row.lastStatus })}
                     </Badge>
                     <span className="tabular-nums">
                       {row.lastDeliveryAt
-                        ? `Last delivery ${formatDateTime(row.lastDeliveryAt)}`
-                        : "Nothing sent yet"}
+                        ? t("lastDelivery", { when: formatDateTime(row.lastDeliveryAt) })
+                        : t("nothingSent")}
                     </span>
                   </span>
                 </div>
@@ -197,37 +197,38 @@ export function SettingsWebhooks({
                     <Switch
                       checked={row.enabled}
                       disabled={!canManage || pending}
-                      aria-label={`${row.enabled ? "Disable" : "Enable"} deliveries to ${row.url}`}
+                      aria-label={
+                        row.enabled
+                          ? t("disableDeliveries", { url: row.url })
+                          : t("enableDeliveries", { url: row.url })
+                      }
                       onCheckedChange={(enabled) =>
                         run(
                           () => toggleWebhookAction(row.id, enabled),
-                          enabled ? "Endpoint enabled." : "Endpoint paused.",
+                          enabled ? t("endpointEnabled") : t("endpointPaused"),
                         )
                       }
                     />
-                    <span>{row.enabled ? "Active" : "Paused"}</span>
+                    <span>{row.enabled ? t("active") : t("paused")}</span>
                   </label>
                   {canManage ? (
                     <DangerButton
                       size="sm"
                       icon
-                      aria-label={`Delete endpoint ${row.url}`}
+                      aria-label={t("deleteEndpointAria", { url: row.url })}
                       disabled={pending}
                       onClick={() =>
                         requestConfirm({
-                          title: "Delete this endpoint?",
+                          title: t("deleteEndpointTitle"),
                           description: row.url,
-                          consequences: [
-                            "Deliveries stop immediately and queued retries are dropped.",
-                            "The signing secret is destroyed — a new endpoint gets a new one.",
-                          ],
-                          confirmLabel: "Delete endpoint",
+                          consequences: [t("deleteStop"), t("deleteSecret")],
+                          confirmLabel: t("deleteEndpointConfirm"),
                           onConfirm: () =>
-                            run(() => deleteWebhookAction(row.id), "Endpoint deleted."),
+                            run(() => deleteWebhookAction(row.id), t("endpointDeleted")),
                         })
                       }
                     >
-                      <Trash2 className="size-4" aria-hidden="true" />
+                      <Icon name="trash" className="text-sm" aria-hidden="true" />
                     </DangerButton>
                   ) : null}
                 </div>
@@ -243,7 +244,7 @@ export function SettingsWebhooks({
 
               {row.lastError ? (
                 <div className="flex min-w-0 items-start gap-2.5 rounded-default border border-danger bg-danger-surface px-3 py-2.5">
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-danger" aria-hidden="true" />
+                  <Icon name="warning" className="mt-0.5 text-xs shrink-0 text-danger" aria-hidden="true" />
                   <span className="min-w-0 font-mono text-xs break-all text-fg-muted">
                     {row.lastError}
                   </span>

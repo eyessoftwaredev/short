@@ -1,5 +1,17 @@
-export const PLAN_KEYS = ["free", "pro", "business", "enterprise"] as const;
+export const PLAN_KEYS = ["free", "pro", "business", "enterprise", "infinity"] as const;
 export type PlanKey = (typeof PLAN_KEYS)[number];
+
+/** Plans customers can subscribe to. Infinity is staff-only and never sold. */
+export const PUBLIC_PLAN_KEYS = ["free", "pro", "business", "enterprise"] as const;
+export type PublicPlanKey = (typeof PUBLIC_PLAN_KEYS)[number];
+
+export function isInternalPlan(key: string | null | undefined): boolean {
+  return key === "infinity";
+}
+
+export function isPaidPublicPlan(key: string | null | undefined): boolean {
+  return key === "pro" || key === "business" || key === "enterprise";
+}
 
 /** `-1` means unlimited. */
 export type PlanLimits = {
@@ -9,6 +21,8 @@ export type PlanLimits = {
   biopages: number;
   qrCodes: number;
   members: number;
+  /** Team workspaces the billing owner may create. Personal does not count. */
+  teams: number;
   retentionDays: number;
   apiRequestsPerHour: number;
 };
@@ -49,6 +63,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       biopages: 1,
       qrCodes: 5,
       members: 1,
+      teams: 0,
       retentionDays: 30,
       apiRequestsPerHour: 100,
     },
@@ -76,6 +91,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       biopages: 5,
       qrCodes: 100,
       members: 3,
+      teams: 1,
       retentionDays: 365,
       apiRequestsPerHour: 1_000,
     },
@@ -103,6 +119,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       biopages: 50,
       qrCodes: 1_000,
       members: 15,
+      teams: 3,
       retentionDays: 730,
       apiRequestsPerHour: 10_000,
     },
@@ -130,8 +147,37 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       biopages: -1,
       qrCodes: -1,
       members: -1,
+      teams: -1,
       retentionDays: 1_095,
       apiRequestsPerHour: 100_000,
+    },
+    features: {
+      targeting: true,
+      abTesting: true,
+      passwordProtection: true,
+      cloaking: true,
+      qrLogo: true,
+      webhooks: true,
+      apiAccess: true,
+      removeBranding: true,
+    },
+  },
+  infinity: {
+    key: "infinity",
+    name: "Infinity",
+    priceMonthly: 0,
+    priceYearly: 0,
+    currency: "USD",
+    limits: {
+      links: -1,
+      clicksPerMonth: -1,
+      customDomains: -1,
+      biopages: -1,
+      qrCodes: -1,
+      members: -1,
+      teams: -1,
+      retentionDays: -1,
+      apiRequestsPerHour: -1,
     },
     features: {
       targeting: true,
