@@ -46,7 +46,7 @@ export default async function DomainsPage({ searchParams }: { searchParams: Sear
 
   const domains = await listDomains(context.workspace.id);
   const rows = domains.map(toDomainRowView);
-  const custom = rows.filter((row) => !row.isPlatform).length;
+  const custom = rows.length;
   const limit = context.plan.limits.customDomains;
   const limitLabel = limit === -1 ? tc("unlimited") : formatLimit(limit);
   const canManage = hasWorkspaceRole(context.role, "admin") || context.isSuperadmin;

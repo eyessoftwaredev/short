@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     getTranslations("domains"),
   ]);
   const domain = await getDomain(context.workspace.id, id);
-  return { title: domain?.hostname ?? t("title") };
+  return { title: domain && !domain.isPlatform ? domain.hostname : t("title") };
 }
 
 export default async function DomainDetailPage({
@@ -46,7 +46,7 @@ export default async function DomainDetailPage({
   ]);
 
   const domain = await getDomain(context.workspace.id, id);
-  if (!domain) {
+  if (!domain || domain.isPlatform) {
     notFound();
   }
 

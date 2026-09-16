@@ -9,7 +9,6 @@ import {
   getDb,
   links,
   ne,
-  or,
   type DomainRow,
 } from "@short/db";
 import {
@@ -49,9 +48,9 @@ export async function listDomains(workspaceId: string): Promise<DomainWithUsage[
     })
     .from(domains)
     .leftJoin(links, eq(links.domainId, domains.id))
-    .where(or(eq(domains.workspaceId, workspaceId), eq(domains.isPlatform, true)))
+    .where(and(eq(domains.workspaceId, workspaceId), eq(domains.isPlatform, false)))
     .groupBy(domains.id)
-    .orderBy(desc(domains.isPlatform), desc(domains.createdAt));
+    .orderBy(desc(domains.createdAt));
 
   return rows.map((row) => ({ ...row.domain, linkCount: row.linkCount }));
 }
