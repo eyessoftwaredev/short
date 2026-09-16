@@ -89,17 +89,19 @@ async function main(): Promise<void> {
 }
 
 /**
- * Live Short.ky catalogue. Opt-in so kisa.ly seed does not inherit these ids.
- * Existing admin-set ids are replaced only when STRIPE_ATTACH_LIVE_PRICES=1.
+ * Live Short.ky catalogue in the account settlement currency (AED) so Adaptive
+ * Pricing can localize Checkout. Panel copy stays USD. Opt-in so kisa.ly seed
+ * does not inherit these ids. Existing admin-set ids are replaced only when
+ * STRIPE_ATTACH_LIVE_PRICES=1.
  */
 const LIVE_STRIPE_PRICES = {
   pro: {
-    month: "price_1UGLvrPZFgnTJkfpdQvxuwGN",
-    year: "price_1UGLvrPZFgnTJkfpmTuxhpMk",
+    month: "price_1UGOntPZFgnTJkfp71ccXinC",
+    year: "price_1UGOntPZFgnTJkfpsMLSZrKA",
   },
   business: {
-    month: "price_1UGLvsPZFgnTJkfpVFgshZzH",
-    year: "price_1UGLvtPZFgnTJkfp9YfrgCzt",
+    month: "price_1UGOntPZFgnTJkfp3qkd4gUR",
+    year: "price_1UGOnuPZFgnTJkfp3mnEQvZ6",
   },
 } as const;
 
