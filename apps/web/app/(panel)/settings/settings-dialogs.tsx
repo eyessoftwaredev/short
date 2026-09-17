@@ -4,7 +4,7 @@ import { Icon, type IconName } from "@/components/kit/icon";
 
 import { useTranslations } from "next-intl";
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Button, CopyButton, Modal, Switch } from "@/components/ui";
+import { Button, CopyButton, Field, Input, Modal, Switch } from "@/components/ui";
 import { cn } from "@/lib/cx";
 import type { ConfirmRequest } from "./settings-types";
 
@@ -158,21 +158,35 @@ type ConfirmDialogProps = {
 export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
+  const [password, setPassword] = useState("");
+  const needsPassword = Boolean(request?.requirePassword);
+  const canConfirm = !needsPassword || password.trim() !== "";
+
   return (
     <Modal
       open={request !== null}
       title={request?.title ?? ""}
       description={request?.description}
-      onClose={onCancel}
+      onClose={() => {
+        setPassword("");
+        onCancel();
+      }}
       footer={
         <>
-          <Button disabled={pending} onClick={onCancel}>
+          <Button
+            disabled={pending}
+            onClick={() => {
+              setPassword("");
+              onCancel();
+            }}
+          >
             {tc("cancel")}
           </Button>
           <DangerButton
-            disabled={pending}
+            disabled={pending || !canConfirm}
             onClick={() => {
-              request?.onConfirm();
+              request?.onConfirm(needsPassword ? password : undefined);
+              setPassword("");
             }}
           >
             {pending ? tc("working") : (request?.confirmLabel ?? t("confirm"))}
@@ -180,18 +194,30 @@ export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps
         </>
       }
     >
-      {request?.consequences && request.consequences.length > 0 ? (
-        <div className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3">
-          <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
-          <ul className="m-0 flex min-w-0 list-none flex-col gap-1.5 p-0 text-sm text-fg-muted">
-            {request.consequences.map((line) => (
-              <li key={line} className="min-w-0">
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <div className="flex min-w-0 flex-col gap-4">
+        {request?.consequences && request.consequences.length > 0 ? (
+          <div className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3">
+            <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
+            <ul className="m-0 flex min-w-0 list-none flex-col gap-1.5 p-0 text-sm text-fg-muted">
+              {request.consequences.map((line) => (
+                <li key={line} className="min-w-0">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {needsPassword ? (
+          <Field label={t("deleteAccountPassword")}>
+            <Input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </Field>
+        ) : null}
+      </div>
     </Modal>
   );
 }

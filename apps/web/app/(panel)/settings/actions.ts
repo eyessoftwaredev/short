@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { webhookInputSchema } from "@short/core";
 import {
+  account,
   and,
   apikey,
   eq,
@@ -16,6 +17,11 @@ import {
   webhooks,
 } from "@short/db";
 import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
+import {
+  cancelScheduledDeletion,
+  listSoleOwnedTeamNames,
+  scheduleAccountDeletion,
+} from "@/lib/account-deletion";
 import { auth } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { assertFeature, assertOwnerQuota, assertQuota } from "@/lib/quota";
@@ -560,6 +566,70 @@ export async function deleteTeamAction(): Promise<ActionResult<{ workspaceId: st
     revalidatePath("/dashboard");
     revalidatePath("/settings");
     return ok({ workspaceId: personalId });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+async function verifyCurrentPassword(userId: string, password: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ hash: account.password })
+    .from(account)
+    .where(and(eq(account.userId, userId), eq(account.providerId, "credential")))
+    .limit(1);
+  if (!row?.hash) {
+    return false;
+  }
+  const ctx = await auth.$context;
+  return ctx.password.verify({ password, hash: row.hash });
+}
+
+export async function scheduleAccountDeletionAction(password: string): Promise<ActionResult<null>> {
+  try {
+    const context = await requireSession();
+    const parsed = z.string().min(1).safeParse(password);
+    if (!parsed.success) {
+      return fail("wrong_password");
+    }
+    if (!(await verifyCurrentPassword(context.user.id, parsed.data))) {
+      return fail("wrong_password");
+    }
+
+    const soleTeams = await listSoleOwnedTeamNames(context.user.id);
+    if (soleTeams.length > 0) {
+      return fail("last_owned_teams");
+    }
+
+    await scheduleAccountDeletion(context.user.id);
+    await recordAudit({
+      workspaceId: context.workspace?.id ?? null,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "account.deletion_scheduled",
+      targetType: "user",
+      targetId: context.user.id,
+    });
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function cancelScheduledDeletionAction(): Promise<ActionResult<{ restored: boolean }>> {
+  try {
+    const context = await requireSession();
+    const restored = await cancelScheduledDeletion(context.user.id);
+    if (restored) {
+      await recordAudit({
+        workspaceId: context.workspace?.id ?? null,
+        actorId: context.user.id,
+        impersonatorId: context.impersonatedBy,
+        action: "account.deletion_cancelled",
+        targetType: "user",
+        targetId: context.user.id,
+      });
+    }
+    return ok({ restored });
   } catch (error) {
     return toActionError(error);
   }

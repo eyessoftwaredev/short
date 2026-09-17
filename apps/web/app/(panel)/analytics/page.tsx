@@ -2,7 +2,6 @@ import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
-import { RangePicker } from "@/components/charts/range-picker";
 import { StatsBreakdowns } from "@/components/charts/stats-breakdowns";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -21,12 +20,12 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@/components/ui";
-import { loadBreakdownSet, loadSummary, loadTimeseries, loadTopLinks } from "@/lib/analytics";
+import { loadBreakdownSet, loadRecentEvents, loadSummary, loadTimeseries, loadTopLinks } from "@/lib/analytics";
 import { formatNumber } from "@/lib/format";
 import { requireWorkspace } from "@/lib/session";
 import { clampRangeToRetention, deltaPercent, formatDelta, localizedRangeLabel, resolveRange } from "@/lib/stats";
-import { ExportButtons } from "./export-buttons";
-import { StatsToggles } from "./stats-toggles";
+import { RecentEventsTable } from "./recent-events-table";
+import { StatsToolbar } from "./stats-toolbar";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -66,11 +65,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     eventType,
   };
 
-  const [summary, series, breakdowns, topLinks, t, tc, ts, tn] = await Promise.all([
+  const exportHref = `/api/analytics/export?range=${range.key}${includeBots ? "&includeBots=1" : ""}${eventType ? `&type=${eventType}` : ""}`;
+
+  const [summary, series, breakdowns, topLinks, recent, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),
     loadTimeseries(scope, range.granularity),
     loadBreakdownSet(scope, 12),
     loadTopLinks(scope, 15),
+    loadRecentEvents(scope, 50),
     getTranslations("panel"),
     getTranslations("common"),
     getTranslations("stats"),
@@ -91,7 +93,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
   const singleBucket = series.length === 1;
 
   return (
-    <PanelShell title={tn("analytics")} crumbs={[{ label: context.workspace.name }]}>
+    <PanelShell
+      title={tn("analytics")}
+      crumbs={[{ label: context.workspace.name }]}
+      contentClassName="gap-8"
+    >
       <Hero
         variant="compact"
         eyebrow={retentionNote}
@@ -101,17 +107,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             ? ts("analyticsDesc", { workspace: context.workspace.name, range: rangeLabel })
             : ts("analyticsDescAll", { workspace: context.workspace.name, range: rangeLabel })
         }
-        actions={
-          <>
-            <StatsToggles />
-            <ExportButtons href={`/api/analytics/export?range=${range.key}${includeBots ? "&includeBots=1" : ""}${eventType ? `&type=${eventType}` : ""}`} />
-            <RangePicker value={range.key} />
-          </>
-        }
       />
+
+      <StatsToolbar range={range.key} exportHref={exportHref} />
 
       <Grid columns={4}>
         <Card
+          className="bg-surface"
           icon={<Icon name="arrow-pointer" className="text-sm" />}
           label={ts("clicks")}
           value={formatNumber(summary.clicks)}
@@ -130,6 +132,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           }
         />
         <Card
+          className="bg-surface"
           icon={<Icon name="users" className="text-sm" />}
           label={t("uniqueVisitors")}
           value={formatNumber(summary.visitors)}
@@ -148,12 +151,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           }
         />
         <Card
+          className="bg-surface"
           icon={<Icon name="repeat" className="text-sm" />}
           label={ts("clicksPerVisitor")}
           value={summary.visitors === 0 ? "0.0" : (summary.clicks / summary.visitors).toFixed(1)}
           delta={ts("averageInRange")}
         />
         <Card
+          className="bg-surface"
           icon={<Icon name="earth" className="text-sm" />}
           label={ts("countries")}
           value={formatNumber(summary.countries)}
@@ -161,9 +166,24 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
         />
       </Grid>
       <Grid columns={3}>
-        <Card label={ts("qrScans")} value={formatNumber(summary.qrScans)} />
-        <Card label={ts("bioViews")} value={formatNumber(summary.bioViews)} />
-        <Card label={ts("bioClicks")} value={formatNumber(summary.bioClicks)} />
+        <Card
+          className="bg-surface"
+          icon={<Icon name="qrcode" className="text-sm" />}
+          label={ts("qrScans")}
+          value={formatNumber(summary.qrScans)}
+        />
+        <Card
+          className="bg-surface"
+          icon={<Icon name="address-card" className="text-sm" />}
+          label={ts("bioViews")}
+          value={formatNumber(summary.bioViews)}
+        />
+        <Card
+          className="bg-surface"
+          icon={<Icon name="arrow-pointer" className="text-sm" />}
+          label={ts("bioClicks")}
+          value={formatNumber(summary.bioClicks)}
+        />
       </Grid>
 
       <Section
@@ -177,7 +197,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           ) : null
         }
       >
-        <Card staticHover>
+        <Card staticHover className="bg-surface">
           {series.length === 0 ? (
             <EmptyState
               size="sm"
@@ -229,6 +249,18 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
       </Section>
 
       <Section
+        title={ts("recentClicks")}
+        description={ts("recentWorkspaceDesc")}
+        meta={
+          recent.length > 0 ? (
+            <span className="numeric font-mono">{ts("eventsCount", { count: recent.length })}</span>
+          ) : null
+        }
+      >
+        <RecentEventsTable events={recent} showLink />
+      </Section>
+
+      <Section
         title={t("topLinks")}
         description={t("topLinksDesc")}
         meta={
@@ -245,7 +277,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             description={ts("noLinkTrafficBody")}
           />
         ) : (
-          <Table label={ts("tableTopLinks")}>
+          <Table label={ts("tableTopLinks")} wrapperClassName="bg-surface">
             <TableHead>
               <TableRow>
                 <TableHeaderCell numeric className="w-12">

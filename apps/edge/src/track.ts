@@ -100,6 +100,7 @@ export async function buildEvent(
     isBot: ctx.ua.isBot,
 
     visitorId,
+    ip: clientIp,
 
     biopageId: options.biopageId ?? "",
     blockId: options.blockId ?? "",

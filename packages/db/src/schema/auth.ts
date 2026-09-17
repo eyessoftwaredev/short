@@ -20,6 +20,10 @@ export const user = pgTable(
     banned: boolean("banned").notNull().default(false),
     banReason: text("ban_reason"),
     banExpires: timestamp("ban_expires", { withTimezone: true }),
+    /** Set when the user schedules a Facebook-style close. Cleared if they sign in during grace. */
+    deletionScheduledAt: timestamp("deletion_scheduled_at", { withTimezone: true }),
+    /** Irreversible self-deactivation. Login stays blocked even if `banned` is cleared. */
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

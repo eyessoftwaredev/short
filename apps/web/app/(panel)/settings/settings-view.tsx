@@ -7,37 +7,16 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { useActionMessage } from "@/lib/action-message";
 import type { WebhookEvent } from "@short/core";
-import { initials } from "@/components/providers/session-provider";
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CopyButton,
-  Field,
-  Input,
-  SaveBar,
-  Section,
-  TabPanel,
-  Tabs,
-  type TabItem,
-} from "@/components/ui";
-import {
-  createApiKeyAction,
-  createTeamAction,
-  createWebhookAction,
-  deleteTeamAction,
-  updateProfileAction,
-  updateWorkspaceAction,
-} from "./actions";
-import { SettingsAccount } from "./settings-account";
+import { Section, TabPanel, Tabs, type TabItem } from "@/components/ui";
+import { createApiKeyAction, createTeamAction, createWebhookAction } from "./actions";
 import { SettingsApi } from "./settings-api";
-import { ConfirmDialog, DangerButton, SecretModal, SettingsBanner } from "./settings-dialogs";
-import { SettingsMembers } from "./settings-members";
-import { SettingsPixels, type PixelView } from "./settings-pixels";
+import { SettingsDanger } from "./settings-danger";
+import { ConfirmDialog, SecretModal, SettingsBanner } from "./settings-dialogs";
+import { SettingsProfile } from "./settings-profile";
+import { SettingsTeam } from "./settings-team";
 import { SettingsWebhooks } from "./settings-webhooks";
+import type { PixelView } from "./settings-pixels";
 import {
-  ROLE_COPY,
   type ActionOutcome,
   type ConfirmRequest,
   type InviteView,
@@ -98,7 +77,6 @@ export function SettingsView({
 }: SettingsViewProps) {
   const router = useRouter();
   const t = useTranslations("settings");
-  const tc = useTranslations("common");
   const actionMessage = useActionMessage();
   const [tab, setTab] = useState<SettingsTabId>(initialTab);
   const [pending, startTransition] = useTransition();
@@ -139,6 +117,10 @@ export function SettingsView({
       label: <LockedLabel label={t("tabWebhooks")} locked={!features.webhooks} />,
       count: features.webhooks ? webhookRows.length : undefined,
     },
+    {
+      id: "dangerous",
+      label: <span className="text-danger">{t("tabDangerous")}</span>,
+    },
   ];
 
   function run(action: () => Promise<ActionOutcome>, message?: string): void {
@@ -160,8 +142,8 @@ export function SettingsView({
   function requestConfirm(request: ConfirmRequest): void {
     setConfirm({
       ...request,
-      onConfirm: () => {
-        request.onConfirm();
+      onConfirm: (password) => {
+        request.onConfirm(password);
         setConfirm(null);
       },
     });
@@ -215,11 +197,8 @@ export function SettingsView({
     }, t("teamCreated"));
   }
 
-  const profileDirty = displayName.trim() !== user.name;
-  const workspaceDirty = workspaceName.trim() !== workspace.name;
-
   return (
-    <div className="flex min-w-0 flex-col gap-6" aria-busy={pending}>
+    <div className="flex min-w-0 max-w-3xl flex-col gap-8" aria-busy={pending}>
       <Tabs items={tabs} value={tab} onChange={selectTab} />
 
       {error ? (
@@ -234,255 +213,37 @@ export function SettingsView({
       ) : null}
 
       <TabPanel active={tab === "profile"}>
-        <Section title={t("profileTitle")} description={t("profileDescription")}>
-          <div className="flex min-w-0 flex-col gap-4">
-            <Card staticHover className="max-w-xl gap-5">
-              <span className="flex min-w-0 items-center gap-3">
-                <Avatar size="lg" aria-hidden="true">
-                  {initials(displayName || user.name, user.email)}
-                </Avatar>
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium">
-                    {displayName.trim() || user.name}
-                  </span>
-                  <span className="truncate font-mono text-xs text-fg-muted">{user.email}</span>
-                </span>
-              </span>
-
-              <Field label={t("displayName")} hint={t("displayNameHint")}>
-                <Input
-                  value={displayName}
-                  minLength={2}
-                  maxLength={80}
-                  autoComplete="name"
-                  onChange={(event) => setDisplayName(event.target.value)}
-                />
-              </Field>
-
-              <Field label={t("email")} hint={t("emailHint")}>
-                <Input value={user.email} readOnly disabled autoComplete="email" />
-              </Field>
-            </Card>
-
-            <SaveBar
-              dirty={profileDirty}
-              saving={pending}
-              message={t("unsavedProfile")}
-              saveLabel={tc("save")}
-              resetLabel={tc("cancel")}
-              onReset={() => setDisplayName(user.name)}
-              onSave={() => run(() => updateProfileAction(displayName), t("profileUpdated"))}
-              className="max-w-xl"
-            />
-            <SettingsAccount
-              email={user.email}
-              twoFactorEnabled={user.twoFactorEnabled}
-              run={run}
-              pending={pending}
-            />
-
-            {!isTeam ? (
-              <>
-                <Card staticHover className="max-w-xl gap-5">
-                  <Field
-                    label={t("workspaceName")}
-                    hint={canManage ? t("workspaceNameHint") : t("workspaceNameLocked")}
-                  >
-                    <Input
-                      value={workspaceName}
-                      minLength={2}
-                      maxLength={80}
-                      disabled={!canManage}
-                      onChange={(event) => setWorkspaceName(event.target.value)}
-                    />
-                  </Field>
-                </Card>
-                <SaveBar
-                  dirty={workspaceDirty && canManage}
-                  saving={pending}
-                  message={t("unsavedWorkspace")}
-                  saveLabel={tc("save")}
-                  resetLabel={tc("cancel")}
-                  onReset={() => setWorkspaceName(workspace.name)}
-                  onSave={() => run(() => updateWorkspaceAction(workspaceName), t("workspaceUpdated"))}
-                  className="max-w-xl"
-                />
-                <SettingsPixels pixels={pixels} canManage={canManage} run={run} pending={pending} />
-              </>
-            ) : null}
-          </div>
-        </Section>
+        <SettingsProfile
+          user={user}
+          displayName={displayName}
+          onDisplayNameChange={setDisplayName}
+          pending={pending}
+          run={run}
+        />
       </TabPanel>
 
       <TabPanel active={tab === "team"}>
-        {isTeam ? (
-          <Section title={t("teamTitle")} description={t("workspaceDescription")}>
-            <div className="flex min-w-0 flex-col gap-6">
-              <div className="flex min-w-0 flex-col gap-4">
-                <Card staticHover className="max-w-xl gap-5">
-                  <Field
-                    label={t("workspaceName")}
-                    hint={canManage ? t("workspaceNameHint") : t("workspaceNameLocked")}
-                  >
-                    <Input
-                      value={workspaceName}
-                      minLength={2}
-                      maxLength={80}
-                      disabled={!canManage}
-                      onChange={(event) => setWorkspaceName(event.target.value)}
-                    />
-                  </Field>
-
-                  <dl className="m-0 flex min-w-0 flex-col gap-3 border-t border-border pt-4">
-                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                      <dt className="text-sm text-fg-muted">{t("workspaceCode")}</dt>
-                      <dd className="m-0 flex min-w-0 items-center gap-1.5">
-                        <code className="min-w-0 truncate font-mono text-sm">{workspace.slug}</code>
-                        <CopyButton value={workspace.slug} iconOnly label={t("copyWorkspaceCode")} />
-                      </dd>
-                    </div>
-                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                      <dt className="text-sm text-fg-muted">{t("workspaceId")}</dt>
-                      <dd className="m-0 flex min-w-0 items-center gap-1.5">
-                        <code className="min-w-0 truncate font-mono text-xs text-fg-muted">
-                          {workspace.id}
-                        </code>
-                        <CopyButton value={workspace.id} iconOnly label={t("copyWorkspaceId")} />
-                      </dd>
-                    </div>
-                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                      <dt className="text-sm text-fg-muted">{t("plan")}</dt>
-                      <dd className="m-0">
-                        <Badge tone="accent">{planName}</Badge>
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <p className="m-0 text-xs leading-relaxed text-fg-subtle">{t("workspaceCodeHint")}</p>
-                </Card>
-
-                <SaveBar
-                  dirty={workspaceDirty && canManage}
-                  saving={pending}
-                  message={t("unsavedWorkspace")}
-                  saveLabel={tc("save")}
-                  resetLabel={tc("cancel")}
-                  onReset={() => setWorkspaceName(workspace.name)}
-                  onSave={() => run(() => updateWorkspaceAction(workspaceName), t("workspaceUpdated"))}
-                  className="max-w-xl"
-                />
-              </div>
-
-              <Section title={t("membersTitle")} description={t("membersDescription")}>
-                <SettingsMembers
-                  currentUserId={user.id}
-                  members={members}
-                  invites={invites}
-                  canManage={canManage}
-                  isOwner={isOwner}
-                  memberLimit={memberLimit}
-                  memberUsed={memberUsed}
-                  pending={pending}
-                  run={run}
-                  requestConfirm={requestConfirm}
-                />
-              </Section>
-
-              <SettingsPixels pixels={pixels} canManage={canManage} run={run} pending={pending} />
-
-              {isOwner ? (
-                <Card staticHover className="max-w-xl gap-3 border-danger">
-                  <span className="text-sm font-medium text-danger">{t("deleteTeam")}</span>
-                  <p className="m-0 text-sm text-fg-muted">{t("deleteTeamBody")}</p>
-                  <DangerButton
-                    size="sm"
-                    disabled={pending}
-                    onClick={() =>
-                      requestConfirm({
-                        title: t("deleteTeamTitle", { name: workspace.name }),
-                        description: t("deleteTeamConfirm"),
-                        consequences: [t("deleteTeamKeepAccount")],
-                        confirmLabel: t("deleteTeam"),
-                        onConfirm: () =>
-                          run(async () => {
-                            const result = await deleteTeamAction();
-                            if (result.ok) {
-                              router.push("/dashboard");
-                            }
-                            return result;
-                          }),
-                      })
-                    }
-                  >
-                    {t("deleteTeam")}
-                  </DangerButton>
-                </Card>
-              ) : null}
-            </div>
-          </Section>
-        ) : (
-          <Section title={t("teamTitle")} description={t("personalDescription")}>
-            <div className="flex min-w-0 flex-col gap-4">
-              <Card staticHover className="max-w-xl gap-4">
-                <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-                  <Icon name="user-plus" className="text-xs" aria-hidden="true" />
-                  {t("createTeam")}
-                </span>
-                <p className="m-0 text-sm leading-relaxed text-fg-muted">{t("createTeamDescription")}</p>
-                {canCreateTeam ? (
-                  <div className="flex min-w-0 flex-wrap items-end gap-3">
-                    <Field label={t("teamName")} className="min-w-0 flex-1">
-                      <Input
-                        value={newTeamName}
-                        minLength={2}
-                        maxLength={80}
-                        autoComplete="off"
-                        onChange={(event) => setNewTeamName(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            submitTeam();
-                          }
-                        }}
-                      />
-                    </Field>
-                    <Button
-                      variant="primary"
-                      className="shrink-0"
-                      disabled={pending || newTeamName.trim().length < 2}
-                      onClick={submitTeam}
-                    >
-                      {t("createTeam")}
-                    </Button>
-                  </div>
-                ) : (
-                  <Button href="/billing" variant="primary" className="self-start">
-                    {tc("createTeamUpgrade")}
-                  </Button>
-                )}
-              </Card>
-
-              <Card staticHover className="max-w-xl gap-3">
-                <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-                  <Icon name="shield" className="text-xs" aria-hidden="true" />
-                  {t("rolesHeading")}
-                </span>
-                <dl className="m-0 flex min-w-0 flex-col gap-3">
-                  {(["owner", "admin", "member"] as const).map((role) => (
-                    <div key={role} className="flex min-w-0 flex-col gap-1">
-                      <dt>
-                        <Badge tone={role === "owner" ? "accent" : "muted"}>{t(ROLE_COPY[role].label)}</Badge>
-                      </dt>
-                      <dd className="m-0 text-sm leading-relaxed text-fg-muted">
-                        {t(ROLE_COPY[role].summary)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </Card>
-            </div>
-          </Section>
-        )}
+        <SettingsTeam
+          userId={user.id}
+          workspace={workspace}
+          workspaceName={workspaceName}
+          onWorkspaceNameChange={setWorkspaceName}
+          newTeamName={newTeamName}
+          onNewTeamNameChange={setNewTeamName}
+          onCreateTeam={submitTeam}
+          members={members}
+          invites={invites}
+          pixels={pixels}
+          canManage={canManage}
+          isOwner={isOwner}
+          canCreateTeam={canCreateTeam}
+          planName={planName}
+          memberLimit={memberLimit}
+          memberUsed={memberUsed}
+          pending={pending}
+          run={run}
+          requestConfirm={requestConfirm}
+        />
       </TabPanel>
 
       <TabPanel active={tab === "api"}>
@@ -519,6 +280,16 @@ export function SettingsView({
             requestConfirm={requestConfirm}
           />
         </Section>
+      </TabPanel>
+
+      <TabPanel active={tab === "dangerous"}>
+        <SettingsDanger
+          workspace={workspace}
+          isOwner={isOwner}
+          pending={pending}
+          run={run}
+          requestConfirm={requestConfirm}
+        />
       </TabPanel>
 
       <SecretModal

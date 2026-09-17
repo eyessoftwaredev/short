@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui";
+import { Icon } from "@/components/kit/icon";
+import { Button, Dropdown } from "@/components/ui";
 import { useTranslations } from "next-intl";
 
 type ExportButtonsProps = {
@@ -10,13 +11,20 @@ type ExportButtonsProps = {
 export function ExportButtons({ href }: ExportButtonsProps) {
   const t = useTranslations("stats");
   return (
-    <span className="flex gap-2">
-      <Button size="sm" href={`${href}&format=csv`}>
-        {t("exportCsv")}
-      </Button>
-      <Button size="sm" href={`${href}&format=json`}>
-        {t("exportJson")}
-      </Button>
-    </span>
+    <Dropdown
+      align="end"
+      label={t("export")}
+      trigger={
+        <Button size="sm" type="button">
+          <Icon name="export" className="text-xs" />
+          {t("export")}
+          <Icon name="chevron-down" className="text-xs text-fg-subtle" />
+        </Button>
+      }
+      items={[
+        { id: "csv", label: t("exportCsv"), href: `${href}&format=csv` },
+        { id: "json", label: t("exportJson"), href: `${href}&format=json` },
+      ]}
+    />
   );
 }

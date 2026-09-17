@@ -4,11 +4,13 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/cx";
 
 export type DropdownItem = {
@@ -32,11 +34,46 @@ type DropdownProps = {
   className?: string;
 };
 
+type MenuCoords = { top: number; left: number; minWidth: number };
+
+function menuCoords(
+  trigger: DOMRect,
+  menu: DOMRect | undefined,
+  align: "start" | "end",
+): MenuCoords {
+  const gap = 4;
+  const minWidth = Math.max(176, trigger.width);
+  const height = menu?.height ?? 0;
+  let left = align === "end" ? trigger.right - minWidth : trigger.left;
+  let top = trigger.bottom + gap;
+
+  if (left < 8) {
+    left = 8;
+  }
+  if (left + minWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - minWidth - 8);
+  }
+  if (height > 0 && top + height > window.innerHeight - 8 && trigger.top - gap - height > 8) {
+    top = trigger.top - gap - height;
+  }
+
+  return { top, left, minWidth };
+}
+
 export function Dropdown({ trigger, items, align = "end", label, className }: DropdownProps) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<MenuCoords | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+
+  const updatePosition = useCallback(() => {
+    const triggerBox = containerRef.current?.getBoundingClientRect();
+    if (!triggerBox) {
+      return;
+    }
+    setCoords(menuCoords(triggerBox, menuRef.current?.getBoundingClientRect(), align));
+  }, [align]);
 
   const focusItem = useCallback((index: number) => {
     const nodes = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)');
@@ -50,11 +87,15 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
   const close = useCallback((returnFocus: boolean) => {
     setOpen(false);
     if (returnFocus) {
-      // Sending focus back to the trigger keeps the tab order intact after the
-      // menu unmounts, instead of dropping the user at the top of the page.
       containerRef.current?.querySelector<HTMLElement>("button, a, [tabindex]")?.focus();
     }
   }, []);
+
+  useLayoutEffect(() => {
+    if (open) {
+      updatePosition();
+    }
+  }, [open, updatePosition]);
 
   useEffect(() => {
     if (!open) {
@@ -62,9 +103,11 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
     }
 
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
       }
+      setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -75,11 +118,15 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
 
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, close]);
+  }, [open, close, updatePosition]);
 
   useEffect(() => {
     if (open) {
@@ -110,14 +157,70 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
     }
   };
 
+  const menu =
+    open && coords ? (
+      <div
+        ref={menuRef}
+        id={menuId}
+        role="menu"
+        aria-label={label}
+        onKeyDown={onMenuKeyDown}
+        className="fixed z-dropdown flex min-w-44 flex-col rounded-default border border-border bg-bg p-1 shadow-pop"
+        style={{ top: coords.top, left: coords.left, minWidth: coords.minWidth }}
+      >
+        {items.map((item) => {
+          const content = (
+            <>
+              {item.icon ? <span className="flex size-4 shrink-0 items-center">{item.icon}</span> : null}
+              <span className="min-w-0 truncate">{item.label}</span>
+            </>
+          );
+
+          const itemClass = cn(
+            "flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-sm no-underline transition duration-150",
+            item.disabled
+              ? "cursor-not-allowed text-fg-disabled"
+              : item.danger
+                ? "text-danger hover:bg-danger-surface focus-visible:bg-danger-surface"
+                : "text-ink hover:bg-surface hover:no-underline focus-visible:bg-surface",
+          );
+
+          return (
+            <span key={item.id} className="contents">
+              {item.separated ? <span className="my-1 h-px bg-border" /> : null}
+              {item.href && !item.disabled ? (
+                <a
+                  href={item.href}
+                  role="menuitem"
+                  tabIndex={-1}
+                  className={itemClass}
+                  onClick={() => setOpen(false)}
+                >
+                  {content}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={-1}
+                  disabled={item.disabled}
+                  className={itemClass}
+                  onClick={() => {
+                    setOpen(false);
+                    item.onSelect?.();
+                  }}
+                >
+                  {content}
+                </button>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    ) : null;
+
   return (
     <div ref={containerRef} className={cn("relative inline-flex min-w-0", className)}>
-      {/*
-        The wrapper carries the menu relationship but stays non-focusable: the
-        trigger passed in is already a real button, and giving the wrapper
-        `role="button"` too would produce a second tab stop with duplicate
-        semantics. Activation reaches us by bubbling.
-      */}
       <span
         aria-haspopup="menu"
         aria-expanded={open}
@@ -133,69 +236,7 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
       >
         {trigger}
       </span>
-
-      {open ? (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          aria-label={label}
-          onKeyDown={onMenuKeyDown}
-          className={cn(
-            "absolute top-full z-dropdown mt-1 flex min-w-44 flex-col rounded-default border border-border bg-bg p-1 shadow-pop",
-            align === "end" ? "right-0" : "left-0",
-          )}
-        >
-          {items.map((item) => {
-            const content = (
-              <>
-                {item.icon ? <span className="flex size-4 shrink-0 items-center">{item.icon}</span> : null}
-                <span className="min-w-0 truncate">{item.label}</span>
-              </>
-            );
-
-            const itemClass = cn(
-              "flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-sm no-underline transition duration-150",
-              item.disabled
-                ? "cursor-not-allowed text-fg-disabled"
-                : item.danger
-                  ? "text-danger hover:bg-danger-surface focus-visible:bg-danger-surface"
-                  : "text-ink hover:bg-surface hover:no-underline focus-visible:bg-surface",
-            );
-
-            return (
-              <span key={item.id} className="contents">
-                {item.separated ? <span className="my-1 h-px bg-border" /> : null}
-                {item.href && !item.disabled ? (
-                  <a
-                    href={item.href}
-                    role="menuitem"
-                    tabIndex={-1}
-                    className={itemClass}
-                    onClick={() => setOpen(false)}
-                  >
-                    {content}
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    tabIndex={-1}
-                    disabled={item.disabled}
-                    className={itemClass}
-                    onClick={() => {
-                      setOpen(false);
-                      item.onSelect?.();
-                    }}
-                  >
-                    {content}
-                  </button>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      ) : null}
+      {menu && typeof document !== "undefined" ? createPortal(menu, document.body) : null}
     </div>
   );
 }

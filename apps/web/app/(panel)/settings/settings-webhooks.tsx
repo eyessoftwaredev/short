@@ -81,11 +81,11 @@ export function SettingsWebhooks({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <Card staticHover className="gap-2">
-        <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-          {t("verifyingDeliveries")}
-        </span>
-        <p className="m-0 text-sm leading-relaxed text-fg-muted">{t("verifyingBody")}</p>
+      <Card staticHover className="gap-5 bg-surface p-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h3 className="m-0 text-base font-semibold tracking-tight">{t("verifyingDeliveries")}</h3>
+          <p className="m-0 text-sm leading-relaxed text-fg-muted">{t("verifyingBody")}</p>
+        </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-default border border-border bg-surface-subtle px-3 py-2">
           <code className="min-w-0 flex-1 truncate font-mono text-sm text-ink">
             {SIGNATURE_HEADER}
@@ -95,11 +95,10 @@ export function SettingsWebhooks({
       </Card>
 
       {canManage ? (
-        <Card staticHover className="gap-4">
-          <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <Icon name="plus" className="text-xs" aria-hidden="true" />
-            {t("addEndpoint")}
-          </span>
+        <Card staticHover className="gap-5 bg-surface p-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h3 className="m-0 text-base font-semibold tracking-tight">{t("addEndpoint")}</h3>
+          </div>
 
           <Field label={t("endpointUrl")} hint={t("endpointUrlHint")}>
             <Input
@@ -172,7 +171,7 @@ export function SettingsWebhooks({
       ) : (
         <div className="flex min-w-0 flex-col gap-3">
           {webhookRows.map((row) => (
-            <Card key={row.id} staticHover className="gap-3.5">
+            <Card key={row.id} staticHover className="gap-4 bg-surface p-6">
               <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="min-w-0 truncate font-mono text-sm text-ink" title={row.url}>

@@ -296,6 +296,10 @@ export async function getTopLinks(scope: StatsScope, limit = 10): Promise<TopLin
 
 export type RecentEventRow = {
   ts: string;
+  type: string;
+  hostname: string;
+  slug: string;
+  linkId: string;
   country: string;
   city: string;
   device: string;
@@ -303,12 +307,17 @@ export type RecentEventRow = {
   browser: string;
   referrerDomain: string;
   destination: string;
+  ip: string;
 };
 
 export async function getRecentEvents(scope: StatsScope, limit = 25): Promise<RecentEventRow[]> {
   const { where, params } = buildFilters(scope);
   const rows = await chQuery<{
     ts: string;
+    type: string;
+    hostname: string;
+    slug: string;
+    link_id: string;
     country: string;
     city: string;
     device: string;
@@ -316,8 +325,9 @@ export async function getRecentEvents(scope: StatsScope, limit = 25): Promise<Re
     browser: string;
     referrer_domain: string;
     destination: string;
+    ip: string;
   }>(
-    `SELECT ts, country, city, device, os, browser, referrer_domain, destination
+    `SELECT ts, type, hostname, slug, link_id, country, city, device, os, browser, referrer_domain, destination, ip
      FROM events
      WHERE ${where}
      ORDER BY ts DESC
@@ -327,6 +337,10 @@ export async function getRecentEvents(scope: StatsScope, limit = 25): Promise<Re
 
   return rows.map((row) => ({
     ts: row.ts,
+    type: row.type,
+    hostname: row.hostname,
+    slug: row.slug,
+    linkId: row.link_id,
     country: row.country,
     city: row.city,
     device: row.device,
@@ -334,6 +348,7 @@ export async function getRecentEvents(scope: StatsScope, limit = 25): Promise<Re
     browser: row.browser,
     referrerDomain: row.referrer_domain,
     destination: row.destination,
+    ip: row.ip,
   }));
 }
 

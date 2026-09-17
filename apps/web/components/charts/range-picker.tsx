@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/kit/icon";
-import { Button, Calendar, Chip } from "@/components/ui";
+import { Button, Calendar, Dropdown } from "@/components/ui";
 import {
   formatIsoDate,
   inclusiveDayCount,
@@ -166,19 +166,29 @@ export function RangePicker({ value }: { value: RangeKey }) {
       ? t("rangeDays", { count: inclusiveDayCount(draftStart, draftEnd) })
       : t("pickEnd");
 
+  const triggerLabel =
+    value === "custom" && selectedFrom && selectedTo
+      ? `${formatIsoDate(selectedFrom, locale)} – ${formatIsoDate(selectedTo, locale)}`
+      : t(RANGE_LABEL_KEYS[value]);
+
   return (
     <div className="flex min-w-0 flex-col items-end gap-2" aria-busy={pending}>
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {RANGE_OPTIONS.map((option) => (
-          <Chip
-            key={option.value}
-            active={option.value === value}
-            onClick={() => select(option.value)}
-          >
-            {t(RANGE_LABEL_KEYS[option.value])}
-          </Chip>
-        ))}
-      </div>
+      <Dropdown
+        align="end"
+        label={t("customRange")}
+        trigger={
+          <Button size="sm" type="button">
+            <Icon name="calendar" className="text-xs" />
+            {triggerLabel}
+            <Icon name="chevron-down" className="text-xs text-fg-subtle" />
+          </Button>
+        }
+        items={RANGE_OPTIONS.map((option) => ({
+          id: option.value,
+          label: t(RANGE_LABEL_KEYS[option.value]),
+          onSelect: () => select(option.value),
+        }))}
+      />
 
       {value === "custom" ? (
         <div ref={popoverRef} className="relative">

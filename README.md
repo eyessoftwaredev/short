@@ -89,9 +89,9 @@ relayed by the ingest worker after the events land in ClickHouse.
 
 ## Privacy
 
-Raw IP addresses are never stored. The worker derives
-`visitor_id = hash(ip + user-agent + link id + daily salt)` and only that value enters
-the pipeline. Bot traffic is flagged as `is_bot` and excluded from the panel's default
+The worker stores the client IP for workspace event logs and also derives
+`visitor_id = hash(ip + user-agent + link id + daily salt)` for unique-visitor counts.
+Bot traffic is flagged as `is_bot` and excluded from the panel's default
 views. The `events` table drops partitions after 25 months.
 
 ## Deployment

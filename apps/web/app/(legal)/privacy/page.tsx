@@ -25,9 +25,9 @@ export default async function PrivacyPage() {
       <LegalH>Click analytics</LegalH>
       <LegalP>
         When someone opens a short link or bio page we record the time, destination, referring
-        site, coarse geography, device family, browser and a privacy-preserving visitor token.
-        Bot traffic is filtered. We do not sell click logs. Workspace owners can see aggregates
-        and recent events for their own links.
+        site, coarse geography, device family, browser, client IP address, and a rotating
+        visitor token. Bot traffic is filtered. We do not sell click logs. Workspace owners
+        can see aggregates and recent events for their own links.
       </LegalP>
       <LegalH>Cookies</LegalH>
       <LegalP>

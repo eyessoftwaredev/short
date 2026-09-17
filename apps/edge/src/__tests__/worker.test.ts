@@ -1,4 +1,4 @@
-import { hashGatePassword } from "@short/core";
+import { hashGatePassword, KV_SCHEMA_VERSION } from "@short/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import worker from "../index";
 import {
@@ -43,8 +43,8 @@ describe("redirect", () => {
     expect(queue.sent).toHaveLength(1);
     expect(queue.sent[0]?.type).toBe("click");
     expect(queue.sent[0]?.country).toBe("TR");
-    // The raw IP must never reach the pipeline.
-    expect(JSON.stringify(queue.sent[0])).not.toContain("203.0.113.10");
+    expect(queue.sent[0]?.ip).toBe("203.0.113.10");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
   });
 
   it("applies the highest-priority matching geo rule", async () => {
@@ -304,6 +304,33 @@ describe("biopages", () => {
       [keys.biopageKey("go.test", "acme")]: biopageRecord(),
     });
 
+    const fetchMock = vi.fn(
+      async () => new Response("<html>bio</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await worker.fetch(edgeRequest("https://go.test/acme"), env, ctx);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("bio");
+    const [url, init = {}] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain("/acme");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-forwarded-host"]).toBe("go.test");
+
+    await ctx.settled();
+    expect(queue.sent[0]?.type).toBe("bio_view");
+    expect(queue.sent[0]?.biopageId).toBe("bio_1");
+    expect(queue.sent[0]?.ip).toBe("203.0.113.10");
+  });
+
+  it("still proxies a bio when the link key is a cached miss", async () => {
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "acme")]: { v: KV_SCHEMA_VERSION, miss: true },
+      [keys.biopageKey("go.test", "acme")]: biopageRecord(),
+    });
+
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("<html>bio</html>", { headers: { "content-type": "text/html" } })),
@@ -313,10 +340,6 @@ describe("biopages", () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("bio");
-
-    await ctx.settled();
-    expect(queue.sent[0]?.type).toBe("bio_view");
-    expect(queue.sent[0]?.biopageId).toBe("bio_1");
   });
 });
 
@@ -397,10 +420,10 @@ describe("apex site vs panel", () => {
 });
 
 describe("protocol details", () => {
-  it("serves a disallow-all robots.txt", async () => {
+  it("serves an allow-all robots.txt on public hosts", async () => {
     const { env, ctx } = setup(domainSeed);
     const response = await worker.fetch(edgeRequest("https://go.test/robots.txt"), env, ctx);
-    expect(await response.text()).toContain("Disallow: /");
+    expect(await response.text()).toContain("Allow: /");
   });
 
   it("rejects verbs it cannot answer", async () => {

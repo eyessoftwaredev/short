@@ -30,6 +30,7 @@ export type PanelSession = {
   shortDomain: string;
   brandName: string;
   localeSwitcherEnabled: boolean;
+  accountRestored: boolean;
 };
 
 const SessionContext = createContext<PanelSession | null>(null);

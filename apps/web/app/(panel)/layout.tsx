@@ -36,6 +36,7 @@ export default async function PanelLayout({ children }: { children: ReactNode })
         shortDomain: serverEnv().PLATFORM_SHORT_DOMAIN,
         brandName: brand.name,
         localeSwitcherEnabled: brand.localeSwitcherEnabled,
+        accountRestored: context.accountRestored,
       }}
     >
       {children}

@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS events
   is_bot             UInt8,
 
   visitor_id         String,
+  ip                 String,
 
   biopage_id         String,
   block_id           String,
@@ -191,8 +192,14 @@ WHERE is_bot = 0
 GROUP BY workspace_id, link_id, day, referrer_domain, utm_source, utm_medium
 `;
 
+const addIpColumn = `
+ALTER TABLE events
+ADD COLUMN IF NOT EXISTS ip String DEFAULT ''
+`;
+
 export const DDL_STATEMENTS: readonly string[] = [
   eventsTable,
+  addIpColumn,
   linkDaily,
   mvLinkDaily,
   geoDaily,

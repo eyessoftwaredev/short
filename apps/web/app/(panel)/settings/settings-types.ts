@@ -56,12 +56,14 @@ export type ConfirmRequest = {
   /** Spelled out so nobody clicks through without reading what breaks. */
   consequences?: readonly string[];
   confirmLabel: string;
-  onConfirm: () => void;
+  /** Current-password field for irreversible account actions. */
+  requirePassword?: boolean;
+  onConfirm: (password?: string) => void;
 };
 
 export type RequestConfirm = (request: ConfirmRequest) => void;
 
-export const SETTINGS_TABS = ["profile", "team", "api", "webhooks"] as const;
+export const SETTINGS_TABS = ["profile", "team", "api", "webhooks", "dangerous"] as const;
 
 export type SettingsTabId = (typeof SETTINGS_TABS)[number];
 

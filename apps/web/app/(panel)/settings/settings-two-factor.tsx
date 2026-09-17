@@ -34,7 +34,13 @@ function stringList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function SettingsTwoFactor({ twoFactorEnabled }: { twoFactorEnabled: boolean }) {
+export function SettingsTwoFactor({
+  twoFactorEnabled,
+  embedded = false,
+}: {
+  twoFactorEnabled: boolean;
+  embedded?: boolean;
+}) {
   const t = useTranslations("settings");
   const te = useTranslations("errors");
   const router = useRouter();
@@ -170,8 +176,8 @@ export function SettingsTwoFactor({ twoFactorEnabled }: { twoFactorEnabled: bool
     });
   }
 
-  return (
-    <Card staticHover className="max-w-xl gap-4">
+  const body = (
+    <div className={cn("flex min-w-0 flex-col gap-4", embedded && "border-t border-border pt-5")}>
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Icon name="shield" className="text-fg-subtle" />
@@ -214,6 +220,16 @@ export function SettingsTwoFactor({ twoFactorEnabled }: { twoFactorEnabled: bool
           onConfirm={confirmTotp}
         />
       )}
+    </div>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <Card staticHover className="gap-4 bg-surface p-6">
+      {body}
     </Card>
   );
 }

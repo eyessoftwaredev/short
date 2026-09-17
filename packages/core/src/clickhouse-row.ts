@@ -44,6 +44,7 @@ export type EventRow = {
   language: string;
   is_bot: number;
   visitor_id: string;
+  ip: string;
   biopage_id: string;
   block_id: string;
   qr_id: string;
@@ -93,6 +94,7 @@ export function toEventRow(event: TrackedEvent): EventRow {
     language: event.language,
     is_bot: event.isBot ? 1 : 0,
     visitor_id: event.visitorId,
+    ip: event.ip,
     biopage_id: event.biopageId,
     block_id: event.blockId,
     qr_id: event.qrId,

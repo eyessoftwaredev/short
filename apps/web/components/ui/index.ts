@@ -13,6 +13,7 @@ export { FilterBar, type FilterOption } from "./filter-bar";
 export { Footer } from "./footer";
 export { Grid } from "./grid";
 export { Hero } from "./hero";
+export { InfoTip } from "./info-tip";
 export { Kbd } from "./kbd";
 export { Modal } from "./modal";
 export { Pagination } from "./pagination";

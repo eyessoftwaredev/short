@@ -76,11 +76,10 @@ export function SettingsApi({
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <Card staticHover className="gap-4">
-        <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-          <Icon name="terminal" className="text-xs" aria-hidden="true" />
-          {t("endpoint")}
-        </span>
+      <Card staticHover className="gap-5 bg-surface p-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h3 className="m-0 text-base font-semibold tracking-tight">{t("endpoint")}</h3>
+        </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-default border border-border bg-surface-subtle px-3 py-2">
           <code className="min-w-0 flex-1 truncate font-mono text-sm text-ink">{apiBaseUrl}</code>
@@ -125,11 +124,11 @@ export function SettingsApi({
       </Card>
 
       {canManage ? (
-        <Card staticHover className="gap-4">
-          <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <Icon name="key" className="text-xs" aria-hidden="true" />
-            {t("createKeyHeading")}
-          </span>
+        <Card staticHover className="gap-5 bg-surface p-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h3 className="m-0 text-base font-semibold tracking-tight">{t("createKeyHeading")}</h3>
+            <p className="m-0 text-sm text-fg-muted">{t("keyOnceHint")}</p>
+          </div>
           <div className="flex min-w-0 flex-wrap items-end gap-3">
             <Field label={t("keyName")} className="min-w-56 flex-1" hint={t("keyNameHint")}>
               <Input
@@ -148,7 +147,6 @@ export function SettingsApi({
               {pending ? t("creating") : t("createKey")}
             </Button>
           </div>
-          <p className="m-0 text-xs text-fg-subtle">{t("keyOnceHint")}</p>
         </Card>
       ) : null}
 

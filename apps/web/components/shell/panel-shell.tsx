@@ -8,6 +8,7 @@ import { usePanelSession } from "@/components/providers/session-provider";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cx";
 import { CreateTeamDialog } from "./create-team-dialog";
+import { AccountRestoredBanner } from "./account-restored-banner";
 import { ImpersonationBanner } from "./impersonation-banner";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -129,6 +130,7 @@ export function PanelShell({
           className={cn("flex min-w-0 flex-1 flex-col gap-6 p-6", contentClassName)}
         >
           <ImpersonationBanner />
+          <AccountRestoredBanner />
           {children}
         </main>
       </div>

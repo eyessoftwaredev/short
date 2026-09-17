@@ -46,7 +46,7 @@ const PLATFORM_PATHS = new Set([
 const PLATFORM_PREFIXES = ["/_next/", "/api/", "/invite/", "/admin/"];
 
 /** Marketing routes on the platform apex. Must not be resolved as slugs or 302'd to the panel. */
-const SITE_PATHS = new Set(["/", "/pricing", "/terms", "/privacy", "/cookies"]);
+const SITE_PATHS = new Set(["/", "/pricing", "/terms", "/privacy", "/cookies", "/sitemap.xml"]);
 
 function firstSegment(pathname: string): string {
   return `/${pathname.split("/").filter(Boolean)[0] ?? ""}`;
@@ -75,7 +75,7 @@ function platformApexHost(env: EdgeEnv): string {
   return new URL(env.ORIGIN_URL).hostname.toLowerCase().replace(/^app\./, "");
 }
 
-const ROBOTS_BODY = "User-agent: *\nDisallow: /\n";
+const ROBOTS_ALLOW = "User-agent: *\nAllow: /\n";
 
 /** Gate cookies are valid for a day, and the stamp is signed so the server enforces it. */
 const GATE_TTL_MS = 86_400_000;
@@ -285,11 +285,14 @@ async function handlePasswordGate(
 async function proxyBiopage(env: EdgeEnv, request: Request, handle: string): Promise<Response> {
   // The panel serves biopages from its own `/{handle}` route with ISR, so the worker
   // proxies straight to it instead of duplicating the renderer at the edge.
+  const incomingHost = new URL(request.url).hostname;
   const target = new URL(`/${encodeURIComponent(handle)}`, env.ORIGIN_URL);
   const upstream = await fetch(target.toString(), {
     headers: {
       "accept-language": request.headers.get("accept-language") ?? "",
       "user-agent": request.headers.get("user-agent") ?? "",
+      "x-forwarded-host": incomingHost,
+      "x-forwarded-proto": "https",
     },
     signal: AbortSignal.timeout(8000),
   });
@@ -318,16 +321,16 @@ export default {
     const hostname = url.hostname.toLowerCase();
     const pathname = url.pathname;
 
-    if (pathname === "/robots.txt") {
-      return new Response(ROBOTS_BODY, {
-        headers: { "content-type": "text/plain; charset=utf-8" },
-      });
-    }
-
     // The route pattern can cover the panel's own hostname; serving it as a slug would
     // black-hole the app and let the passthrough below recurse into this worker.
     if (hostname === new URL(env.ORIGIN_URL).hostname) {
       return fetch(request);
+    }
+
+    if (pathname === "/robots.txt") {
+      return new Response(ROBOTS_ALLOW, {
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      });
     }
 
     const apex = platformApexHost(env);
@@ -493,12 +496,12 @@ export default {
           headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "no-store, max-age=0",
-            ...(link.noIndex ? { "x-robots-tag": "noindex, nofollow" } : {}),
+            "x-robots-tag": "noindex, nofollow",
           },
         },
       );
     }
 
-    return redirect(destination, link.noIndex);
+    return redirect(destination, true);
   },
 } satisfies ExportedHandler<EdgeEnv>;

@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { RangePicker } from "@/components/charts/range-picker";
+import { RecentEventsTable } from "@/app/(panel)/analytics/recent-events-table";
+import { StatsToolbar } from "@/app/(panel)/analytics/stats-toolbar";
 import { StatsBreakdowns } from "@/components/charts/stats-breakdowns";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -29,19 +30,15 @@ import {
   loadTimeseries,
   loadVariantBreakdown,
 } from "@/lib/analytics";
-import { ExportButtons } from "@/app/(panel)/analytics/export-buttons";
-import { StatsToggles } from "@/app/(panel)/analytics/stats-toggles";
-import { formatDateTime, formatNumber, parseClickhouseDate, truncateMiddle } from "@/lib/format";
+import { formatNumber, truncateMiddle } from "@/lib/format";
 import { getLink, shortUrl } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
 import {
   clampRangeToRetention,
-  countryName,
   deltaPercent,
   formatDelta,
   localizedRangeLabel,
   resolveRange,
-  titleCase,
 } from "@/lib/stats";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -76,6 +73,11 @@ export default async function LinkStatsPage({
     context.plan.limits.retentionDays,
   );
   const includeBots = Array.isArray(raw.includeBots) ? raw.includeBots[0] === "1" : raw.includeBots === "1";
+  const eventTypeRaw = Array.isArray(raw.type) ? raw.type[0] : raw.type;
+  const eventType: "click" | "qr_scan" | "bio_view" | "bio_click" | undefined =
+    eventTypeRaw === "click" || eventTypeRaw === "qr_scan" || eventTypeRaw === "bio_view" || eventTypeRaw === "bio_click"
+      ? eventTypeRaw
+      : undefined;
 
   const link = await getLink(context.workspace.id, id);
   if (!link) {
@@ -88,13 +90,16 @@ export default async function LinkStatsPage({
     from: range.from,
     to: range.to,
     includeBots,
+    eventType,
   };
+
+  const exportHref = `/api/analytics/export?linkId=${link.id}&range=${range.key}${includeBots ? "&includeBots=1" : ""}${eventType ? `&type=${eventType}` : ""}`;
 
   const [summary, series, breakdowns, recent, variants, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),
     loadTimeseries(scope, range.granularity),
     loadBreakdownSet(scope),
-    loadRecentEvents(scope, 25),
+    loadRecentEvents(scope, 50),
     loadVariantBreakdown(scope),
     getTranslations("panel"),
     getTranslations("common"),
@@ -104,7 +109,6 @@ export default async function LinkStatsPage({
 
   const rangeLabel = localizedRangeLabel(range, ts);
   const noneDelta = ts("deltaNone");
-  const unknown = ts("unknown");
   const granularityLabel = range.granularity === "hour" ? ts("hour") : ts("day");
 
   const url = shortUrl(link.hostname, link.slug);
@@ -127,6 +131,7 @@ export default async function LinkStatsPage({
           {t("editLink")}
         </Button>
       }
+      contentClassName="gap-8"
     >
       <Hero
         variant="compact"
@@ -149,18 +154,17 @@ export default async function LinkStatsPage({
             </Link>
           </span>
         }
-        actions={
-          <>
-            <CopyButton value={url} label={tc("copy")} />
-            <StatsToggles />
-            <ExportButtons href={`/api/analytics/export?linkId=${link.id}&range=${range.key}${includeBots ? "&includeBots=1" : ""}`} />
-            <RangePicker value={range.key} />
-          </>
-        }
+      />
+
+      <StatsToolbar
+        range={range.key}
+        exportHref={exportHref}
+        leading={<CopyButton value={url} label={tc("copy")} />}
       />
 
       <Grid columns={4}>
         <Card
+          className="bg-surface"
           icon={<Icon name="arrow-pointer" className="text-sm" />}
           label={ts("clicks")}
           value={formatNumber(summary.clicks)}
@@ -179,6 +183,7 @@ export default async function LinkStatsPage({
           }
         />
         <Card
+          className="bg-surface"
           icon={<Icon name="users" className="text-sm" />}
           label={t("uniqueVisitors")}
           value={formatNumber(summary.visitors)}
@@ -197,12 +202,14 @@ export default async function LinkStatsPage({
           }
         />
         <Card
+          className="bg-surface"
           icon={<Icon name="repeat" className="text-sm" />}
           label={ts("repeatClicks")}
           value={formatNumber(Math.max(returning, 0))}
           delta={ts("repeatClicksDelta")}
         />
         <Card
+          className="bg-surface"
           icon={<Icon name="earth" className="text-sm" />}
           label={ts("countries")}
           value={formatNumber(summary.countries)}
@@ -212,7 +219,7 @@ export default async function LinkStatsPage({
 
       {link.abVariants.length > 0 ? (
         <Section title={ts("abReport")} description={ts("abReportDesc")}>
-          <Table label={ts("abReport")}>
+          <Table label={ts("abReport")} wrapperClassName="bg-surface">
             <TableHead>
               <TableRow>
                 <TableHeaderCell>{ts("variant")}</TableHeaderCell>
@@ -253,7 +260,7 @@ export default async function LinkStatsPage({
           ) : null
         }
       >
-        <Card staticHover>
+        <Card staticHover className="bg-surface">
           {series.length === 0 ? (
             <EmptyState
               size="sm"
@@ -306,49 +313,7 @@ export default async function LinkStatsPage({
           ) : null
         }
       >
-        {recent.length === 0 ? (
-          <EmptyState
-            size="sm"
-            icon={<Icon name="arrow-pointer" className="text-sm" />}
-            title={ts("nothingRecorded")}
-            description={ts("nothingRecordedBody")}
-          />
-        ) : (
-          <Table stickyHeader density="compact" label={ts("recentEventsTable")}>
-            <TableHead sticky>
-              <TableRow>
-                <TableHeaderCell className="w-40">{ts("when")}</TableHeaderCell>
-                <TableHeaderCell className="w-48">{ts("location")}</TableHeaderCell>
-                <TableHeaderCell className="w-56">{ts("device")}</TableHeaderCell>
-                <TableHeaderCell className="w-40">{ts("referrer")}</TableHeaderCell>
-                <TableHeaderCell>{ts("destination")}</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {recent.map((event, index) => (
-                <TableRow key={`${event.ts}-${index}`}>
-                  <TableCell className="numeric font-mono text-xs whitespace-nowrap text-fg-muted">
-                    {formatDateTime(parseClickhouseDate(event.ts))}
-                  </TableCell>
-                  <TableCell truncate>
-                    {countryName(event.country, locale, unknown)}
-                    {event.city ? ` · ${event.city}` : ""}
-                  </TableCell>
-                  <TableCell truncate className="text-fg-muted">
-                    {titleCase(event.device, unknown)} · {titleCase(event.os, unknown)} ·{" "}
-                    {titleCase(event.browser, unknown)}
-                  </TableCell>
-                  <TableCell truncate className="text-fg-muted">
-                    {event.referrerDomain === "" ? ts("direct") : event.referrerDomain}
-                  </TableCell>
-                  <TableCell truncate className="font-mono text-xs text-fg-subtle">
-                    {truncateMiddle(event.destination, 40)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <RecentEventsTable events={recent} />
       </Section>
     </PanelShell>
   );

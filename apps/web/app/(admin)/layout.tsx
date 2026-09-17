@@ -48,6 +48,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         shortDomain: serverEnv().PLATFORM_SHORT_DOMAIN,
         brandName: brand.name,
         localeSwitcherEnabled: brand.localeSwitcherEnabled,
+        accountRestored: context.accountRestored,
       }}
     >
       {children}

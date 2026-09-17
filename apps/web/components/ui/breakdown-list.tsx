@@ -47,7 +47,7 @@ export function BreakdownList({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-4 rounded-default border border-border bg-bg p-5",
+        "flex min-w-0 flex-col gap-4 rounded-default border border-border bg-surface p-5",
         className,
       )}
     >

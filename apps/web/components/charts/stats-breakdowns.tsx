@@ -6,6 +6,7 @@ import type { BreakdownRow } from "@short/analytics";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { BreakdownList, Grid, TabPanel, Tabs, type TabItem } from "@/components/ui";
+import { browserIcon, countryBadge, deviceIcon, osIcon } from "@/lib/stats-icons";
 import { countryName, titleCase } from "@/lib/stats";
 
 export type BreakdownSet = {
@@ -47,7 +48,28 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
     key: row.key,
     label: countryName(row.key, locale, unknown),
     value: row.clicks,
-    badge: row.key === "unknown" ? "??" : row.key.toUpperCase(),
+    badge: countryBadge(row.key),
+  }));
+
+  const deviceRows = data.device.map((row) => ({
+    key: row.key,
+    label: titleCase(row.key, unknown),
+    value: row.clicks,
+    badge: deviceIcon(row.key),
+  }));
+
+  const osRows = data.os.map((row) => ({
+    key: row.key,
+    label: titleCase(row.key, unknown),
+    value: row.clicks,
+    badge: osIcon(row.key),
+  }));
+
+  const browserRows = data.browser.map((row) => ({
+    key: row.key,
+    label: titleCase(row.key, unknown),
+    value: row.clicks,
+    badge: browserIcon(row.key),
   }));
 
   return (
@@ -75,7 +97,7 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
         <Grid columns={2}>
           <BreakdownList
             title={t("device")}
-            rows={toRows(data.device, (key) => titleCase(key, unknown))}
+            rows={deviceRows}
             footer={
               <>
                 <Icon name="shield" className="text-sm text-accent-ink" />
@@ -85,7 +107,7 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
           />
           <BreakdownList
             title={t("os")}
-            rows={toRows(data.os, (key) => titleCase(key, unknown))}
+            rows={osRows}
             meta={
               <span className="flex items-center gap-1.5 text-xs text-fg-muted">
                 <Icon name="laptop" className="text-xs text-accent-ink" />
@@ -93,7 +115,7 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
               </span>
             }
           />
-          <BreakdownList title={t("browser")} rows={toRows(data.browser, (key) => titleCase(key, unknown))} />
+          <BreakdownList title={t("browser")} rows={browserRows} />
           <BreakdownList title={t("language")} rows={toRows(data.language, (key) => key.toUpperCase())} />
         </Grid>
       </TabPanel>

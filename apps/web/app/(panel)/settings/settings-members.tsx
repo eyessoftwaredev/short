@@ -9,9 +9,9 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
   EmptyState,
   Field,
+  InfoTip,
   Input,
   QuotaMeter,
   Select,
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { cancelInviteAction, inviteMemberAction, removeMemberAction, updateMemberRoleAction } from "./actions";
+import { SettingsCard } from "./settings-card";
 import { DangerButton } from "./settings-dialogs";
 import {
   ROLE_COPY,
@@ -48,6 +49,22 @@ type SettingsMembersProps = {
   requestConfirm: RequestConfirm;
 };
 
+function RoleGuide() {
+  const t = useTranslations("settings");
+  return (
+    <InfoTip label={t("rolesHint")}>
+      <dl className="m-0 flex min-w-0 flex-col gap-2.5">
+        {(["owner", "admin", "member"] as const).map((role) => (
+          <div key={role} className="flex min-w-0 flex-col gap-0.5">
+            <dt className="text-sm font-medium">{t(ROLE_COPY[role].label)}</dt>
+            <dd className="m-0 text-xs leading-relaxed text-fg-muted">{t(ROLE_COPY[role].summary)}</dd>
+          </div>
+        ))}
+      </dl>
+    </InfoTip>
+  );
+}
+
 export function SettingsMembers({
   currentUserId,
   members,
@@ -66,45 +83,17 @@ export function SettingsMembers({
   const [inviteRole, setInviteRole] = useState<RoleId>("member");
 
   const seatsFull = memberLimit !== -1 && memberUsed >= memberLimit;
-  const inviteCopy = ROLE_COPY[inviteRole];
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="grid min-w-0 gap-4 *:min-w-0 lg:grid-cols-3">
-        <Card staticHover className="gap-4">
-          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{t("seats")}</span>
-          <QuotaMeter label={t("members")} used={memberUsed} limit={memberLimit} />
-          {invites.length > 0 ? (
-            <p className="m-0 text-xs text-fg-subtle">{t("pendingInvites", { count: invites.length })}</p>
-          ) : null}
-        </Card>
-
-        <Card staticHover className="gap-3 lg:col-span-2">
-          <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <Icon name="shield" className="text-xs" aria-hidden="true" />
-            {t("rolesHeading")}
-          </span>
-          <dl className="m-0 grid min-w-0 gap-2.5 *:min-w-0 sm:grid-cols-3">
-            {(["owner", "admin", "member"] as const).map((role) => (
-              <div key={role} className="flex min-w-0 flex-col gap-1">
-                <dt>
-                  <Badge tone={role === "owner" ? "accent" : "muted"}>{t(ROLE_COPY[role].label)}</Badge>
-                </dt>
-                <dd className="m-0 text-xs leading-relaxed text-fg-muted">
-                  {t(ROLE_COPY[role].summary)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
-      </div>
-
-      {canManage ? (
-        <Card staticHover className="gap-4">
-          <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            <Icon name="user-plus" className="text-xs" aria-hidden="true" />
-            {t("inviteHeading")}
-          </span>
+    <div className="flex min-w-0 flex-col gap-8">
+      <SettingsCard
+        title={t("inviteHeading")}
+        description={
+          invites.length > 0 ? t("pendingInvites", { count: invites.length }) : t("membersDescription")
+        }
+      >
+        <QuotaMeter label={t("seats")} used={memberUsed} limit={memberLimit} />
+        {canManage ? (
           <div className="flex min-w-0 flex-wrap items-end gap-3">
             <Field label={t("inviteEmail")} className="min-w-56 flex-1">
               <Input
@@ -115,7 +104,11 @@ export function SettingsMembers({
                 onChange={(event) => setInviteEmail(event.target.value)}
               />
             </Field>
-            <Field label={t("inviteRole")} className="min-w-40" hint={t(inviteCopy.summary)}>
+            <div className="flex min-w-40 flex-col gap-1.5">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                {t("inviteRole")}
+                <RoleGuide />
+              </span>
               <Select
                 value={inviteRole}
                 onChange={(event) => {
@@ -128,7 +121,7 @@ export function SettingsMembers({
                 <option value="admin">{t("roleAdmin")}</option>
                 {isOwner ? <option value="owner">{t("roleOwner")}</option> : null}
               </Select>
-            </Field>
+            </div>
             <Button
               variant="primary"
               className="shrink-0"
@@ -142,13 +135,13 @@ export function SettingsMembers({
               {t("sendInvite")}
             </Button>
           </div>
-          {seatsFull ? <p className="m-0 text-sm text-warn-ink">{t("seatsFull")}</p> : null}
-        </Card>
-      ) : null}
+        ) : null}
+        {seatsFull ? <p className="m-0 text-sm text-warn-ink">{t("seatsFull")}</p> : null}
+      </SettingsCard>
 
       <div className="flex min-w-0 flex-col gap-3">
-        <h3 className="m-0 text-sm font-semibold">
-          {t("members")}{" "}
+        <h3 className="m-0 flex items-center gap-2 text-sm font-semibold">
+          {t("members")}
           <span className="font-mono text-xs font-normal text-fg-subtle tabular-nums">
             {members.length}
           </span>
@@ -158,7 +151,12 @@ export function SettingsMembers({
           <TableHead>
             <TableRow>
               <TableHeaderCell scope="col">{t("colMember")}</TableHeaderCell>
-              <TableHeaderCell scope="col">{t("colRole")}</TableHeaderCell>
+              <TableHeaderCell scope="col">
+                <span className="inline-flex items-center gap-1.5">
+                  {t("colRole")}
+                  <RoleGuide />
+                </span>
+              </TableHeaderCell>
               <TableHeaderCell scope="col">{t("colJoined")}</TableHeaderCell>
               <TableHeaderCell scope="col" className="text-right">
                 {t("colActions")}
@@ -181,9 +179,7 @@ export function SettingsMembers({
                           <span className="truncate text-sm font-medium">{row.name}</span>
                           {isSelf ? <Badge tone="muted">{t("you")}</Badge> : null}
                         </span>
-                        <span className="truncate font-mono text-xs text-fg-muted">
-                          {row.email}
-                        </span>
+                        <span className="truncate font-mono text-xs text-fg-muted">{row.email}</span>
                       </span>
                     </span>
                   </TableCell>
@@ -274,7 +270,7 @@ export function SettingsMembers({
               return (
                 <li
                   key={invite.id}
-                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-default border border-dashed border-border px-4 py-3"
+                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-default border border-dashed border-border bg-surface px-4 py-3"
                 >
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{invite.email}</span>
                   <Badge tone="muted">{inviteRoleCopy ? t(inviteRoleCopy.label) : invite.role}</Badge>

@@ -20,7 +20,13 @@ export default async function AnalyticsLoading() {
           <Skeleton className="h-7 w-64" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="flex shrink-0 gap-2">
+      </div>
+      <div className="flex min-w-0 flex-col gap-4 rounded-default border border-border bg-surface p-4">
+        <div className="flex justify-end gap-2">
+          <Skeleton className="h-8 w-28 rounded-default" />
+          <Skeleton className="h-8 w-32 rounded-default" />
+        </div>
+        <div className="flex flex-wrap gap-2">
           {Array.from({ length: 5 }, (_, index) => (
             <Skeleton key={index} className="h-8 w-20 rounded-pill" />
           ))}

@@ -55,6 +55,15 @@ export async function unbanUserAction(userId: string): Promise<ActionResult<null
   try {
     const context = await requireSuperadmin();
 
+    const [target] = await getDb()
+      .select({ deactivatedAt: user.deactivatedAt })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    if (target?.deactivatedAt) {
+      return fail("self_deactivated");
+    }
+
     await auth.api.unbanUser({ body: { userId }, headers: await forwardedHeaders() });
 
     await recordAudit({
@@ -179,6 +188,7 @@ export async function updateUserAction(values: UserUpdateInput): Promise<ActionR
         email: user.email,
         role: user.role,
         banned: user.banned,
+        deactivatedAt: user.deactivatedAt,
       })
       .from(user)
       .where(eq(user.id, input.userId))
@@ -216,6 +226,9 @@ export async function updateUserAction(values: UserUpdateInput): Promise<ActionR
         headers: await forwardedHeaders(),
       });
     } else if (!input.banned && existing.banned) {
+      if (existing.deactivatedAt) {
+        return fail("self_deactivated");
+      }
       await auth.api.unbanUser({
         body: { userId: input.userId },
         headers: await forwardedHeaders(),

@@ -6,7 +6,7 @@ export type EventType = (typeof EVENT_TYPES)[number];
 
 /**
  * The single event shape that travels edge worker -> Cloudflare Queue -> ClickHouse.
- * No raw IP is ever present: the worker replaces it with a rotating `visitorId` hash.
+ * `visitorId` stays a daily-rotating hash; `ip` is the raw client address for workspace logs.
  */
 export type TrackedEvent = {
   eventId: string;
@@ -56,6 +56,8 @@ export type TrackedEvent = {
 
   /** Rotating pseudonymous id, see `deriveVisitorId`. */
   visitorId: string;
+  /** Client IP from `cf-connecting-ip`. Empty on events recorded before this field existed. */
+  ip: string;
 
   /** Set for bio_view / bio_click events. */
   biopageId: string;
@@ -104,6 +106,7 @@ export function emptyEvent(): TrackedEvent {
     language: "",
     isBot: false,
     visitorId: "",
+    ip: "",
     biopageId: "",
     blockId: "",
     qrId: "",

@@ -1,9 +1,10 @@
 "use client";
 
-import { Button, Card, Field, Input, Section } from "@/components/ui";
+import { Button, Field, Input } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { changeEmailAction, changePasswordAction } from "./actions";
+import { SettingsCard } from "./settings-card";
 import { SettingsTwoFactor } from "./settings-two-factor";
 import type { RunAction } from "./settings-types";
 
@@ -24,9 +25,9 @@ export function SettingsAccount({
   const [nextEmail, setNextEmail] = useState(email);
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <Section title={t("securityTitle")} description={t("securityDesc")}>
-        <Card staticHover className="max-w-xl gap-4">
+    <SettingsCard title={t("securityTitle")} description={t("securityDesc")}>
+      <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-3">
           <Field label={t("changeEmail")}>
             <Input
               type="email"
@@ -35,14 +36,15 @@ export function SettingsAccount({
             />
           </Field>
           <Button
+            className="self-start"
             disabled={pending || nextEmail === email}
             onClick={() => run(() => changeEmailAction(nextEmail), t("emailUpdated"))}
           >
             {t("saveEmail")}
           </Button>
-        </Card>
+        </div>
 
-        <Card staticHover className="max-w-xl gap-4">
+        <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-5">
           <Field label={t("currentPassword")}>
             <Input
               type="password"
@@ -59,20 +61,18 @@ export function SettingsAccount({
             />
           </Field>
           <Button
+            className="self-start"
             disabled={pending || currentPassword === "" || newPassword.length < 10}
             onClick={() =>
-              run(
-                () => changePasswordAction(currentPassword, newPassword),
-                t("passwordUpdated"),
-              )
+              run(() => changePasswordAction(currentPassword, newPassword), t("passwordUpdated"))
             }
           >
             {t("savePassword")}
           </Button>
-        </Card>
+        </div>
 
-        <SettingsTwoFactor twoFactorEnabled={twoFactorEnabled} />
-      </Section>
-    </div>
+        <SettingsTwoFactor twoFactorEnabled={twoFactorEnabled} embedded />
+      </div>
+    </SettingsCard>
   );
 }

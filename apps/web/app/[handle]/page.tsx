@@ -55,14 +55,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
   const title = page.seoTitle || page.displayName;
   const description = page.seoDescription || page.bio;
+  const hostname = await requestHostname();
+  const host = hostname || platformHostname();
+  const canonical = `https://${host}/${page.handle}`;
 
   return {
     title,
     description,
+    alternates: { canonical },
+    robots: { index: true, follow: true },
     openGraph: {
       title,
       description,
       type: "profile",
+      url: canonical,
       images: page.avatarUrl ? [{ url: page.avatarUrl }] : undefined,
     },
     twitter: { card: "summary", title, description },

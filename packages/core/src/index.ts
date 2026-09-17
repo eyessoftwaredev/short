@@ -9,3 +9,4 @@ export * from "./kv";
 export * from "./events";
 export * from "./clickhouse-row";
 export * from "./plans";
+export * from "./account-deletion";

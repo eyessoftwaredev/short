@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
           linkId: biopageId,
           dailySalt: `${serverEnv().INTERNAL_TOKEN}:${utcDayStamp()}`,
         }),
+        ip,
         biopageId,
         blockId: typeof payload.blockId === "string" ? payload.blockId : "",
       },

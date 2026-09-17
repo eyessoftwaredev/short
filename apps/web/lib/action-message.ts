@@ -48,6 +48,9 @@ export const ERROR_CODES = [
   "slug_premium",
   "handle_too_short",
   "handle_premium",
+  "wrong_password",
+  "last_owned_teams",
+  "self_deactivated",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

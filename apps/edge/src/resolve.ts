@@ -146,8 +146,8 @@ export async function resolveTarget(
       : readKv<BiopageKvRecord>(env, biopageKey(hostname, lookupSlug)),
   ]);
 
-  // A cached miss is as authoritative as a cached hit for the length of its TTL.
-  if (domain && isMiss(cached)) {
+  // A cached link miss is not a bio miss — the two keys are independent.
+  if (domain && isMiss(cached) && !biopage) {
     return { domain, link: null, biopage: null, fromOrigin: false, backfill: async () => {} };
   }
 

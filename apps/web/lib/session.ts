@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPlan, isWithinLimit, type PlanDefinition } from "@short/core";
 import { and, asc, eq, getDb, member, organization, plans, subscriptions, user } from "@short/db";
+import { cancelScheduledDeletion, loadAccountLifecycle, revokeUserSessions } from "./account-deletion";
 import { auth, SUPERADMIN_ROLE } from "./auth";
 import { verifyPendingPath } from "./verify-path";
 import { asWorkspaceKind, type WorkspaceKind } from "./workspace";
@@ -47,6 +48,8 @@ export type SessionContext = {
   billingOwner: BillingOwner | null;
   isBillingOwner: boolean;
   canCreateTeam: boolean;
+  /** True on the request that cancelled a pending 7-day account close. */
+  accountRestored: boolean;
 };
 
 function mergePlan(
@@ -100,6 +103,12 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
 
   const db = getDb();
   const userId = session.user.id;
+  const lifecycle = await loadAccountLifecycle(userId);
+  if (lifecycle.deactivatedAt) {
+    await revokeUserSessions(userId);
+    return null;
+  }
+  const accountRestored = await cancelScheduledDeletion(userId);
   const isSuperadmin = session.user.role === SUPERADMIN_ROLE;
 
   const memberships = await db
@@ -198,6 +207,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
     billingOwner,
     isBillingOwner: billingOwner?.id === userId,
     canCreateTeam: isSuperadmin || isWithinLimit(accountPlan.limits.teams, ownedTeams),
+    accountRestored,
   };
 });
 

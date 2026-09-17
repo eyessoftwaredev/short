@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getDb, organization } from "@short/db";
+import { finalizeDueAccountDeletions } from "@/lib/account-deletion";
 import { syncClickUsage } from "@/lib/billing";
 import { serverEnv } from "@/lib/env";
 import { currentPeriod } from "@/lib/quota";
@@ -35,5 +36,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ period, synced, failures: failures.length });
+  const deactivated = await finalizeDueAccountDeletions();
+
+  return NextResponse.json({ period, synced, failures: failures.length, deactivated });
 }

@@ -84,6 +84,8 @@ export const ICONS = {
   minus: "fa-solid fa-minus",
   sparkles: "fa-solid fa-wand-magic-sparkles",
   "mobile-screen": "fa-solid fa-mobile-screen",
+  desktop: "fa-solid fa-desktop",
+  tablet: "fa-solid fa-tablet-screen-button",
   grip: "fa-solid fa-grip-vertical",
   archive: "fa-solid fa-box-archive",
   "archive-restore": "fa-solid fa-box-open",

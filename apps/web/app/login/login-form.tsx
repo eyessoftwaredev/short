@@ -32,6 +32,7 @@ export function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") ?? "/dashboard";
   const returnedFrom = next !== "/dashboard" ? next : null;
+  const deletionScheduled = params.get("notice") === "deletion-scheduled";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,6 +71,10 @@ export function LoginForm() {
   return (
     <>
       <AuthHeading title={t("loginTitle")} description={t("loginDescription")} />
+
+      {deletionScheduled ? (
+        <AuthAlert tone="info">{t("deletionScheduledNotice")}</AuthAlert>
+      ) : null}
 
       {returnedFrom ? (
         <AuthAlert tone="info">

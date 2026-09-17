@@ -36,7 +36,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
 
   return (
     <PanelShell title={t("title")} crumbs={[{ label: context.workspace.name }]}>
-      <Hero eyebrow={context.plan.name} title={t("title")} description={t("description")} />
+      <Hero variant="compact" eyebrow={context.plan.name} title={t("title")} description={t("description")} />
 
       <SettingsView
         user={{
