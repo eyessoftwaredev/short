@@ -159,6 +159,11 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
           summary: "List domains available to this account",
           responses: { "200": { description: "Domains" }, default: errorResponse },
         },
+        post: {
+          tags: ["Domains"],
+          summary: "Add a custom domain",
+          responses: { "201": { description: "Created" }, default: errorResponse },
+        },
       },
       "/qr-codes": {
         get: {
@@ -166,12 +171,36 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
           summary: "List QR codes",
           responses: { "200": { description: "QR codes" }, default: errorResponse },
         },
+        post: {
+          tags: ["QR codes"],
+          summary: "Create a QR code",
+          responses: { "201": { description: "Created" }, default: errorResponse },
+        },
+      },
+      "/qr-codes/{id}": {
+        patch: {
+          tags: ["QR codes"],
+          summary: "Update a QR code",
+          responses: { "200": { description: "Updated" }, default: errorResponse },
+        },
       },
       "/biopages": {
         get: {
           tags: ["Bio pages"],
           summary: "List bio pages",
           responses: { "200": { description: "Bio pages" }, default: errorResponse },
+        },
+        post: {
+          tags: ["Bio pages"],
+          summary: "Create a bio page",
+          responses: { "201": { description: "Created" }, default: errorResponse },
+        },
+      },
+      "/biopages/{id}": {
+        patch: {
+          tags: ["Bio pages"],
+          summary: "Update a bio page",
+          responses: { "200": { description: "Updated" }, default: errorResponse },
         },
       },
     },

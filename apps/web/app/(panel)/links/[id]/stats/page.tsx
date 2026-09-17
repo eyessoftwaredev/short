@@ -22,11 +22,20 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@/components/ui";
-import { loadBreakdownSet, loadRecentEvents, loadSummary, loadTimeseries } from "@/lib/analytics";
+import {
+  loadBreakdownSet,
+  loadRecentEvents,
+  loadSummary,
+  loadTimeseries,
+  loadVariantBreakdown,
+} from "@/lib/analytics";
+import { ExportButtons } from "@/app/(panel)/analytics/export-buttons";
+import { StatsToggles } from "@/app/(panel)/analytics/stats-toggles";
 import { formatDateTime, formatNumber, parseClickhouseDate, truncateMiddle } from "@/lib/format";
 import { getLink, shortUrl } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
 import {
+  clampRangeToRetention,
   countryName,
   deltaPercent,
   formatDelta,
@@ -62,7 +71,11 @@ export default async function LinkStatsPage({
   const { id } = await params;
   const raw = await searchParams;
   const locale = await getLocale();
-  const range = resolveRange(raw.range, raw.from, raw.to, locale);
+  const range = clampRangeToRetention(
+    resolveRange(raw.range, raw.from, raw.to, locale),
+    context.plan.limits.retentionDays,
+  );
+  const includeBots = Array.isArray(raw.includeBots) ? raw.includeBots[0] === "1" : raw.includeBots === "1";
 
   const link = await getLink(context.workspace.id, id);
   if (!link) {
@@ -74,13 +87,15 @@ export default async function LinkStatsPage({
     linkId: link.id,
     from: range.from,
     to: range.to,
+    includeBots,
   };
 
-  const [summary, series, breakdowns, recent, t, tc, ts, tn] = await Promise.all([
+  const [summary, series, breakdowns, recent, variants, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),
     loadTimeseries(scope, range.granularity),
     loadBreakdownSet(scope),
     loadRecentEvents(scope, 25),
+    loadVariantBreakdown(scope),
     getTranslations("panel"),
     getTranslations("common"),
     getTranslations("stats"),
@@ -137,6 +152,8 @@ export default async function LinkStatsPage({
         actions={
           <>
             <CopyButton value={url} label={tc("copy")} />
+            <StatsToggles />
+            <ExportButtons href={`/api/analytics/export?linkId=${link.id}&range=${range.key}${includeBots ? "&includeBots=1" : ""}`} />
             <RangePicker value={range.key} />
           </>
         }
@@ -192,6 +209,38 @@ export default async function LinkStatsPage({
           delta={ts("distinctCountries")}
         />
       </Grid>
+
+      {link.abVariants.length > 0 ? (
+        <Section title={ts("abReport")} description={ts("abReportDesc")}>
+          <Table label={ts("abReport")}>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>{ts("variant")}</TableHeaderCell>
+                <TableHeaderCell numeric>{ts("clicks")}</TableHeaderCell>
+                <TableHeaderCell numeric>{ts("visitors")}</TableHeaderCell>
+                <TableHeaderCell numeric>{ts("shareOfClicks")}</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {link.abVariants.map((variant) => {
+                const row = variants.find((item) => item.variantId === variant.id);
+                const winner = variants[0]?.variantId === variant.id && (variants[0]?.clicks ?? 0) > 0;
+                return (
+                  <TableRow key={variant.id}>
+                    <TableCell>
+                      {variant.destination}
+                      {winner ? ` · ${ts("winner")}` : ""}
+                    </TableCell>
+                    <TableCell numeric>{formatNumber(row?.clicks ?? 0)}</TableCell>
+                    <TableCell numeric>{formatNumber(row?.visitors ?? 0)}</TableCell>
+                    <TableCell numeric>{Math.round((row?.share ?? 0) * 100)}%</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Section>
+      ) : null}
 
       <Section
         title={t("clickTrend")}

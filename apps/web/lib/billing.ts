@@ -205,38 +205,23 @@ export type InvoiceView = {
   hostedUrl: string | null;
 };
 
-export type PaymentMethodView = {
-  brand: string;
-  last4: string;
-  expiry: string;
-};
-
 export type BillingAccount = {
   invoices: InvoiceView[];
-  paymentMethod: PaymentMethodView | null;
 };
 
 /**
- * Invoices and cards are never mirrored into Postgres — Stripe stays the source of
- * truth and an outage degrades to an empty list instead of a broken page.
+ * Invoices are never mirrored into Postgres — Stripe stays the source of truth
+ * and an outage degrades to an empty list instead of a broken page. Cards live
+ * in the Customer Portal, not this panel.
  */
 export async function getBillingAccount(customerId: string | null): Promise<BillingAccount> {
   if (!customerId || !(await stripeEnabled())) {
-    return { invoices: [], paymentMethod: null };
+    return { invoices: [] };
   }
 
   try {
     const stripe = await getStripe();
-    const [invoices, customer] = await Promise.all([
-      stripe.invoices.list({ customer: customerId, limit: 12 }),
-      stripe.customers.retrieve(customerId, { expand: ["invoice_settings.default_payment_method"] }),
-    ]);
-
-    const defaultMethod =
-      !customer.deleted && typeof customer.invoice_settings?.default_payment_method === "object"
-        ? customer.invoice_settings.default_payment_method
-        : null;
-    const card = defaultMethod?.card ?? null;
+    const invoices = await stripe.invoices.list({ customer: customerId, limit: 12 });
 
     return {
       invoices: invoices.data.map((invoice) => ({
@@ -249,17 +234,10 @@ export async function getBillingAccount(customerId: string | null): Promise<Bill
         pdfUrl: invoice.invoice_pdf ?? null,
         hostedUrl: invoice.hosted_invoice_url ?? null,
       })),
-      paymentMethod: card
-        ? {
-            brand: card.brand,
-            last4: card.last4,
-            expiry: `${String(card.exp_month).padStart(2, "0")}/${String(card.exp_year).slice(-2)}`,
-          }
-        : null,
     };
   } catch (error) {
     console.error("getBillingAccount failed", error);
-    return { invoices: [], paymentMethod: null };
+    return { invoices: [] };
   }
 }
 

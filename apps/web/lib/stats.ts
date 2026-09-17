@@ -94,6 +94,17 @@ function granularityFor(from: Date, to: Date): Granularity {
   return to.getTime() - from.getTime() <= 2 * DAY ? "hour" : "day";
 }
 
+export function clampRangeToRetention(range: ResolvedRange, retentionDays: number): ResolvedRange {
+  if (retentionDays < 0) {
+    return range;
+  }
+  const earliest = new Date(Date.now() - retentionDays * DAY);
+  if (range.from.getTime() >= earliest.getTime()) {
+    return range;
+  }
+  return { ...range, from: earliest, fromDate: toDateInput(earliest) };
+}
+
 export function resolveRange(
   value: string | string[] | undefined,
   fromRaw?: string | string[] | undefined,

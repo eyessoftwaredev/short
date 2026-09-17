@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
+import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota } from "@/lib/quota";
 import { createQrCode, deleteQrCode, updateQrCode } from "@/lib/qr-codes";
 import { toQrInput, type QrFormValues } from "@/lib/qr-form";
@@ -20,6 +21,7 @@ export async function createQrCodeAction(
     await assertQuota(context.workspace.id, context.plan, "qrCodes");
     if (input.style.logoUrl) {
       assertFeature(context.plan, "qrLogo");
+      await assertOwnedMedia(context.workspace.id, input.style.logoUrl);
     }
 
     const row = await createQrCode(context.workspace.id, input);
@@ -51,6 +53,7 @@ export async function updateQrCodeAction(
 
     if (input.style.logoUrl) {
       assertFeature(context.plan, "qrLogo");
+      await assertOwnedMedia(context.workspace.id, input.style.logoUrl);
     }
 
     const row = await updateQrCode(context.workspace.id, id, input);

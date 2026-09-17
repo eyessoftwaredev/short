@@ -7,6 +7,7 @@ import {
   getSummary,
   getTimeseries,
   getTopLinks,
+  getVariantBreakdown,
   type BreakdownRow,
   type Granularity,
   type PlatformTotals,
@@ -20,6 +21,9 @@ import type { BreakdownSet } from "@/components/charts/stats-breakdowns";
 
 const EMPTY_SUMMARY: SummaryResult = {
   clicks: 0,
+  qrScans: 0,
+  bioViews: 0,
+  bioClicks: 0,
   visitors: 0,
   countries: 0,
   previousClicks: 0,
@@ -127,6 +131,10 @@ export async function loadBreakdownSet(scope: StatsScope, limit = 10): Promise<B
     utmMedium,
     utmCampaign,
   };
+}
+
+export async function loadVariantBreakdown(scope: StatsScope) {
+  return safe(getVariantBreakdown(scope), [], "variants");
 }
 
 export type { BreakdownSet };

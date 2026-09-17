@@ -6,6 +6,8 @@ export type StatsScope = {
   /** Narrow to one link. Omit for workspace-wide numbers. */
   linkId?: string;
   biopageId?: string;
+  qrId?: string;
+  eventType?: "click" | "qr_scan" | "bio_view" | "bio_click";
   from: Date;
   to: Date;
   /** Bots are excluded by default; the panel exposes a toggle. */
@@ -76,12 +78,23 @@ function buildFilters(scope: StatsScope): Filters {
     clauses.push("referrer_domain = {referrerDomain:String}");
     params.referrerDomain = scope.referrerDomain;
   }
+  if (scope.qrId) {
+    clauses.push("qr_id = {qrId:String}");
+    params.qrId = scope.qrId;
+  }
+  if (scope.eventType) {
+    clauses.push("type = {eventType:String}");
+    params.eventType = scope.eventType;
+  }
 
   return { where: clauses.join(" AND "), params };
 }
 
 export type SummaryResult = {
   clicks: number;
+  qrScans: number;
+  bioViews: number;
+  bioClicks: number;
   visitors: number;
   countries: number;
   /** Same-length window immediately before `from`, for delta badges. */
@@ -96,8 +109,21 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
   // Lifetime (and other multi-year windows) have no meaningful previous period.
   const skipPrevious = windowMs > 366 * 24 * 60 * 60 * 1000;
 
-  const [current] = await chQuery<{ clicks: string; visitors: string; countries: string }>(
-    `SELECT count() AS clicks, uniq(visitor_id) AS visitors, uniq(country) AS countries
+  const [current] = await chQuery<{
+    clicks: string;
+    qr_scans: string;
+    bio_views: string;
+    bio_clicks: string;
+    visitors: string;
+    countries: string;
+  }>(
+    `SELECT
+        countIf(type = 'click') AS clicks,
+        countIf(type = 'qr_scan') AS qr_scans,
+        countIf(type = 'bio_view') AS bio_views,
+        countIf(type = 'bio_click') AS bio_clicks,
+        uniq(visitor_id) AS visitors,
+        uniq(country) AS countries
      FROM events WHERE ${where}`,
     params,
   );
@@ -105,6 +131,9 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
   if (skipPrevious) {
     return {
       clicks: Number(current?.clicks ?? 0),
+      qrScans: Number(current?.qr_scans ?? 0),
+      bioViews: Number(current?.bio_views ?? 0),
+      bioClicks: Number(current?.bio_clicks ?? 0),
       visitors: Number(current?.visitors ?? 0),
       countries: Number(current?.countries ?? 0),
       previousClicks: 0,
@@ -125,11 +154,40 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
 
   return {
     clicks: Number(current?.clicks ?? 0),
+    qrScans: Number(current?.qr_scans ?? 0),
+    bioViews: Number(current?.bio_views ?? 0),
+    bioClicks: Number(current?.bio_clicks ?? 0),
     visitors: Number(current?.visitors ?? 0),
     countries: Number(current?.countries ?? 0),
     previousClicks: Number(prior?.clicks ?? 0),
     previousVisitors: Number(prior?.visitors ?? 0),
   };
+}
+
+export type VariantBreakdownRow = {
+  variantId: string;
+  clicks: number;
+  visitors: number;
+  share: number;
+};
+
+export async function getVariantBreakdown(scope: StatsScope): Promise<VariantBreakdownRow[]> {
+  const { where, params } = buildFilters(scope);
+  const rows = await chQuery<{ variant_id: string; clicks: string; visitors: string }>(
+    `SELECT variant_id, count() AS clicks, uniq(visitor_id) AS visitors
+     FROM events
+     WHERE ${where} AND variant_id != ''
+     GROUP BY variant_id
+     ORDER BY clicks DESC`,
+    params,
+  );
+  const total = rows.reduce((sum, row) => sum + Number(row.clicks), 0);
+  return rows.map((row) => ({
+    variantId: row.variant_id,
+    clicks: Number(row.clicks),
+    visitors: Number(row.visitors),
+    share: total === 0 ? 0 : Number(row.clicks) / total,
+  }));
 }
 
 export type TimeseriesPoint = { bucket: string; clicks: number; visitors: number };

@@ -7,6 +7,7 @@ import {
   type LinkKvRecord,
 } from "@short/core";
 import { features, serverEnv } from "./env";
+import { workspaceOverClickQuota } from "./quota";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 
@@ -83,6 +84,13 @@ export async function putLinkRecord(record: LinkKvRecord): Promise<void> {
 const LINK_WRITE_CHUNK = 500;
 
 export async function putLinkRecords(records: LinkKvRecord[]): Promise<void> {
+  const quotaByWorkspace = new Map<string, boolean>();
+  for (const record of records) {
+    if (!quotaByWorkspace.has(record.workspaceId)) {
+      quotaByWorkspace.set(record.workspaceId, await workspaceOverClickQuota(record.workspaceId));
+    }
+    record.overQuota = quotaByWorkspace.get(record.workspaceId) === true;
+  }
   for (let index = 0; index < records.length; index += LINK_WRITE_CHUNK) {
     const slice = records.slice(index, index + LINK_WRITE_CHUNK);
     await writeBulk(

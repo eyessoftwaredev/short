@@ -19,9 +19,14 @@ import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/
 import { auth } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { assertFeature, assertOwnerQuota, assertQuota } from "@/lib/quota";
-import { requireSession, requireWorkspace, requireWorkspaceRole } from "@/lib/session";
+import { getSessionContext, requireSession, requireWorkspace, requireWorkspaceRole } from "@/lib/session";
 import { createWorkspace, getPersonalWorkspaceId } from "@/lib/workspace";
-import { generateWebhookSecret, invalidateRelaySubscribers } from "@/lib/webhooks";
+import {
+  generateWebhookSecret,
+  invalidateRelaySubscribers,
+  replayWebhookDelivery,
+  testWebhook,
+} from "@/lib/webhooks";
 
 const WORKSPACE_ROLES = ["owner", "admin", "member"] as const;
 
@@ -392,6 +397,95 @@ export async function deleteWebhookAction(webhookId: string): Promise<ActionResu
 
     await invalidateRelaySubscribers();
     revalidatePath("/settings");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function testWebhookAction(webhookId: string): Promise<ActionResult<null>> {
+  try {
+    const context = await requireWorkspaceRole("admin");
+    const [row] = await getDb()
+      .select()
+      .from(webhooks)
+      .where(and(eq(webhooks.id, webhookId), eq(webhooks.workspaceId, context.workspace.id)))
+      .limit(1);
+    if (!row) {
+      return fail("webhook_missing");
+    }
+    await testWebhook(row);
+    revalidatePath("/settings");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function replayWebhookAction(webhookId: string): Promise<ActionResult<null>> {
+  try {
+    const context = await requireWorkspaceRole("admin");
+    const [row] = await getDb()
+      .select({ id: webhooks.id })
+      .from(webhooks)
+      .where(and(eq(webhooks.id, webhookId), eq(webhooks.workspaceId, context.workspace.id)))
+      .limit(1);
+    if (!row) {
+      return fail("webhook_missing");
+    }
+    await replayWebhookDelivery(webhookId);
+    revalidatePath("/settings");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function changePasswordAction(
+  currentPassword: string,
+  newPassword: string,
+): Promise<ActionResult<null>> {
+  try {
+    await requireSession();
+    await auth.api.changePassword({
+      headers: await headers(),
+      body: { currentPassword, newPassword },
+    });
+    revalidatePath("/settings");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function changeEmailAction(newEmail: string): Promise<ActionResult<null>> {
+  try {
+    await requireSession();
+    const parsed = z.string().trim().email().safeParse(newEmail);
+    if (!parsed.success) {
+      return fail("email_invalid");
+    }
+    await auth.api.changeEmail({
+      headers: await headers(),
+      body: { newEmail: parsed.data },
+    });
+    revalidatePath("/settings");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function persistThemeAction(theme: "light" | "dark"): Promise<ActionResult<null>> {
+  try {
+    const context = await getSessionContext();
+    if (!context) {
+      return ok(null);
+    }
+    await getDb()
+      .update(user)
+      .set({ theme, updatedAt: new Date() })
+      .where(eq(user.id, context.user.id));
     return ok(null);
   } catch (error) {
     return toActionError(error);

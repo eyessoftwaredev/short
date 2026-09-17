@@ -32,13 +32,18 @@ export {
   QR_DOT_STYLES,
   QR_ERROR_LEVELS,
   QR_EXPORT_FORMATS,
+  QR_PAYLOAD_KINDS,
+  mediaPathSchema,
   qrInputSchema,
   qrStyleSchema,
+  qrVcardSchema,
+  qrWifiSchema,
   recommendedErrorLevel,
   type QrDotStyle,
   type QrErrorLevel,
   type QrExportFormat,
   type QrInput,
+  type QrPayloadKind,
   type QrStyle,
 } from "./qr";
 

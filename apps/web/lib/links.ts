@@ -50,6 +50,7 @@ export function toKvRecord(link: LinkRow, hostname: string): LinkKvRecord {
     noIndex: link.noIndex,
     forwardQuery: link.forwardQuery,
     disabled: link.archived || link.disabledAt != null,
+    overQuota: false,
     title: link.title,
     description: link.description,
     image: link.image,

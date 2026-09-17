@@ -57,6 +57,8 @@ export function serializeQrCode(qr: QrCodeRow) {
     id: qr.id,
     name: qr.name,
     linkId: qr.linkId,
+    payloadKind: qr.payloadKind,
+    payload: qr.payload,
     style: qr.style,
     createdAt: qr.createdAt.toISOString(),
     updatedAt: qr.updatedAt.toISOString(),

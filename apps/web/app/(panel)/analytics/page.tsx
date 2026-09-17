@@ -24,7 +24,9 @@ import {
 import { loadBreakdownSet, loadSummary, loadTimeseries, loadTopLinks } from "@/lib/analytics";
 import { formatNumber } from "@/lib/format";
 import { requireWorkspace } from "@/lib/session";
-import { deltaPercent, formatDelta, localizedRangeLabel, resolveRange } from "@/lib/stats";
+import { clampRangeToRetention, deltaPercent, formatDelta, localizedRangeLabel, resolveRange } from "@/lib/stats";
+import { ExportButtons } from "./export-buttons";
+import { StatsToggles } from "./stats-toggles";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -45,9 +47,24 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
   const context = await requireWorkspace();
   const raw = await searchParams;
   const locale = await getLocale();
-  const range = resolveRange(raw.range, raw.from, raw.to, locale);
+  const range = clampRangeToRetention(
+    resolveRange(raw.range, raw.from, raw.to, locale),
+    context.plan.limits.retentionDays,
+  );
+  const includeBots = Array.isArray(raw.includeBots) ? raw.includeBots[0] === "1" : raw.includeBots === "1";
+  const eventTypeRaw = Array.isArray(raw.type) ? raw.type[0] : raw.type;
+  const eventType: "click" | "qr_scan" | "bio_view" | "bio_click" | undefined =
+    eventTypeRaw === "click" || eventTypeRaw === "qr_scan" || eventTypeRaw === "bio_view" || eventTypeRaw === "bio_click"
+      ? eventTypeRaw
+      : undefined;
 
-  const scope = { workspaceId: context.workspace.id, from: range.from, to: range.to };
+  const scope = {
+    workspaceId: context.workspace.id,
+    from: range.from,
+    to: range.to,
+    includeBots,
+    eventType,
+  };
 
   const [summary, series, breakdowns, topLinks, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),
@@ -84,7 +101,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             ? ts("analyticsDesc", { workspace: context.workspace.name, range: rangeLabel })
             : ts("analyticsDescAll", { workspace: context.workspace.name, range: rangeLabel })
         }
-        actions={<RangePicker value={range.key} />}
+        actions={
+          <>
+            <StatsToggles />
+            <ExportButtons href={`/api/analytics/export?range=${range.key}${includeBots ? "&includeBots=1" : ""}${eventType ? `&type=${eventType}` : ""}`} />
+            <RangePicker value={range.key} />
+          </>
+        }
       />
 
       <Grid columns={4}>
@@ -136,6 +159,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           value={formatNumber(summary.countries)}
           delta={ts("distinctCountries")}
         />
+      </Grid>
+      <Grid columns={3}>
+        <Card label={ts("qrScans")} value={formatNumber(summary.qrScans)} />
+        <Card label={ts("bioViews")} value={formatNumber(summary.bioViews)} />
+        <Card label={ts("bioClicks")} value={formatNumber(summary.bioClicks)} />
       </Grid>
 
       <Section

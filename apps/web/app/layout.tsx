@@ -1,6 +1,7 @@
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { cookies } from "next/headers";
 import { CookieBanner } from "@/components/consent/cookie-banner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { FALLBACK_BRAND, getPlatformBrand } from "@/lib/brand";
@@ -52,9 +53,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const themeCookie = (await cookies()).get("short-theme")?.value;
+  const defaultDark = themeCookie === "dark";
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} className={defaultDark ? "dark" : undefined} suppressHydrationWarning>
       <head>
         <link
           rel="stylesheet"
@@ -64,7 +67,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider>
+          <ThemeProvider defaultDark={defaultDark}>
             {children}
             <CookieBanner />
           </ThemeProvider>

@@ -39,8 +39,7 @@ export default async function EditQrPage({ params }: { params: Params }) {
     url: shortUrl(link.hostname, link.slug),
   }));
 
-  // The attached link may sit outside the first page of results.
-  if (!options.some((option) => option.id === record.linkId)) {
+  if (record.linkId && !options.some((option) => option.id === record.linkId)) {
     options.unshift({
       id: record.linkId,
       label: `${record.hostname}/${record.slug}`,
@@ -53,10 +52,12 @@ export default async function EditQrPage({ params }: { params: Params }) {
       title={record.name}
       crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
       topbarActions={
-        <Button href={`/links/${record.linkId}/stats`}>
-          <Icon name="chart-line" className="text-sm" />
-          {t("scanStats")}
-        </Button>
+        record.linkId ? (
+          <Button href={`/links/${record.linkId}/stats`}>
+            <Icon name="chart-line" className="text-sm" />
+            {t("scanStats")}
+          </Button>
+        ) : undefined
       }
     >
       <Hero
@@ -68,7 +69,10 @@ export default async function EditQrPage({ params }: { params: Params }) {
       <QrDesigner
         mode="edit"
         qrId={record.id}
-        defaultValues={toQrForm(record.name, record.linkId, record.style)}
+        defaultValues={toQrForm(record.name, record.linkId ?? "", record.style, {
+          payloadKind: record.payloadKind,
+          payload: record.payload,
+        })}
         links={options}
         canUseLogo={context.plan.features.qrLogo}
       />

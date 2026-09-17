@@ -2,7 +2,13 @@ import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import { after } from "next/server";
 import { z } from "zod";
-import { linkInputSchema, linkListQuerySchema } from "@short/core";
+import {
+  biopageInputSchema,
+  domainInputSchema,
+  linkInputSchema,
+  linkListQuerySchema,
+  qrInputSchema,
+} from "@short/core";
 import { recordAudit } from "@/lib/audit";
 import { ApiError, checkApiRateLimit, resolveApiContext, type ApiContext } from "@/lib/api-auth";
 import {
@@ -13,7 +19,8 @@ import {
 } from "@/lib/api-serializers";
 import { loadBreakdownSet, loadMonthlyClicks, loadSummary, loadTimeseries } from "@/lib/analytics";
 import { incrementApiRequests, incrementLinksCreated } from "@/lib/billing";
-import { listBiopages } from "@/lib/biopages";
+import { createBiopage, getBiopage, listBiopages, updateBiopage } from "@/lib/biopages";
+import { addDomain } from "@/lib/domains";
 import { serverEnv } from "@/lib/env";
 import {
   createLink,
@@ -23,7 +30,7 @@ import {
   listWorkspaceDomains,
   updateLink,
 } from "@/lib/links";
-import { listQrCodes } from "@/lib/qr-codes";
+import { createQrCode, getQrCode, listQrCodes, updateQrCode } from "@/lib/qr-codes";
 import {
   assertFeature,
   assertQuota,
@@ -328,6 +335,17 @@ app.get("/domains", async (c) => {
   return c.json({ data: rows.map(serializeDomain) });
 });
 
+app.post("/domains", async (c) => {
+  const context = c.get("api");
+  const parsed = domainInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  await assertQuota(context.workspace.id, context.plan, "customDomains");
+  const result = await addDomain(context.workspace.id, parsed.data);
+  return c.json({ data: serializeDomain(result.domain) }, 201);
+});
+
 app.get("/qr-codes", async (c) => {
   const { workspace } = c.get("api");
   const { items, total } = await listQrCodes(workspace.id, 1, 100);
@@ -337,6 +355,42 @@ app.get("/qr-codes", async (c) => {
   });
 });
 
+app.post("/qr-codes", async (c) => {
+  const context = c.get("api");
+  const parsed = qrInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  await assertQuota(context.workspace.id, context.plan, "qrCodes");
+  if (parsed.data.style.logoUrl) {
+    assertFeature(context.plan, "qrLogo");
+  }
+  const row = await createQrCode(context.workspace.id, parsed.data);
+  return c.json({ data: serializeQrCode(row) }, 201);
+});
+
+app.patch("/qr-codes/:id", async (c) => {
+  const context = c.get("api");
+  const id = idParam.parse(c.req.param("id"));
+  const existing = await getQrCode(context.workspace.id, id);
+  if (!existing) {
+    throw new ApiError(404, "not_found", "No QR code with that id on this account.");
+  }
+  const parsed = qrInputSchema.safeParse({
+    name: existing.name,
+    payloadKind: existing.payloadKind,
+    linkId: existing.linkId,
+    payload: existing.payload,
+    style: existing.style,
+    ...(await c.req.json().catch(() => ({}))),
+  });
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  const row = await updateQrCode(context.workspace.id, id, parsed.data);
+  return c.json({ data: serializeQrCode(row) });
+});
+
 app.get("/biopages", async (c) => {
   const { workspace } = c.get("api");
   const { items, total } = await listBiopages(workspace.id, 1, 100);
@@ -344,6 +398,45 @@ app.get("/biopages", async (c) => {
     data: items.map(serializeBiopage),
     pagination: { page: 1, pageSize: 100, total },
   });
+});
+
+app.post("/biopages", async (c) => {
+  const context = c.get("api");
+  const parsed = biopageInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  await assertQuota(context.workspace.id, context.plan, "biopages");
+  const row = await createBiopage(context.workspace.id, parsed.data);
+  return c.json({ data: { id: row.id, handle: row.handle, published: row.published } }, 201);
+});
+
+app.patch("/biopages/:id", async (c) => {
+  const context = c.get("api");
+  const id = idParam.parse(c.req.param("id"));
+  const existing = await getBiopage(context.workspace.id, id);
+  if (!existing) {
+    throw new ApiError(404, "not_found", "No bio page with that id on this account.");
+  }
+  const parsed = biopageInputSchema.safeParse({
+    handle: existing.handle,
+    domainId: existing.domainId,
+    displayName: existing.displayName,
+    bio: existing.bio,
+    avatarUrl: existing.avatarUrl,
+    theme: existing.theme,
+    buttonStyle: existing.buttonStyle,
+    seoTitle: existing.seoTitle,
+    seoDescription: existing.seoDescription,
+    published: existing.published,
+    blocks: existing.blocks,
+    ...(await c.req.json().catch(() => ({}))),
+  });
+  if (!parsed.success) {
+    throw parsed.error;
+  }
+  const row = await updateBiopage(context.workspace.id, id, parsed.data);
+  return c.json({ data: { id: row.id, handle: row.handle, published: row.published } });
 });
 
 app.notFound((c) => c.json(errorBody("not_found", "Unknown endpoint."), 404));

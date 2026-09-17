@@ -26,6 +26,7 @@ import {
   Textarea,
   type TabItem,
 } from "@/components/ui";
+import { ImageUpload } from "@/components/media/image-upload";
 import { useActionMessage } from "@/lib/action-message";
 import { linkFormSchema, type LinkFormValues } from "@/lib/link-form";
 import { createLinkAction, updateLinkAction, type SavedLink } from "./actions";
@@ -224,7 +225,10 @@ export function LinkForm({
 
           <Grid columns={2}>
             <Field label={t("previewImage")}>
-              <Input placeholder={t("imagePlaceholder")} {...register("image")} />
+              <ImageUpload
+                value={values.image}
+                onChange={(url) => setValue("image", url, { shouldDirty: true })}
+              />
             </Field>
             <Field label={t("tags")} hint={t("tagsHint")}>
               <Input placeholder={t("tagsPlaceholder")} {...register("tagsText")} />
@@ -238,15 +242,25 @@ export function LinkForm({
           <Section
             title={t("targetingRules")}
             description={
-              values.rules.length === 0
-                ? t("rulesEmpty")
-                : t("rulesCount", { count: values.rules.length })
+              !canTarget
+                ? t("targetingPaywall")
+                : values.rules.length === 0
+                  ? t("rulesEmpty")
+                  : t("rulesCount", { count: values.rules.length })
             }
             actions={
-              <Button variant="primary" onClick={() => setRulesOpen(true)}>
-                <Icon name="sliders" className="text-sm" />
-                {t("configureRules")}
-              </Button>
+              canTarget ? (
+                <Button variant="primary" onClick={() => setRulesOpen(true)}>
+                  <Icon name="sliders" className="text-sm" />
+                  {t("configureRules")}
+                </Button>
+              ) : values.rules.length > 0 ? (
+                <Button
+                  onClick={() => setValue("rules", [], { shouldDirty: true })}
+                >
+                  {t("clearRules")}
+                </Button>
+              ) : null
             }
           >
             <div className="flex flex-wrap gap-2">
@@ -281,6 +295,10 @@ export function LinkForm({
                   <Icon name="plus" className="text-sm" />
                   {t("addVariant")}
                 </Button>
+              ) : values.abVariants.length > 0 ? (
+                <Button size="sm" onClick={() => setValue("abVariants", [], { shouldDirty: true })}>
+                  {t("clearAb")}
+                </Button>
               ) : null
             }
           >
@@ -291,6 +309,7 @@ export function LinkForm({
                     <Input
                       value={variant.destination}
                       placeholder={t("variantPlaceholder")}
+                      disabled={!canAbTest}
                       onChange={(event) =>
                         setValue(
                           "abVariants",
@@ -310,6 +329,7 @@ export function LinkForm({
                       min={0}
                       max={100}
                       value={variant.weight}
+                      disabled={!canAbTest}
                       onChange={(event) =>
                         setValue(
                           "abVariants",

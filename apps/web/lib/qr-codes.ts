@@ -1,4 +1,4 @@
-import type { QrInput, QrStyle } from "@short/core";
+import type { QrInput, QrPayloadKind, QrStyle } from "@short/core";
 import {
   and,
   count,
@@ -26,6 +26,8 @@ function selection() {
     id: qrCodes.id,
     workspaceId: qrCodes.workspaceId,
     linkId: qrCodes.linkId,
+    payloadKind: qrCodes.payloadKind,
+    payload: qrCodes.payload,
     name: qrCodes.name,
     style: qrCodes.style,
     createdAt: qrCodes.createdAt,
@@ -49,8 +51,8 @@ export async function listQrCodes(
     db
       .select(selection())
       .from(qrCodes)
-      .innerJoin(links, eq(qrCodes.linkId, links.id))
-      .innerJoin(domains, eq(links.domainId, domains.id))
+      .leftJoin(links, eq(qrCodes.linkId, links.id))
+      .leftJoin(domains, eq(links.domainId, domains.id))
       .where(where)
       .orderBy(desc(qrCodes.createdAt))
       .limit(pageSize)
@@ -58,15 +60,16 @@ export async function listQrCodes(
     db.select({ value: count() }).from(qrCodes).where(where),
   ]);
 
-  return { items, total: totals[0]?.value ?? 0 };
+  return {
+    items: items.map(normalizeQrRow),
+    total: totals[0]?.value ?? 0,
+  };
 }
 
 export async function getQrCode(
   workspaceId: string,
   id: string,
 ): Promise<QrCodeWithTarget | null> {
-  // The column is a uuid, so a hand-typed id would fail the cast in Postgres instead of
-  // reaching the caller's "not found" branch.
   if (!UUID.test(id)) {
     return null;
   }
@@ -75,12 +78,36 @@ export async function getQrCode(
   const [row] = await db
     .select(selection())
     .from(qrCodes)
-    .innerJoin(links, eq(qrCodes.linkId, links.id))
-    .innerJoin(domains, eq(links.domainId, domains.id))
+    .leftJoin(links, eq(qrCodes.linkId, links.id))
+    .leftJoin(domains, eq(links.domainId, domains.id))
     .where(and(eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.id, id)))
     .limit(1);
 
-  return row ?? null;
+  return row ? normalizeQrRow(row) : null;
+}
+
+function normalizeQrRow(row: {
+  id: string;
+  workspaceId: string;
+  linkId: string | null;
+  payloadKind: QrPayloadKind;
+  payload: string | null;
+  name: string;
+  style: QrStyle;
+  createdAt: Date;
+  updatedAt: Date;
+  hostname: string | null;
+  slug: string | null;
+  destination: string | null;
+  linkArchived: boolean | null;
+}): QrCodeWithTarget {
+  return {
+    ...row,
+    hostname: row.hostname ?? "",
+    slug: row.slug ?? "",
+    destination: row.destination ?? "",
+    linkArchived: row.linkArchived ?? false,
+  };
 }
 
 /** Guards against attaching a QR code to a link from another workspace. */
@@ -98,13 +125,17 @@ export async function assertLinkInWorkspace(workspaceId: string, linkId: string)
 }
 
 export async function createQrCode(workspaceId: string, input: QrInput): Promise<QrCodeRow> {
-  await assertLinkInWorkspace(workspaceId, input.linkId);
+  if (input.payloadKind === "link" && input.linkId) {
+    await assertLinkInWorkspace(workspaceId, input.linkId);
+  }
 
   const [row] = await getDb()
     .insert(qrCodes)
     .values({
       workspaceId,
-      linkId: input.linkId,
+      linkId: input.payloadKind === "link" ? input.linkId : null,
+      payloadKind: input.payloadKind,
+      payload: input.payload,
       name: input.name,
       style: input.style,
     })
@@ -121,12 +152,16 @@ export async function updateQrCode(
   id: string,
   input: QrInput,
 ): Promise<QrCodeRow> {
-  await assertLinkInWorkspace(workspaceId, input.linkId);
+  if (input.payloadKind === "link" && input.linkId) {
+    await assertLinkInWorkspace(workspaceId, input.linkId);
+  }
 
   const [row] = await getDb()
     .update(qrCodes)
     .set({
-      linkId: input.linkId,
+      linkId: input.payloadKind === "link" ? input.linkId : null,
+      payloadKind: input.payloadKind,
+      payload: input.payload,
       name: input.name,
       style: input.style,
       updatedAt: new Date(),
@@ -147,11 +182,15 @@ export async function deleteQrCode(workspaceId: string, id: string): Promise<voi
 }
 
 /**
- * The encoded payload is always the short URL, never the destination — that is what
- * makes a printed QR code re-targetable by editing the link. The `?qr=` marker is
- * stripped by the worker before the redirect and turns the event into a `qr_scan`.
+ * Short-link QR encodes the short URL plus `?qr=` so scans become `qr_scan` events.
+ * Standalone kinds encode the raw payload and are not re-targetable.
  */
-export function qrPayload(row: Pick<QrCodeWithTarget, "hostname" | "slug" | "id">): string {
+export function qrPayload(
+  row: Pick<QrCodeWithTarget, "hostname" | "slug" | "id" | "payloadKind" | "payload">,
+): string {
+  if (row.payloadKind !== "link") {
+    return row.payload ?? "";
+  }
   return `${shortUrl(row.hostname, row.slug)}?qr=${row.id}`;
 }
 

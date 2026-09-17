@@ -2,6 +2,7 @@ import type { TrackedEvent } from "@short/core";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { serverEnv } from "@/lib/env";
+import { firePixels } from "@/lib/pixels";
 import { dispatchWebhook, getRelaySubscribers } from "@/lib/webhooks";
 
 export const runtime = "nodejs";
@@ -45,6 +46,13 @@ export async function POST(request: NextRequest) {
   );
 
   after(async () => {
+    for (const event of events.filter((item) => !item.isBot && (item.type === "click" || item.type === "bio_click"))) {
+      await firePixels(event.workspaceId, {
+        type: event.type,
+        destination: event.destination,
+        eventId: event.eventId,
+      });
+    }
     for (const event of relayable) {
       const isBio = event.type === "bio_view";
       await dispatchWebhook(

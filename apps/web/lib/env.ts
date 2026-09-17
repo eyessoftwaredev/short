@@ -97,7 +97,7 @@ export function features(): {
 } {
   const env = serverEnv();
   return {
-    google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+    google: false,
     email: Boolean(env.RESEND_API_KEY),
     cloudflare: Boolean(env.CF_ACCOUNT_ID && env.CF_API_TOKEN && env.CF_KV_NAMESPACE_ID),
     cloudflareOAuth: Boolean(env.CF_OAUTH_CLIENT_ID && env.CF_OAUTH_CLIENT_SECRET),

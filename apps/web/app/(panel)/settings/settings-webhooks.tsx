@@ -17,7 +17,7 @@ import {
   Switch,
 } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
-import { deleteWebhookAction, toggleWebhookAction } from "./actions";
+import { deleteWebhookAction, replayWebhookAction, testWebhookAction, toggleWebhookAction } from "./actions";
 import { DangerButton } from "./settings-dialogs";
 import type { RequestConfirm, RunAction, WebhookView } from "./settings-types";
 
@@ -241,6 +241,47 @@ export function SettingsWebhooks({
                   </Badge>
                 ))}
               </div>
+
+              {canManage ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => run(() => testWebhookAction(row.id), t("pingSent"))}
+                  >
+                    {t("testPing")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => run(() => replayWebhookAction(row.id), t("replayed"))}
+                  >
+                    {t("replayLast")}
+                  </Button>
+                </div>
+              ) : null}
+
+              {row.deliveries.length > 0 ? (
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  {row.deliveries.map((delivery) => (
+                    <div
+                      key={delivery.id}
+                      className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-default border border-border bg-surface-subtle px-3 py-2 text-xs"
+                    >
+                      <span className="font-mono">{delivery.event}</span>
+                      <Badge tone={deliveryTone(delivery.status)}>
+                        {delivery.status ?? t("noStatus")}
+                      </Badge>
+                      <span className="text-fg-subtle">{formatDateTime(delivery.createdAt)}</span>
+                      {delivery.error ? (
+                        <span className="min-w-0 basis-full font-mono text-danger break-all">
+                          {delivery.error}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               {row.lastError ? (
                 <div className="flex min-w-0 items-start gap-2.5 rounded-default border border-danger bg-danger-surface px-3 py-2.5">

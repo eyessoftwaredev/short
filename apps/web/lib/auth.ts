@@ -3,7 +3,7 @@ import { getDb, schema } from "@short/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { admin, organization as organizationPlugin } from "better-auth/plugins";
+import { admin, organization as organizationPlugin, twoFactor } from "better-auth/plugins";
 import { defaultAc, defaultStatements, userAc } from "better-auth/plugins/admin/access";
 import { sendEmail } from "./email";
 import { interpolateEmail, loadBrandEmailContext } from "./email-copy";
@@ -69,6 +69,12 @@ export const auth = betterAuth({
         subject: `${ctx.copy.resetSubject} · ${ctx.brandName}`,
         ...template,
       });
+    },
+  },
+
+  user: {
+    changeEmail: {
+      enabled: true,
     },
   },
 
@@ -152,6 +158,7 @@ export const auth = betterAuth({
     }),
     // Keys belong to a workspace rather than a person, so `referenceId` is the
     // organization id and a key keeps working when its creator leaves the team.
+    twoFactor({ issuer: "Short" }),
     apiKey({
       references: "organization",
       defaultPrefix: "short_",

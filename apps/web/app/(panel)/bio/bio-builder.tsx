@@ -32,6 +32,7 @@ import { useMemo, useState } from "react";
 import { useActionMessage } from "@/lib/action-message";
 import { useForm } from "react-hook-form";
 import { BioPageView } from "@/components/bio/bio-page-view";
+import { ImageUpload } from "@/components/media/image-upload";
 import {
   Badge,
   Button,
@@ -405,8 +406,11 @@ export function BioBuilder({
                 <Input placeholder="Acme Studio" {...register("displayName")} />
               </Field>
 
-              <Field label={t("avatarUrl")} error={bioFieldError(errors.avatarUrl?.message, t, te)}>
-                <Input placeholder="https://cdn.acme.com/avatar.jpg" {...register("avatarUrl")} />
+              <Field label={t("avatar")} error={bioFieldError(errors.avatarUrl?.message, t, te)}>
+                <ImageUpload
+                  value={values.avatarUrl}
+                  onChange={(url) => setValue("avatarUrl", url, { shouldDirty: true })}
+                />
               </Field>
 
               <Field label={t("bio")} className="sm:col-span-2" error={bioFieldError(errors.bio?.message, t, te)}>

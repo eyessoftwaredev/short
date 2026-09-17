@@ -469,14 +469,16 @@ export default {
 
     const eventType: EventType = qrCodeId ? "qr_scan" : "click";
     const trackCtx: TrackContext = { request, cf: request.cf, ua, language, hostname, slug, url };
-    ctx.waitUntil(
-      buildEvent(env, trackCtx, {
-        type: eventType,
-        link,
-        qrId: qrCodeId ?? "",
-        resolution: { ...resolution, destination },
-      }).then((event) => enqueue(env, event)),
-    );
+    if (!link.overQuota) {
+      ctx.waitUntil(
+        buildEvent(env, trackCtx, {
+          type: eventType,
+          link,
+          qrId: qrCodeId ?? "",
+          resolution: { ...resolution, destination },
+        }).then((event) => enqueue(env, event)),
+      );
+    }
 
     if (link.cloaked) {
       return new Response(

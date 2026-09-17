@@ -3,6 +3,7 @@ import { and, biopages, domains, eq, getDb, links } from "@short/db";
 import { NextResponse, type NextRequest } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { toKvRecord } from "@/lib/links";
+import { workspaceOverClickQuota } from "@/lib/quota";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,8 +60,10 @@ export async function POST(request: NextRequest) {
     .limit(1);
 
   if (link) {
+    const record = toKvRecord(link, domain.hostname);
+    record.overQuota = await workspaceOverClickQuota(link.workspaceId);
     return NextResponse.json({
-      link: toKvRecord(link, domain.hostname),
+      link: record,
       domain: domainRecord,
       biopage: null,
     });

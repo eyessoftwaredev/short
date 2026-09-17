@@ -129,7 +129,7 @@ export function Sidebar({
     {
       id: "workspace-settings",
       label: tc("workspaceSettings"),
-      href: "/settings?tab=workspace",
+      href: "/settings?tab=team",
       icon: <Icon name="user-gear" className="text-sm" />,
     },
   ];

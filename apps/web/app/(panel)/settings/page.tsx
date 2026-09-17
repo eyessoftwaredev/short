@@ -6,7 +6,8 @@ import { serverEnv } from "@/lib/env";
 import { getWorkspaceUsage } from "@/lib/quota";
 import { hasWorkspaceRole, requireWorkspace } from "@/lib/session";
 import { listApiKeys, listInvites, listMembers } from "@/lib/team";
-import { listWebhooks } from "@/lib/webhooks";
+import { listPixels } from "@/lib/pixels";
+import { listWebhookDeliveries, listWebhooks } from "@/lib/webhooks";
 import { parseSettingsTab } from "./settings-types";
 import { SettingsView } from "./settings-view";
 
@@ -22,24 +23,28 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const raw = await searchParams;
   const t = await getTranslations("settings");
 
-  const [members, invites, apiKeys, hooks, usage] = await Promise.all([
+  const [members, invites, apiKeys, hooks, usage, pixels] = await Promise.all([
     listMembers(context.workspace.id),
     listInvites(context.workspace.id),
     listApiKeys(context.workspace.id),
     listWebhooks(context.workspace.id),
     getWorkspaceUsage(context.workspace.id),
+    listPixels(context.workspace.id),
   ]);
 
-  const requestedTab = parseSettingsTab(raw.tab);
-  const initialTab =
-    requestedTab === "members" && context.workspace.kind === "personal" ? "profile" : requestedTab;
+  const initialTab = parseSettingsTab(raw.tab);
 
   return (
     <PanelShell title={t("title")} crumbs={[{ label: context.workspace.name }]}>
       <Hero eyebrow={context.plan.name} title={t("title")} description={t("description")} />
 
       <SettingsView
-        user={{ id: context.user.id, name: context.user.name, email: context.user.email }}
+        user={{
+          id: context.user.id,
+          name: context.user.name,
+          email: context.user.email,
+          twoFactorEnabled: context.user.twoFactorEnabled,
+        }}
         workspace={{
           id: context.workspace.id,
           name: context.workspace.name,
@@ -69,17 +74,32 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           lastRequest: row.lastRequest?.toISOString() ?? null,
           createdAt: row.createdAt.toISOString(),
         }))}
-        webhookRows={hooks.map((row) => ({
-          id: row.id,
-          url: row.url,
-          events: row.events,
+        webhookRows={await Promise.all(
+          hooks.map(async (row) => ({
+            id: row.id,
+            url: row.url,
+            events: row.events,
+            enabled: row.enabled,
+            lastStatus: row.lastStatus,
+            lastDeliveryAt: row.lastDeliveryAt?.toISOString() ?? null,
+            lastError: row.lastError,
+            deliveries: (await listWebhookDeliveries(row.id, 8)).map((delivery) => ({
+              id: delivery.id,
+              event: delivery.event,
+              status: delivery.responseStatus,
+              error: delivery.error,
+              createdAt: delivery.createdAt.toISOString(),
+            })),
+          })),
+        )}
+        pixels={pixels.map((row) => ({
+          provider: row.provider,
+          pixelId: row.pixelId,
           enabled: row.enabled,
-          lastStatus: row.lastStatus,
-          lastDeliveryAt: row.lastDeliveryAt?.toISOString() ?? null,
-          lastError: row.lastError,
         }))}
         canManage={hasWorkspaceRole(context.role, "admin") || context.isSuperadmin}
         isOwner={hasWorkspaceRole(context.role, "owner") || context.isSuperadmin}
+        canCreateTeam={context.canCreateTeam}
         planName={context.plan.name}
         features={{
           apiAccess: context.plan.features.apiAccess,

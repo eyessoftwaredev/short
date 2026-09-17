@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SLUG_PATTERN, isReservedSlug } from "../slug";
 import { destinationSchema } from "./link";
+import { mediaPathSchema } from "./qr";
 
 export const BIOPAGE_THEMES = [
   "minimal",
@@ -44,7 +45,7 @@ export const bioLinkBlockSchema = z.object({
   type: z.literal("link"),
   label: z.string().trim().min(1).max(120),
   destination: destinationSchema,
-  iconUrl: z.string().trim().url().max(2048).nullable(),
+  iconUrl: mediaPathSchema.nullable(),
   highlighted: z.boolean(),
 });
 
@@ -78,7 +79,7 @@ export const bioHeaderBlockSchema = z.object({
 export const bioImageBlockSchema = z.object({
   ...baseBlock,
   type: z.literal("image"),
-  url: z.string().trim().url().max(2048),
+  url: mediaPathSchema,
   alt: z.string().trim().max(255),
   href: destinationSchema.nullable(),
 });
@@ -120,7 +121,7 @@ export const biopageInputSchema = z.object({
   domainId: z.string().uuid().nullable().default(null),
   displayName: z.string().trim().min(1).max(80),
   bio: z.string().trim().max(500).default(""),
-  avatarUrl: z.string().trim().url().max(2048).nullable().default(null),
+  avatarUrl: mediaPathSchema.nullable().default(null),
   theme: z.enum(BIOPAGE_THEMES).default("minimal"),
   buttonStyle: z.enum(BIOPAGE_BUTTON_STYLES).default("solid"),
   seoTitle: z.string().trim().max(120).default(""),

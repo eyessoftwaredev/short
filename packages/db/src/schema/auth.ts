@@ -13,6 +13,8 @@ export const user = pgTable(
     email: text("email").notNull(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
+    theme: text("theme"),
+    twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
     // admin plugin
     role: text("role").notNull().default("user"),
     banned: boolean("banned").notNull().default(false),
@@ -176,5 +178,17 @@ export const apikey = pgTable(
     index("apikey_key_idx").on(table.key),
   ],
 );
+
+export const twoFactor = pgTable("two_factor", {
+  id: text("id").primaryKey(),
+  secret: text("secret").notNull(),
+  backupCodes: text("backup_codes").notNull(),
+  verified: boolean("verified"),
+  failedVerificationCount: integer("failed_verification_count"),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
 
 export type ApiKeyRow = typeof apikey.$inferSelect;

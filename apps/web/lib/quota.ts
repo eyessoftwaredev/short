@@ -1,5 +1,6 @@
 import {
   evaluateSlugLength,
+  getPlan,
   isWithinLimit,
   type PlanDefinition,
   type PlanFeatures,
@@ -17,8 +18,10 @@ import {
   links,
   member,
   ne,
+  plans,
   qrCodes,
   sql,
+  subscriptions,
   usageCounters,
 } from "@short/db";
 import { QuotaError } from "./action-result";
@@ -161,6 +164,29 @@ export async function assertOwnerQuota(
  * Throws when creating one more of `resource` would exceed the plan. Call before every
  * create mutation; updates are always allowed so a downgrade never locks existing data.
  */
+export async function workspaceOverClickQuota(workspaceId: string): Promise<boolean> {
+  const ownerId = await getWorkspaceOwnerId(workspaceId);
+  if (!ownerId) {
+    return false;
+  }
+  const [sub] = await getDb()
+    .select({
+      planKey: subscriptions.planKey,
+      limits: plans.limits,
+    })
+    .from(subscriptions)
+    .leftJoin(plans, eq(subscriptions.planKey, plans.key))
+    .where(eq(subscriptions.userId, ownerId))
+    .limit(1);
+
+  const limit = sub?.limits?.clicksPerMonth ?? getPlan(sub?.planKey).limits.clicksPerMonth;
+  if (limit === -1) {
+    return false;
+  }
+  const usage = await getOwnerUsage(ownerId);
+  return usage.clicksThisMonth >= limit;
+}
+
 export async function assertQuota(
   workspaceId: string,
   plan: PlanDefinition,

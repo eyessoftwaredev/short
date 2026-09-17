@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/kit/icon";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
+import { isTwoFactorRedirect, twoFactorContinueHref } from "@/lib/two-factor";
 import { verifyPendingPath } from "@/lib/verify-path";
 import { grantVerifyResend } from "../verify/actions";
 import { useTranslations } from "next-intl";
@@ -36,9 +37,6 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [googlePending, setGooglePending] = useState(false);
-
-  const busy = pending || googlePending;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -56,23 +54,16 @@ export function LoginForm() {
         setError(result.error.message ?? t("signInFailed"));
         return;
       }
+      if (isTwoFactorRedirect(result.data)) {
+        window.location.assign(twoFactorContinueHref());
+        return;
+      }
       router.push(next);
       router.refresh();
     } catch {
       setError(te("generic"));
     } finally {
       setPending(false);
-    }
-  };
-
-  const handleGoogle = async (): Promise<void> => {
-    setError(null);
-    setGooglePending(true);
-    try {
-      await authClient.signIn.social({ provider: "google", callbackURL: next });
-    } catch {
-      setError(t("googleUnavailable"));
-      setGooglePending(false);
     }
   };
 
@@ -125,7 +116,7 @@ export function LoginForm() {
           </Link>
         </div>
 
-        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
           {pending ? t("signingIn") : t("signIn")}
         </Button>
       </form>
@@ -135,13 +126,11 @@ export function LoginForm() {
       <Button
         size="lg"
         className="w-full"
-        disabled={busy}
-        onClick={() => {
-          void handleGoogle();
-        }}
+        disabled
+        title={t("googleUnavailable")}
       >
         <Icon name="google" className="text-sm" />
-        {googlePending ? t("redirectingGoogle") : t("continueGoogle")}
+        {t("continueGoogle")}
       </Button>
     </>
   );

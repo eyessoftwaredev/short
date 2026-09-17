@@ -13,6 +13,7 @@ import {
   type DestinationRewritePreview,
   type DestinationRewriteResult,
 } from "@/lib/bulk-destinations";
+import type { LinkInput, PlanDefinition } from "@short/core";
 import { linkFormSchema, toLinkInput, type LinkFormValues } from "@/lib/link-form";
 import {
   createLink,
@@ -22,6 +23,8 @@ import {
   shortUrl,
   updateLink,
 } from "@/lib/links";
+import { scanDestination } from "@/lib/abuse";
+import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace, requireWorkspaceRole } from "@/lib/session";
 import { dispatchWebhook } from "@/lib/webhooks";
@@ -36,21 +39,11 @@ export async function createLinkAction(values: LinkFormValues): Promise<ActionRe
       return toActionError(parsed.error);
     }
 
-    const input = toLinkInput(parsed.data);
+    const input = applyPlanLimits(toLinkInput(parsed.data), context.plan);
 
     await assertQuota(context.workspace.id, context.plan, "links");
-    if (input.rules.length > 0) {
-      assertFeature(context.plan, "targeting");
-    }
-    if (input.abVariants.length > 0) {
-      assertFeature(context.plan, "abTesting");
-    }
-    if (input.password) {
-      assertFeature(context.plan, "passwordProtection");
-    }
-    if (input.cloaked) {
-      assertFeature(context.plan, "cloaking");
-    }
+    assertLinkFeatures(input, context.plan);
+    await assertOwnedMedia(context.workspace.id, input.image);
     assertSlugLength({
       slug: input.slug,
       plan: context.plan,
@@ -62,6 +55,7 @@ export async function createLinkAction(values: LinkFormValues): Promise<ActionRe
       creatorId: context.user.id,
       input,
     });
+    await scanDestination(context.workspace.id, link.id, input.destination);
 
     await incrementLinksCreated(context.workspace.id);
 
@@ -97,17 +91,9 @@ export async function updateLinkAction(
       return toActionError(parsed.error);
     }
 
-    const input = toLinkInput(parsed.data);
-
-    if (input.rules.length > 0) {
-      assertFeature(context.plan, "targeting");
-    }
-    if (input.abVariants.length > 0) {
-      assertFeature(context.plan, "abTesting");
-    }
-    if (input.cloaked) {
-      assertFeature(context.plan, "cloaking");
-    }
+    const input = applyPlanLimits(toLinkInput(parsed.data), context.plan);
+    assertLinkFeatures(input, context.plan);
+    await assertOwnedMedia(context.workspace.id, input.image);
 
     const existing = await getLink(context.workspace.id, linkId);
     assertSlugLength({
@@ -118,6 +104,7 @@ export async function updateLinkAction(
     });
 
     const link = await updateLink({ workspaceId: context.workspace.id, linkId, input });
+    await scanDestination(context.workspace.id, link.id, input.destination);
 
     await recordAudit({
       workspaceId: context.workspace.id,
@@ -243,5 +230,34 @@ export async function applyDestinationRewriteAction(
     return ok(result);
   } catch (error) {
     return fromRewriteError(error);
+  }
+}
+
+function applyPlanLimits(input: LinkInput, plan: PlanDefinition): LinkInput {
+  return {
+    ...input,
+    rules: plan.features.targeting ? input.rules : [],
+    abVariants: plan.features.abTesting ? input.abVariants : [],
+    cloaked: plan.features.cloaking ? input.cloaked : false,
+    password: plan.features.passwordProtection
+      ? input.password
+      : input.password === null
+        ? null
+        : undefined,
+  };
+}
+
+function assertLinkFeatures(input: LinkInput, plan: PlanDefinition): void {
+  if (input.rules.length > 0) {
+    assertFeature(plan, "targeting");
+  }
+  if (input.abVariants.length > 0) {
+    assertFeature(plan, "abTesting");
+  }
+  if (input.password) {
+    assertFeature(plan, "passwordProtection");
+  }
+  if (input.cloaked) {
+    assertFeature(plan, "cloaking");
   }
 }

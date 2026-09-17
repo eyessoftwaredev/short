@@ -2,7 +2,8 @@
 
 import { Icon } from "@/components/kit/icon";
 
-import { QR_DOT_STYLES, QR_ERROR_LEVELS } from "@short/core";
+import { QR_DOT_STYLES, QR_ERROR_LEVELS, QR_PAYLOAD_KINDS } from "@short/core";
+import { ImageUpload } from "@/components/media/image-upload";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui";
 import { buildQrSvg } from "@/lib/qr-svg";
 import { cn } from "@/lib/cx";
-import { qrFormSchema, toQrStyle, type QrFormValues } from "@/lib/qr-form";
+import { qrFormSchema, toQrInput, toQrStyle, type QrFormValues } from "@/lib/qr-form";
 import { createQrCodeAction, deleteQrCodeAction, updateQrCodeAction } from "./actions";
 import { QR_PALETTES, scanQuality, type ScanQualityKind } from "./qr-presets";
 
@@ -239,7 +240,16 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
 
   const values = watch();
   const target = links.find((link) => link.id === values.linkId) ?? links[0];
-  const payload = `${target?.url ?? "https://example.com"}?qr=${qrId ?? PLACEHOLDER_QR_ID}`;
+  const payload = useMemo(() => {
+    if (values.payloadKind === "link") {
+      return `${target?.url ?? "https://example.com"}?qr=${qrId ?? PLACEHOLDER_QR_ID}`;
+    }
+    try {
+      return toQrInput(values).payload ?? "";
+    } catch {
+      return values.payloadUrl || values.vcardName || values.wifiSsid || "https://example.com";
+    }
+  }, [qrId, target?.url, values]);
   const quality = scanQuality(values.foreground, values.background);
   const qualityLabel = t(QUALITY_LABEL_KEYS[quality.kind]);
   const advice = qualityAdvice(quality.kind, t);
@@ -431,19 +441,81 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
               <Input placeholder={t("namePlaceholder")} {...register("name")} />
             </Field>
 
-            <Field
-              label={t("shortLink")}
-              error={qrFieldError(errors.linkId?.message, t, te)}
-              hint={t("shortLinkHint")}
-            >
-              <Select {...register("linkId")}>
-                {links.map((link) => (
-                  <option key={link.id} value={link.id}>
-                    {link.label}
+            <Field label={t("payloadKind")}>
+              <Select {...register("payloadKind")}>
+                {QR_PAYLOAD_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {t(`payload.${kind}`)}
                   </option>
                 ))}
               </Select>
             </Field>
+
+            {values.payloadKind === "link" ? (
+              <Field
+                label={t("shortLink")}
+                error={qrFieldError(errors.linkId?.message, t, te)}
+                hint={t("shortLinkHint")}
+              >
+                <Select {...register("linkId")}>
+                  {links.map((link) => (
+                    <option key={link.id} value={link.id}>
+                      {link.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : null}
+
+            {values.payloadKind === "url" ? (
+              <Field label={t("payloadUrl")}>
+                <Input placeholder="https://example.com" {...register("payloadUrl")} />
+              </Field>
+            ) : null}
+
+            {values.payloadKind === "vcard" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={t("vcardName")} className="sm:col-span-2">
+                  <Input {...register("vcardName")} />
+                </Field>
+                <Field label={t("vcardOrg")}>
+                  <Input {...register("vcardOrg")} />
+                </Field>
+                <Field label={t("vcardPhone")}>
+                  <Input {...register("vcardPhone")} />
+                </Field>
+                <Field label={t("vcardEmail")}>
+                  <Input type="email" {...register("vcardEmail")} />
+                </Field>
+                <Field label={t("vcardUrl")}>
+                  <Input {...register("vcardUrl")} />
+                </Field>
+              </div>
+            ) : null}
+
+            {values.payloadKind === "wifi" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={t("wifiSsid")}>
+                  <Input {...register("wifiSsid")} />
+                </Field>
+                <Field label={t("wifiPassword")}>
+                  <Input type="password" {...register("wifiPassword")} />
+                </Field>
+                <Field label={t("wifiSecurity")}>
+                  <Select {...register("wifiSecurity")}>
+                    <option value="WPA">WPA/WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="nopass">{t("wifiOpen")}</option>
+                  </Select>
+                </Field>
+                <Field label={t("wifiHidden")}>
+                  <Switch
+                    checked={values.wifiHidden}
+                    onCheckedChange={(checked) => setValue("wifiHidden", checked, { shouldDirty: true })}
+                  />
+                </Field>
+              </div>
+            ) : null}
 
             <Field label={t("caption")} hint={t("captionHint", { count: values.caption.length })}>
               <Input placeholder={t("captionPlaceholder")} maxLength={60} {...register("caption")} />
@@ -591,17 +663,11 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
               </p>
             )}
 
-            <Field
-              label={t("logoUrl")}
-              error={qrFieldError(errors.logoUrl?.message, t, te)}
-              hint={t("logoUrlHint")}
-            >
-              <Input
-                type="url"
-                inputMode="url"
-                placeholder="https://cdn.acme.com/mark.png"
+            <Field label={t("logo")} hint={t("logoHint")}>
+              <ImageUpload
+                value={values.logoUrl}
                 disabled={!canUseLogo}
-                {...register("logoUrl")}
+                onChange={(url) => setValue("logoUrl", url, { shouldDirty: true })}
               />
             </Field>
 

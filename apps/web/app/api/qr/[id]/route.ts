@@ -1,7 +1,7 @@
 import { QR_EXPORT_FORMATS, type QrExportFormat } from "@short/core";
 import { NextResponse, type NextRequest } from "next/server";
 import { getQrCode, qrPayload } from "@/lib/qr-codes";
-import { renderQrPdf, renderQrPng, renderQrSvg } from "@/lib/qr-export";
+import { LogoEmbedError, renderQrPdf, renderQrPng, renderQrSvg } from "@/lib/qr-export";
 import { getSessionContext } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -55,6 +55,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
   } catch (error) {
+    if (error instanceof LogoEmbedError) {
+      return NextResponse.json({ error: "logo_embed_failed" }, { status: 422 });
+    }
     console.error("failed to render QR export", error);
     return NextResponse.json({ error: "render failed" }, { status: 500 });
   }

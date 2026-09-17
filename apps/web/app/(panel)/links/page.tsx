@@ -5,8 +5,11 @@ import { linkListQuerySchema } from "@short/core";
 import { getTopLinks } from "@short/analytics";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, Hero } from "@/components/ui";
+import { listFolders } from "@/lib/folders";
 import { listLinks } from "@/lib/links";
 import { hasWorkspaceRole, requireWorkspace } from "@/lib/session";
+import { FoldersBar } from "./folders-bar";
+import { LinksCsvBar } from "./links-csv-bar";
 import { LinksTable, type LinkListRow } from "./links-table";
 import { RewriteDestinationsButton } from "./rewrite-destinations-dialog";
 
@@ -41,7 +44,10 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
     tag: single(raw.tag),
   });
 
-  const { items, total } = await listLinks(context.workspace.id, query);
+  const [{ items, total }, folderRows] = await Promise.all([
+    listLinks(context.workspace.id, query),
+    listFolders(context.workspace.id),
+  ]);
 
   // Click counts live in ClickHouse; a single ranked query covers the whole page.
   const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 90);
@@ -84,7 +90,10 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
         actions={
           <>
             {hasWorkspaceRole(context.role, "admin") || context.isSuperadmin ? (
-              <RewriteDestinationsButton />
+              <>
+                <RewriteDestinationsButton />
+                <LinksCsvBar />
+              </>
             ) : null}
             <Button variant="primary" href="/links/new">
               <Icon name="plus" className="text-sm" />
@@ -93,6 +102,7 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
           </>
         }
       />
+      <FoldersBar folders={folderRows.map((folder) => ({ id: folder.id, name: folder.name }))} />
       <LinksTable
         rows={rows}
         total={total}

@@ -1,4 +1,4 @@
-import type { AbVariant, DomainStatus, QrStyle, TargetRule, UtmParams } from "@short/core";
+import type { AbVariant, DomainStatus, QrPayloadKind, QrStyle, TargetRule, UtmParams } from "@short/core";
 import {
   boolean,
   index,
@@ -123,9 +123,10 @@ export const qrCodes = pgTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    linkId: uuid("link_id")
-      .notNull()
-      .references(() => links.id, { onDelete: "cascade" }),
+    linkId: uuid("link_id").references(() => links.id, { onDelete: "cascade" }),
+    /** `link` encodes the short URL; `url` / `vcard` / `wifi` store raw payload. */
+    payloadKind: text("payload_kind").$type<QrPayloadKind>().notNull().default("link"),
+    payload: text("payload"),
     name: text("name").notNull(),
     style: jsonb("style").$type<QrStyle>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

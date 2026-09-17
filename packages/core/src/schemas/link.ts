@@ -25,7 +25,14 @@ export const linkInputSchema = z
     destination: destinationSchema,
     title: z.string().trim().max(255).optional(),
     description: z.string().trim().max(1024).optional(),
-    image: destinationSchema.optional().or(z.literal("")),
+    image: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine((value) => value === "" || /^\/api\/media\/[0-9a-f-]{36}$/i.test(value), {
+        message: "mediaPath",
+      })
+      .optional(),
     comments: z.string().trim().max(2048).optional(),
     folderId: z.string().uuid().nullable().optional(),
     tags: z.array(z.string().trim().min(1).max(48)).max(20).default([]),

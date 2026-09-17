@@ -4,6 +4,7 @@ import { Icon } from "@/components/kit/icon";
 
 import { SOCIAL_PLATFORMS, type BioBlock } from "@short/core";
 import { useTranslations } from "next-intl";
+import { ImageUpload } from "@/components/media/image-upload";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { SOCIAL_LABELS } from "@/components/bio/bio-icons";
 
@@ -46,13 +47,10 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             onChange={(event) => onChange({ ...block, destination: event.target.value })}
           />
         </Field>
-        <Field label={t("iconUrl")} hint={t("iconHint")}>
-          <Input
+        <Field label={t("icon")} hint={t("iconHint")}>
+          <ImageUpload
             value={block.iconUrl ?? ""}
-            placeholder="https://cdn.acme.com/icon.png"
-            onChange={(event) =>
-              onChange({ ...block, iconUrl: event.target.value === "" ? null : event.target.value })
-            }
+            onChange={(url) => onChange({ ...block, iconUrl: url === "" ? null : url })}
           />
         </Field>
         <Field label={t("emphasis")}>
@@ -178,11 +176,10 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "image") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("imageUrl")}>
-          <Input
+        <Field label={t("image")}>
+          <ImageUpload
             value={block.url}
-            placeholder="https://cdn.acme.com/banner.jpg"
-            onChange={(event) => onChange({ ...block, url: event.target.value })}
+            onChange={(url) => onChange({ ...block, url })}
           />
         </Field>
         <Field label={t("altText")} hint={t("altHint")}>

@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
+import { isTwoFactorRedirect, twoFactorContinueHref } from "@/lib/two-factor";
 import { AuthAlert, AuthHeading } from "../../_auth/auth-primitives";
 import { PasswordField } from "../../_auth/password-field";
 import { verifyEmailFromInviteAction } from "./actions";
@@ -89,6 +90,10 @@ export function InviteForm({
       setError(signedIn.error.message ?? t("inviteAcceptFailed"));
       return false;
     }
+    if (isTwoFactorRedirect(signedIn.data)) {
+      window.location.assign(twoFactorContinueHref());
+      return false;
+    }
 
     return accept();
   };
@@ -140,6 +145,10 @@ export function InviteForm({
           setError(signedIn.error.message ?? t("inviteAcceptFailed"));
           return;
         }
+      }
+      if (isTwoFactorRedirect(signedIn.data)) {
+        window.location.assign(twoFactorContinueHref());
+        return;
       }
       if (!(await finishAuth())) {
         return;

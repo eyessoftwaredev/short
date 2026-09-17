@@ -5,6 +5,7 @@ import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result"
 import { recordAudit } from "@/lib/audit";
 import { createBiopage, deleteBiopage, getBiopage, handleTaken, updateBiopage } from "@/lib/biopages";
 import { toBiopageInput, type BioFormValues } from "@/lib/bio-form";
+import { assertOwnedMedia } from "@/lib/media";
 import { assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 
@@ -16,6 +17,15 @@ export async function createBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
+    await assertOwnedMedia(context.workspace.id, input.avatarUrl);
+    for (const block of input.blocks) {
+      if (block.type === "link") {
+        await assertOwnedMedia(context.workspace.id, block.iconUrl);
+      }
+      if (block.type === "image") {
+        await assertOwnedMedia(context.workspace.id, block.url);
+      }
+    }
 
     await assertQuota(context.workspace.id, context.plan, "biopages");
     assertSlugLength({
@@ -55,6 +65,15 @@ export async function updateBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
+    await assertOwnedMedia(context.workspace.id, input.avatarUrl);
+    for (const block of input.blocks) {
+      if (block.type === "link") {
+        await assertOwnedMedia(context.workspace.id, block.iconUrl);
+      }
+      if (block.type === "image") {
+        await assertOwnedMedia(context.workspace.id, block.url);
+      }
+    }
     const existing = await getBiopage(context.workspace.id, id);
     assertSlugLength({
       slug: input.handle,

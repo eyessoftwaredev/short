@@ -191,3 +191,34 @@ export async function getRelaySubscribers(): Promise<string[]> {
 export async function invalidateRelaySubscribers(): Promise<void> {
   await cacheDelete("webhook-relay-subscribers");
 }
+
+export async function listWebhookDeliveries(webhookId: string, limit = 20) {
+  return getDb()
+    .select()
+    .from(webhookDeliveries)
+    .where(eq(webhookDeliveries.webhookId, webhookId))
+    .orderBy(desc(webhookDeliveries.createdAt))
+    .limit(limit);
+}
+
+export async function testWebhook(row: WebhookRow): Promise<void> {
+  await deliver({ id: row.id, url: row.url, secret: row.secret }, "link.created", {
+    ping: true,
+    webhookId: row.id,
+  });
+}
+
+export async function replayWebhookDelivery(webhookId: string): Promise<void> {
+  const db = getDb();
+  const [hook] = await db.select().from(webhooks).where(eq(webhooks.id, webhookId)).limit(1);
+  const [last] = await db
+    .select()
+    .from(webhookDeliveries)
+    .where(eq(webhookDeliveries.webhookId, webhookId))
+    .orderBy(desc(webhookDeliveries.createdAt))
+    .limit(1);
+  if (!hook || !last) {
+    throw new Error("Nothing to replay");
+  }
+  await deliver({ id: hook.id, url: hook.url, secret: hook.secret }, last.event, last.payload);
+}

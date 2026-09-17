@@ -26,6 +26,14 @@ export type KeyView = {
   createdAt: string;
 };
 
+export type WebhookDeliveryView = {
+  id: string;
+  event: string;
+  status: number | null;
+  error: string | null;
+  createdAt: string;
+};
+
 export type WebhookView = {
   id: string;
   url: string;
@@ -34,6 +42,7 @@ export type WebhookView = {
   lastStatus: number | null;
   lastDeliveryAt: string | null;
   lastError: string | null;
+  deliveries: WebhookDeliveryView[];
 };
 
 /** Matches the shape every server action in this folder resolves to. */
@@ -52,13 +61,25 @@ export type ConfirmRequest = {
 
 export type RequestConfirm = (request: ConfirmRequest) => void;
 
-export const SETTINGS_TABS = ["profile", "workspace", "members", "api", "webhooks"] as const;
+export const SETTINGS_TABS = ["profile", "team", "api", "webhooks"] as const;
 
 export type SettingsTabId = (typeof SETTINGS_TABS)[number];
 
+const SETTINGS_TAB_ALIASES: Record<string, SettingsTabId> = {
+  workspace: "team",
+  members: "team",
+  account: "team",
+};
+
 export function parseSettingsTab(value: string | string[] | undefined): SettingsTabId {
   const raw = Array.isArray(value) ? value[0] : value;
-  return SETTINGS_TABS.includes(raw as SettingsTabId) ? (raw as SettingsTabId) : "profile";
+  if (!raw) {
+    return "profile";
+  }
+  if (SETTINGS_TABS.includes(raw as SettingsTabId)) {
+    return raw as SettingsTabId;
+  }
+  return SETTINGS_TAB_ALIASES[raw] ?? "profile";
 }
 
 export const ROLE_COPY = {

@@ -32,6 +32,8 @@ export type LinkKvRecord = {
   title: string | null;
   description: string | null;
   image: string | null;
+  /** When true the worker still redirects but skips analytics ingest. */
+  overQuota?: boolean;
 };
 
 /**

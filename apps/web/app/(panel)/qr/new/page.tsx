@@ -1,8 +1,7 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { Button, EmptyState, Hero } from "@/components/ui";
+import { Hero } from "@/components/ui";
 import { listLinks, shortUrl } from "@/lib/links";
 import { emptyQrForm } from "@/lib/qr-form";
 import { requireWorkspace } from "@/lib/session";
@@ -33,26 +32,6 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
     url: shortUrl(link.hostname, link.slug),
   }));
 
-  if (options.length === 0) {
-    return (
-      <PanelShell
-        title={t("newTitle")}
-        crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
-      >
-        <EmptyState
-          icon={<Icon name="link" className="text-lg" />}
-          title={t("needLinkTitle")}
-          description={t("needLinkDesc")}
-          actions={
-            <Button variant="primary" href="/links/new">
-              {t("createLink")}
-            </Button>
-          }
-        />
-      </PanelShell>
-    );
-  }
-
   const selected = options.find((option) => option.id === preselect) ?? options[0];
 
   return (
@@ -68,7 +47,7 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
       />
       <QrDesigner
         mode="create"
-        defaultValues={emptyQrForm(selected.id)}
+        defaultValues={emptyQrForm(selected?.id ?? "")}
         links={options}
         canUseLogo={context.plan.features.qrLogo}
       />

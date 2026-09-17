@@ -95,11 +95,10 @@ type SearchParams = Promise<{ checkout?: string }>;
 export default async function BillingPage({ searchParams }: { searchParams: SearchParams }) {
   const context = await requireWorkspace();
   const { checkout } = await searchParams;
-  const [t, tc, tp, te] = await Promise.all([
+  const [t, tc, tp] = await Promise.all([
     getTranslations("billing"),
     getTranslations("common"),
     getTranslations("panel"),
-    getTranslations("errors"),
   ]);
 
   const billedUserId = context.billingOwner?.id ?? context.user.id;
@@ -283,7 +282,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
         </Notice>
       ) : null}
 
-      <Grid columns={3}>
+      <Grid columns={2}>
         <Card staticHover className="gap-3 border-accent bg-accent-tint">
           <div className="flex min-w-0 items-center justify-between gap-2">
             <CardEyebrow accent>{t("currentPlan")}</CardEyebrow>
@@ -335,50 +334,6 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
               ? t("billingPeriodAnnual", { period: currentPeriod() })
               : t("billingPeriodMonthly", { period: currentPeriod() })}
           </p>
-        </Card>
-
-        <Card staticHover className="gap-3">
-          <CardEyebrow>{t("paymentMethod")}</CardEyebrow>
-          {account.paymentMethod ? (
-            <>
-              <div className="flex min-w-0 items-center gap-3 rounded-default border border-border bg-surface-subtle px-4 py-3">
-                <span
-                  className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-border bg-bg text-fg-muted"
-                  aria-hidden="true"
-                >
-                  <Icon name="credit-card" className="text-sm" />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-medium capitalize">
-                    {account.paymentMethod.brand} ···· {account.paymentMethod.last4}
-                  </span>
-                  <span className="font-mono text-xs text-fg-subtle tabular-nums">
-                    {t("cardExpires", { expiry: account.paymentMethod.expiry })}
-                  </span>
-                </span>
-              </div>
-              {canManage ? (
-                <ManageBillingButton label={t("updateCard")} withIcon={false} />
-              ) : (
-                <p className="m-0 text-sm text-fg-muted">{t("ownerChangeCard")}</p>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="flex min-w-0 items-center gap-3 rounded-default border border-dashed border-border px-4 py-3">
-                <span
-                  className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-dashed border-border text-fg-disabled"
-                  aria-hidden="true"
-                >
-                  <Icon name="credit-card" className="text-sm" />
-                </span>
-                <span className="min-w-0 text-sm text-fg-muted">{t("noCard")}</span>
-              </div>
-              <p className="m-0 text-sm text-fg-muted">
-                {billingConfigured ? t("cardAtCheckout") : te("billing_disabled")}
-              </p>
-            </>
-          )}
         </Card>
       </Grid>
 

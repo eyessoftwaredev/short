@@ -1,22 +1,18 @@
 import type { QrStyle } from "@short/core";
+import { getMediaById, mediaToDataUri, parseMediaId } from "./media";
 import { buildQrSvg } from "./qr-svg";
 
 const MAX_LOGO_BYTES = 1024 * 1024;
 const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
-/**
- * Logos are fetched server-side, which makes this an SSRF surface: https only, no
- * redirects, a short timeout, an image content-type allowlist and a hard size cap.
- */
-export async function fetchLogoDataUri(url: string | null): Promise<string | null> {
-  if (!url) {
-    return null;
+export class LogoEmbedError extends Error {
+  constructor(message = "QR logo could not be embedded") {
+    super(message);
+    this.name = "LogoEmbedError";
   }
+}
 
-  if (url.startsWith("data:image/")) {
-    return url.length <= MAX_LOGO_BYTES ? url : null;
-  }
-
+async function fetchRemoteLogo(url: string): Promise<string | null> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -51,6 +47,31 @@ export async function fetchLogoDataUri(url: string | null): Promise<string | nul
   }
 }
 
+/**
+ * Logos are inlined so preview and export share the same bytes. First-party media
+ * is read from Postgres; leftover HTTPS URLs stay behind the SSRF allowlist.
+ */
+export async function fetchLogoDataUri(url: string | null): Promise<string | null> {
+  if (!url) {
+    return null;
+  }
+
+  if (url.startsWith("data:image/")) {
+    return url.length <= MAX_LOGO_BYTES ? url : null;
+  }
+
+  const mediaId = parseMediaId(url);
+  if (mediaId) {
+    const row = await getMediaById(mediaId);
+    if (!row || row.bytes.byteLength > MAX_LOGO_BYTES) {
+      return null;
+    }
+    return mediaToDataUri(row);
+  }
+
+  return fetchRemoteLogo(url);
+}
+
 /** SVG with the logo inlined, ready to be written to disk or rasterized. */
 export async function renderQrSvg(
   payload: string,
@@ -58,6 +79,9 @@ export async function renderQrSvg(
   size?: number,
 ): Promise<string> {
   const logoHref = await fetchLogoDataUri(style.logoUrl);
+  if (style.logoUrl && !logoHref) {
+    throw new LogoEmbedError();
+  }
   return buildQrSvg(payload, style, { logoHref, size });
 }
 

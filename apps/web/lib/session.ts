@@ -30,6 +30,7 @@ export type SessionContext = {
     image: string | null;
     role: string;
     emailVerified: boolean;
+    twoFactorEnabled: boolean;
   };
   isSuperadmin: boolean;
   /** Set while a superadmin is impersonating; every audit entry records it. */
@@ -168,6 +169,9 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
       image: session.user.image ?? null,
       role: session.user.role ?? "user",
       emailVerified: Boolean(session.user.emailVerified),
+      twoFactorEnabled: Boolean(
+        "twoFactorEnabled" in session.user && session.user.twoFactorEnabled,
+      ),
     },
     isSuperadmin,
     impersonatedBy: session.session.impersonatedBy ?? null,
