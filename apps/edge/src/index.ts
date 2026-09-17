@@ -291,6 +291,10 @@ async function proxyBiopage(env: EdgeEnv, request: Request, handle: string): Pro
     headers: {
       "accept-language": request.headers.get("accept-language") ?? "",
       "user-agent": request.headers.get("user-agent") ?? "",
+      // Traefik overwrites X-Forwarded-Host to the panel hostname. These two
+      // survive that hop so the origin still looks the handle up on the public host.
+      "x-short-surface": "bio",
+      "x-short-host": incomingHost,
       "x-forwarded-host": incomingHost,
       "x-forwarded-proto": "https",
     },

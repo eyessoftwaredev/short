@@ -317,6 +317,8 @@ describe("biopages", () => {
     expect(String(url)).toContain("/acme");
     const headers = init.headers as Record<string, string>;
     expect(headers["x-forwarded-host"]).toBe("go.test");
+    expect(headers["x-short-surface"]).toBe("bio");
+    expect(headers["x-short-host"]).toBe("go.test");
 
     await ctx.settled();
     expect(queue.sent[0]?.type).toBe("bio_view");
