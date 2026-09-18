@@ -1,7 +1,7 @@
 import { KV_SCHEMA_VERSION, type BiopageKvRecord, type DomainKvRecord } from "@short/core";
-import { and, domains, eq, getDb, links } from "@short/db";
+import { and, eq, getDb, links } from "@short/db";
 import { NextResponse, type NextRequest } from "next/server";
-import { findBiopageForHost, toKvRecord as toBiopageKvRecord } from "@/lib/biopages";
+import { findBiopageForHost, findDomainForHost, toKvRecord as toBiopageKvRecord } from "@/lib/biopages";
 import { serverEnv } from "@/lib/env";
 import { toKvRecord } from "@/lib/links";
 import { workspaceOverClickQuota } from "@/lib/quota";
@@ -34,17 +34,18 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getDb();
-  const [domain] = await db.select().from(domains).where(eq(domains.hostname, hostname)).limit(1);
+  const domain = await findDomainForHost(hostname);
 
   if (!domain) {
     return NextResponse.json({ link: null, domain: null, biopage: null });
   }
 
+  // Stamp the request host so the worker accepts apex/www aliases of the platform domain.
   const domainRecord: DomainKvRecord = {
     v: KV_SCHEMA_VERSION,
     id: domain.id,
     workspaceId: domain.workspaceId,
-    hostname: domain.hostname,
+    hostname,
     status: domain.status,
     rootDestination: domain.rootDestination,
     notFoundDestination: domain.notFoundDestination,

@@ -55,6 +55,17 @@ describe("platform hosts", () => {
     expect(isPlatformRequestHost("short.ky", "www.short.ky")).toBe(true);
     expect(isPlatformRequestHost("app.short.ky", "short.ky")).toBe(false);
   });
+
+  it("maps a panel host back to the public short domain", () => {
+    expect(platformHostAliases("app.short.ky")).toEqual([
+      "app.short.ky",
+      "www.app.short.ky",
+      "short.ky",
+      "www.short.ky",
+    ]);
+    expect(isPlatformRequestHost("short.ky", "app.short.ky")).toBe(true);
+    expect(isPlatformRequestHost("www.short.ky", "app.short.ky")).toBe(true);
+  });
 });
 
 describe("isHexColor", () => {

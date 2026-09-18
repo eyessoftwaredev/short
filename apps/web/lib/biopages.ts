@@ -56,6 +56,30 @@ export function isPlatformBioHost(hostname: string): boolean {
   return isPlatformRequestHost(hostname, platformHostname());
 }
 
+export async function findPlatformDomain(hostname?: string) {
+  const aliases = platformHostAliases(hostname ?? platformHostname());
+  if (aliases.length === 0) {
+    return null;
+  }
+  const rows = await getDb()
+    .select()
+    .from(domains)
+    .where(or(...aliases.map((alias) => eq(domains.hostname, alias))));
+  return rows.find((row) => row.isPlatform) ?? rows[0] ?? null;
+}
+
+export async function findDomainForHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  const [exact] = await getDb().select().from(domains).where(eq(domains.hostname, host)).limit(1);
+  if (exact) {
+    return exact;
+  }
+  if (!isPlatformBioHost(host)) {
+    return null;
+  }
+  return findPlatformDomain();
+}
+
 export async function findBiopageForHost(hostname: string, handle: string): Promise<BiopageRow | null> {
   const db = getDb();
   const normalized = handle.toLowerCase();

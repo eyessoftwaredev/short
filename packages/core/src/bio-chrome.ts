@@ -65,8 +65,18 @@ export function platformHostAliases(host: string): string[] {
   if (normalized === "") {
     return [];
   }
+  const aliases = new Set<string>([normalized]);
   const bare = normalized.replace(/^www\./, "");
-  return [...new Set([normalized, bare, `www.${bare}`])];
+  aliases.add(bare);
+  aliases.add(`www.${bare}`);
+  const labels = bare.split(".");
+  // `app.short.ky` is the panel; bios still live on the registrable domain.
+  if (labels.length >= 3) {
+    const apex = labels.slice(-2).join(".");
+    aliases.add(apex);
+    aliases.add(`www.${apex}`);
+  }
+  return [...aliases];
 }
 
 export function isPlatformRequestHost(hostname: string, platformHost: string): boolean {

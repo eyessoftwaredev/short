@@ -39,20 +39,23 @@ function isPanelHost(hostname: string): boolean {
 }
 
 async function load(handle: string) {
-  const headerList = await headers();
-  const fromEdge = headerList.get("x-short-surface") === "bio";
   const hostname = await requestHostname();
   if (hostname === "") {
     return null;
   }
-  // Locally the panel and the platform short domain are the same host, so rejecting the
-  // panel host outright would mean no bio page ever resolves in development. Real routes
-  // still win over this catch-all, so only a non-short-domain panel host is refused —
-  // unless the edge worker is proxying a published handle.
-  if (isPanelHost(hostname) && !isPlatformBioHost(hostname) && !fromEdge) {
-    return null;
+
+  const page = await getPublishedBiopage(hostname, handle);
+  if (page) {
+    return page;
   }
-  return getPublishedBiopage(hostname, handle);
+
+  // The worker proxies onto APP_URL. Traefik rewrites X-Forwarded-Host to the panel,
+  // and an older worker may omit x-short-host, so retry on the public short domain.
+  const platform = platformHostname();
+  if ((isPanelHost(hostname) || isPlatformBioHost(hostname)) && platform !== hostname) {
+    return getPublishedBiopage(platform, handle);
+  }
+  return null;
 }
 
 function viewPage(page: NonNullable<Awaited<ReturnType<typeof load>>>) {
