@@ -45,6 +45,10 @@ describe("isBiopageLive", () => {
         now,
       ),
     ).toBe(true);
+    expect(isBiopageLive({ published: true, publishAt: 0, unpublishAt: 0 }, now)).toBe(true);
+    expect(
+      isBiopageLive({ published: true, unpublishAt: "1970-01-01T00:00:00.000Z" }, now),
+    ).toBe(true);
   });
 });
 

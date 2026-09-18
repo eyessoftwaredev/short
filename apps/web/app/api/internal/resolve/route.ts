@@ -1,7 +1,12 @@
 import { KV_SCHEMA_VERSION, type BiopageKvRecord, type DomainKvRecord } from "@short/core";
 import { and, eq, getDb, links } from "@short/db";
 import { NextResponse, type NextRequest } from "next/server";
-import { findBiopageForHost, findDomainForHost, toKvRecord as toBiopageKvRecord } from "@/lib/biopages";
+import {
+  findBiopageForHost,
+  findDomainForHost,
+  healEpochSchedule,
+  toKvRecord as toBiopageKvRecord,
+} from "@/lib/biopages";
 import { serverEnv } from "@/lib/env";
 import { toKvRecord } from "@/lib/links";
 import { workspaceOverClickQuota } from "@/lib/quota";
@@ -72,7 +77,9 @@ export async function POST(request: NextRequest) {
   }
 
   const biopage = await findBiopageForHost(hostname, slug.toLowerCase());
-  const biopageRecord: BiopageKvRecord | null = biopage ? toBiopageKvRecord(biopage) : null;
+  const biopageRecord: BiopageKvRecord | null = biopage
+    ? toBiopageKvRecord(await healEpochSchedule(biopage))
+    : null;
 
   return NextResponse.json({ link: null, domain: domainRecord, biopage: biopageRecord });
 }

@@ -1645,7 +1645,7 @@
     "publishAt": "Publish after",
     "publishAtHint": "Optional. A future start still 404s until that time.",
     "unpublishAt": "Unpublish after",
-    "pickDateTime": "Pick date and time",
+    "pickDateTime": "19.09.2026 14:30",
     "clearSchedule": "Clear",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",

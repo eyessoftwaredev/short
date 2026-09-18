@@ -6,6 +6,8 @@ import {
   isPlatformRequestHost,
   platformHostAliases,
   sanitizeBioCss,
+  scheduleInstant,
+  scheduleMillis,
   type BioBlock,
   type BiopageInput,
   type BiopageKvRecord,
@@ -121,6 +123,24 @@ export async function findBiopageForHost(hostname: string, handle: string): Prom
   return row?.page ?? null;
 }
 
+export async function healEpochSchedule(page: BiopageRow): Promise<BiopageRow> {
+  const publishAt = scheduleInstant(page.publishAt);
+  const unpublishAt = scheduleInstant(page.unpublishAt);
+  const publishWasJunk = page.publishAt != null && publishAt === null;
+  const unpublishWasJunk = page.unpublishAt != null && unpublishAt === null;
+  if (!publishWasJunk && !unpublishWasJunk) {
+    return page;
+  }
+
+  const [row] = await getDb()
+    .update(biopages)
+    .set({ publishAt, unpublishAt, updatedAt: new Date() })
+    .where(eq(biopages.id, page.id))
+    .returning();
+  const next = row ?? { ...page, publishAt, unpublishAt };
+  await putBiopageRecord(await resolveHostname(next.domainId), toKvRecord(next));
+  return next;
+}
 
 export function toKvRecord(page: BiopageRow): BiopageKvRecord {
   return {
@@ -129,8 +149,8 @@ export function toKvRecord(page: BiopageRow): BiopageKvRecord {
     workspaceId: page.workspaceId,
     handle: page.handle,
     published: page.published,
-    publishAt: page.publishAt ? page.publishAt.getTime() : null,
-    unpublishAt: page.unpublishAt ? page.unpublishAt.getTime() : null,
+    publishAt: scheduleMillis(page.publishAt),
+    unpublishAt: scheduleMillis(page.unpublishAt),
     passwordHash: page.passwordHash,
   };
 }
@@ -176,8 +196,8 @@ function chromeFields(input: BiopageInput) {
     adRightHref: input.adRightHref,
     customCss: sanitizeBioCss(input.customCss ?? ""),
     sensitive: input.sensitive,
-    publishAt: input.publishAt,
-    unpublishAt: input.unpublishAt,
+    publishAt: scheduleInstant(input.publishAt),
+    unpublishAt: scheduleInstant(input.unpublishAt),
   };
 }
 
@@ -280,6 +300,7 @@ export async function getBiopage(
     return null;
   }
 
+  const page = await healEpochSchedule(row.page);
   const blocks = await db
     .select()
     .from(bioBlocks)
@@ -287,7 +308,7 @@ export async function getBiopage(
     .orderBy(asc(bioBlocks.position));
 
   return {
-    ...row.page,
+    ...page,
     hostname: row.hostname ?? serverEnv().PLATFORM_SHORT_DOMAIN,
     blocks: orderBlocks(blocks),
   };
@@ -299,8 +320,12 @@ export async function getPublishedBiopage(
   handle: string,
 ): Promise<(BiopageWithBlocks & { removeBranding: boolean }) | null> {
   const host = hostname.toLowerCase();
-  const page = await findBiopageForHost(host, handle);
-  if (!page || !isBiopageLive(page)) {
+  const found = await findBiopageForHost(host, handle);
+  if (!found) {
+    return null;
+  }
+  const page = await healEpochSchedule(found);
+  if (!isBiopageLive(page)) {
     return null;
   }
 

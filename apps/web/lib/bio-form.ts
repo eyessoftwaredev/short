@@ -5,6 +5,7 @@ import {
   bioBlockSchema,
   biopageInputSchema,
   handleSchema,
+  scheduleInstant,
   type BioBlock,
   type BioBlockType,
   type BiopageInput,
@@ -102,11 +103,7 @@ export const emptyBioForm = (handle = ""): BioFormValues => ({
 });
 
 function optionalDate(value: string): Date | null {
-  if (value.trim() === "") {
-    return null;
-  }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  return scheduleInstant(value.trim() === "" ? null : value);
 }
 
 function emptyToNull(value: string): string | null {
@@ -208,11 +205,8 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
 }
 
 export function toFormDate(value: Date | string | null | undefined): string {
-  if (!value) {
-    return "";
-  }
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date = scheduleInstant(value);
+  if (!date) {
     return "";
   }
   const pad = (n: number) => String(n).padStart(2, "0");

@@ -6,6 +6,7 @@ import {
   BIOPAGE_PROFILE_MODES,
   BIOPAGE_TEMPLATES,
   isHexColor,
+  scheduleInstant,
 } from "../bio-chrome";
 import { SLUG_PATTERN, isReservedSlug } from "../slug";
 import { destinationSchema } from "./link";
@@ -57,7 +58,7 @@ const optionalHrefSchema = z
 const optionalDateSchema = z
   .union([z.coerce.date(), z.literal(""), z.null()])
   .optional()
-  .transform((value) => (value instanceof Date ? value : null));
+  .transform((value) => scheduleInstant(value instanceof Date ? value : value ?? null));
 
 /**
  * Block fields are required rather than defaulted: the builder binds these schemas

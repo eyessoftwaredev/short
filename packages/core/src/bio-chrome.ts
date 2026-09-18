@@ -141,6 +141,30 @@ export function sanitizeBioCss(input: string): string {
   return declarations.join("; ");
 }
 
+/** Epoch / driver defaults are not real schedules. */
+const MIN_SCHEDULE_MS = Date.UTC(2000, 0, 1);
+
+export function scheduleMillis(value: Date | number | string | null | undefined): number | null {
+  if (value == null || value === "") {
+    return null;
+  }
+  const ms =
+    typeof value === "number"
+      ? value
+      : value instanceof Date
+        ? value.getTime()
+        : Date.parse(value);
+  if (!Number.isFinite(ms) || ms < MIN_SCHEDULE_MS) {
+    return null;
+  }
+  return ms;
+}
+
+export function scheduleInstant(value: Date | number | string | null | undefined): Date | null {
+  const ms = scheduleMillis(value);
+  return ms === null ? null : new Date(ms);
+}
+
 export function isBiopageLive(
   page: {
     published: boolean;
@@ -152,8 +176,8 @@ export function isBiopageLive(
   if (!page.published) {
     return false;
   }
-  const start = toMillis(page.publishAt);
-  const end = toMillis(page.unpublishAt);
+  const start = scheduleMillis(page.publishAt);
+  const end = scheduleMillis(page.unpublishAt);
   if (start !== null && now < start) {
     return false;
   }
@@ -161,17 +185,6 @@ export function isBiopageLive(
     return false;
   }
   return true;
-}
-
-function toMillis(value: Date | number | string | null | undefined): number | null {
-  if (value == null || value === "") {
-    return null;
-  }
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-  const ms = value instanceof Date ? value.getTime() : Date.parse(value);
-  return Number.isFinite(ms) ? ms : null;
 }
 
 export const FONT_STACKS: Record<BiopageFont, string> = {
