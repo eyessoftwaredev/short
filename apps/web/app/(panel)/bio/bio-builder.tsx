@@ -8,6 +8,7 @@ import {
   BIOPAGE_TEMPLATE_PRESETS,
   BIOPAGE_TEMPLATES,
   BIOPAGE_THEMES,
+  isBiopageLive,
   type BioBlock,
   type BioBlockType,
 } from "@short/core";
@@ -29,7 +30,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useActionMessage } from "@/lib/action-message";
@@ -42,6 +43,7 @@ import {
   Card,
   Chip,
   CopyButton,
+  DateTimePicker,
   Field,
   Input,
   SaveBar,
@@ -53,6 +55,7 @@ import {
   Textarea,
   type TabItem,
 } from "@/components/ui";
+import { cn } from "@/lib/cx";
 import { bioFormSchema, newBlock, type BioFormValues } from "@/lib/bio-form";
 import { BlockFields } from "./block-fields";
 import {
@@ -201,6 +204,32 @@ function ColorField({
   );
 }
 
+function FlagRow({
+  title,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  hint: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-default border border-border bg-surface px-4 py-3.5">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="block text-sm text-fg-muted">{hint}</span>
+      </span>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
+function hostLabel(value: string): string {
+  return value.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/\/.*$/, "").split(":")[0] ?? value;
+}
+
 function describeBlock(block: BioBlock, t: (key: string, values?: { count: number }) => string): string {
   switch (block.type) {
     case "link":
@@ -301,6 +330,7 @@ export function BioBuilder({
   canForms = false,
 }: BioBuilderProps) {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("bio");
   const tc = useTranslations("common");
   const te = useTranslations("errors");
@@ -338,10 +368,19 @@ export function BioBuilder({
   );
 
   const hostname = useMemo(
-    () => domains.find((domain) => domain.id === values.domainId)?.hostname ?? platformHostname,
+    () =>
+      hostLabel(
+        domains.find((domain) => domain.id === values.domainId)?.hostname ?? platformHostname,
+      ),
     [domains, platformHostname, values.domainId],
   );
   const publicUrl = `https://${hostname}/${values.handle || "handle"}`;
+  const pageIsLive = isBiopageLive({
+    published: values.published,
+    publishAt: values.publishAt || null,
+    unpublishAt: values.unpublishAt || null,
+  });
+  const liveTone = !values.published ? "draft" : pageIsLive ? "live" : "scheduled";
 
   function setBlocks(next: BioBlock[]): void {
     setValue(
@@ -426,18 +465,19 @@ export function BioBuilder({
           <Tabs items={tabs} value={tab} onChange={setTab} />
 
           <TabPanel active={tab === "blocks"}>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap gap-2">
-                {ADDABLE.filter((type) => type !== "form" || canForms).map((type) => (
-                  <Chip key={type} onClick={() => addBlock(type)}>
-                    <Icon name="plus" className="text-xs" />
-                    {t(BLOCK_KEYS[type])}
-                  </Chip>
-                ))}
-              </div>
-
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("tabBlocks")} description={t("blocksDesc")}>
+                <div className="flex flex-wrap gap-2">
+                  {ADDABLE.filter((type) => type !== "form" || canForms).map((type) => (
+                    <Chip key={type} onClick={() => addBlock(type)}>
+                      <Icon name="plus" className="text-xs" />
+                      {t(BLOCK_KEYS[type])}
+                    </Chip>
+                  ))}
+                </div>
+              </Section>
               {values.blocks.length === 0 ? (
-                <p className="m-0 rounded-default border border-dashed border-border px-5 py-10 text-center text-sm text-fg-muted">
+                <p className="m-0 rounded-default border border-dashed border-border px-5 py-12 text-center text-sm text-fg-muted">
                   {t("noBlocks")}
                 </p>
               ) : (
@@ -450,7 +490,7 @@ export function BioBuilder({
                     items={values.blocks.map((block) => block.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2">
                       {values.blocks.map((block) => (
                         <BlockRow
                           key={block.id}
@@ -471,133 +511,137 @@ export function BioBuilder({
                   </SortableContext>
                 </DndContext>
               )}
-            </div>
+            </Card>
           </TabPanel>
 
-          <TabPanel active={tab === "profile"}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label={t("handle")}
-                error={bioFieldError(errors.handle?.message, t, te)}
-                hint={t("handleHint", { url: publicUrl })}
-              >
-                <Input placeholder="acme" {...register("handle")} />
-              </Field>
-
-              <Field label={t("domain")} hint={t("domainHint")}>
-                <Select {...register("domainId")}>
-                  <option value="">{platformHostname}</option>
-                  {domains.map((domain) => (
-                    <option key={domain.id} value={domain.id}>
-                      {domain.hostname}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              <Field label={t("displayName")} error={bioFieldError(errors.displayName?.message, t, te)}>
-                <Input placeholder="Acme Studio" {...register("displayName")} />
-              </Field>
-
-              <Field label={t("profileMode")} className="sm:col-span-2">
-                <Select
-                  value={values.profileMode}
-                  onChange={(event) =>
-                    setValue(
-                      "profileMode",
-                      event.target.value as BioFormValues["profileMode"],
-                      { shouldDirty: true },
-                    )
-                  }
-                >
-                  <option value="photo">{t("profilePhoto")}</option>
-                  <option value="text">{t("profileTextMode")}</option>
-                  <option value="logo">{t("profileLogo")}</option>
-                </Select>
-              </Field>
-
-              <Field label={t("avatar")} error={bioFieldError(errors.avatarUrl?.message, t, te)}>
-                <ImageUpload
-                  value={values.avatarUrl}
-                  onChange={(url) => setValue("avatarUrl", url, { shouldDirty: true })}
-                />
-              </Field>
-
-              <Field label={t("logo")}>
-                <ImageUpload
-                  value={values.logoUrl}
-                  onChange={(url) => setValue("logoUrl", url, { shouldDirty: true })}
-                />
-              </Field>
-
-              <Field label={t("profileTextLabel")}>
-                <Input maxLength={40} {...register("profileText")} />
-              </Field>
-
-              <Field label={t("cover")}>
-                <ImageUpload
-                  value={values.coverUrl}
-                  onChange={(url) => setValue("coverUrl", url, { shouldDirty: true })}
-                />
-              </Field>
-
-              <Field label={t("bio")} className="sm:col-span-2" error={bioFieldError(errors.bio?.message, t, te)}>
-                <Textarea rows={3} maxLength={500} {...register("bio")} />
-              </Field>
-
-              <Card staticHover className="flex-row items-center justify-between gap-4 sm:col-span-2">
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{t("published")}</span>
-                  <span className="block text-sm text-fg-muted">{t("publishedHint")}</span>
-                </span>
-                <Switch
-                  checked={values.published}
-                  onCheckedChange={(checked) => {
-                    setValue("published", checked, { shouldDirty: true });
-                    if (mode !== "edit" || !biopageId) {
-                      return;
-                    }
-                    void updateBiopagePublishedAction(biopageId, checked).then((result) => {
-                      if (!result.ok) {
-                        setValue("published", !checked, { shouldDirty: true });
-                        setFormError(actionMessage(result.error));
-                      }
-                    });
-                  }}
-                />
-              </Card>
-            </div>
-          </TabPanel>
-
-          <TabPanel active={tab === "design"}>
-            <div className="flex flex-col gap-6">
-              <Section title={t("templates")} description={t("templatesDesc")}>
-                <div className="flex flex-wrap gap-2">
-                  {BIOPAGE_TEMPLATES.map((id) => (
-                    <Chip
-                      key={id}
-                      active={values.templateId === id}
-                      onClick={() => {
-                        const preset = BIOPAGE_TEMPLATE_PRESETS[id];
-                        setValue("templateId", id, { shouldDirty: true });
-                        setValue("theme", preset.theme, { shouldDirty: true });
-                        setValue("buttonStyle", preset.buttonStyle, { shouldDirty: true });
-                        setValue("fontFamily", preset.fontFamily, { shouldDirty: true });
-                        setValue("bgType", preset.bgType, { shouldDirty: true });
-                        setValue("bgColor", preset.bgColor ?? "", { shouldDirty: true });
-                        setValue("bgGradient", preset.bgGradient ?? "", { shouldDirty: true });
-                        setValue("buttonColor", preset.buttonColor ?? "", { shouldDirty: true });
-                        setValue("buttonTextColor", preset.buttonTextColor ?? "", { shouldDirty: true });
-                        setValue("textColor", preset.textColor ?? "", { shouldDirty: true });
-                      }}
-                    >
-                      {t(TEMPLATE_KEYS[id])}
-                    </Chip>
-                  ))}
+          <TabPanel active={tab === "profile"} className="flex flex-col gap-4">
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("identity")} description={t("identityDesc")}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label={t("handle")}
+                    error={bioFieldError(errors.handle?.message, t, te)}
+                    hint={t("handleHint", { url: publicUrl })}
+                  >
+                    <Input placeholder="acme" {...register("handle")} />
+                  </Field>
+                  <Field label={t("domain")} hint={t("domainHint")}>
+                    <Select {...register("domainId")}>
+                      <option value="">{hostLabel(platformHostname)}</option>
+                      {domains.map((domain) => (
+                        <option key={domain.id} value={domain.id}>
+                          {hostLabel(domain.hostname)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t("displayName")} error={bioFieldError(errors.displayName?.message, t, te)}>
+                    <Input placeholder="Acme Studio" {...register("displayName")} />
+                  </Field>
+                  <Field
+                    label={t("bio")}
+                    className="sm:col-span-2"
+                    error={bioFieldError(errors.bio?.message, t, te)}
+                  >
+                    <Textarea rows={3} maxLength={500} {...register("bio")} />
+                  </Field>
                 </div>
               </Section>
+            </Card>
 
-              <Section title={t("theme")} description={t("themeDesc")}>
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("profileMedia")} description={t("profileMediaDesc")}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={t("profileMode")} className="sm:col-span-2">
+                    <Select
+                      value={values.profileMode}
+                      onChange={(event) =>
+                        setValue(
+                          "profileMode",
+                          event.target.value as BioFormValues["profileMode"],
+                          { shouldDirty: true },
+                        )
+                      }
+                    >
+                      <option value="photo">{t("profilePhoto")}</option>
+                      <option value="text">{t("profileTextMode")}</option>
+                      <option value="logo">{t("profileLogo")}</option>
+                    </Select>
+                  </Field>
+                  {values.profileMode === "photo" ? (
+                    <Field label={t("avatar")} error={bioFieldError(errors.avatarUrl?.message, t, te)}>
+                      <ImageUpload
+                        value={values.avatarUrl}
+                        onChange={(url) => setValue("avatarUrl", url, { shouldDirty: true })}
+                      />
+                    </Field>
+                  ) : null}
+                  {values.profileMode === "logo" ? (
+                    <Field label={t("logo")}>
+                      <ImageUpload
+                        value={values.logoUrl}
+                        onChange={(url) => setValue("logoUrl", url, { shouldDirty: true })}
+                      />
+                    </Field>
+                  ) : null}
+                  {values.profileMode === "text" ? (
+                    <Field label={t("profileTextLabel")}>
+                      <Input maxLength={40} {...register("profileText")} />
+                    </Field>
+                  ) : null}
+                  <Field label={t("cover")}>
+                    <ImageUpload
+                      value={values.coverUrl}
+                      onChange={(url) => setValue("coverUrl", url, { shouldDirty: true })}
+                    />
+                  </Field>
+                </div>
+              </Section>
+            </Card>
+          </TabPanel>
+
+          <TabPanel active={tab === "design"} className="flex flex-col gap-4">
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("templates")} description={t("templatesDesc")}>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {BIOPAGE_TEMPLATES.map((id) => {
+                    const active = values.templateId === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          const preset = BIOPAGE_TEMPLATE_PRESETS[id];
+                          setValue("templateId", id, { shouldDirty: true });
+                          setValue("theme", preset.theme, { shouldDirty: true });
+                          setValue("buttonStyle", preset.buttonStyle, { shouldDirty: true });
+                          setValue("fontFamily", preset.fontFamily, { shouldDirty: true });
+                          setValue("bgType", preset.bgType, { shouldDirty: true });
+                          setValue("bgColor", preset.bgColor ?? "", { shouldDirty: true });
+                          setValue("bgGradient", preset.bgGradient ?? "", { shouldDirty: true });
+                          setValue("buttonColor", preset.buttonColor ?? "", { shouldDirty: true });
+                          setValue("buttonTextColor", preset.buttonTextColor ?? "", {
+                            shouldDirty: true,
+                          });
+                          setValue("textColor", preset.textColor ?? "", { shouldDirty: true });
+                        }}
+                        className={cn(
+                          "rounded-default border px-3 py-3 text-left text-sm font-medium transition duration-150",
+                          active
+                            ? "border-accent bg-accent-tint text-accent-ink"
+                            : "border-border bg-bg text-ink hover:bg-surface",
+                        )}
+                      >
+                        {t(TEMPLATE_KEYS[id])}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+            </Card>
+
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("theme")} description={t("themeDesc")}>
                 <div className="flex flex-wrap gap-2">
                   {BIOPAGE_THEMES.map((theme) => (
                     <Chip
@@ -610,8 +654,7 @@ export function BioBuilder({
                   ))}
                 </div>
               </Section>
-
-              <Section title={t("buttonStyle")} description={t("buttonStyleDesc")}>
+              <Section headingLevel={3} title={t("buttonStyle")} description={t("buttonStyleDesc")}>
                 <div className="flex flex-wrap gap-2">
                   {BIOPAGE_BUTTON_STYLES.map((style) => (
                     <Chip
@@ -624,8 +667,19 @@ export function BioBuilder({
                   ))}
                 </div>
               </Section>
+              <Field label={t("fontFamily")}>
+                <Select {...register("fontFamily")}>
+                  {BIOPAGE_FONTS.map((font) => (
+                    <option key={font} value={font}>
+                      {t(FONT_KEYS[font])}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </Card>
 
-              <Section title={t("background")} description={t("backgroundDesc")}>
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("background")} description={t("backgroundDesc")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={t("bgType")}>
                     <Select
@@ -642,30 +696,27 @@ export function BioBuilder({
                       <option value="image">{t("bgImage")}</option>
                     </Select>
                   </Field>
-                  <Field label={t("fontFamily")}>
-                    <Select {...register("fontFamily")}>
-                      {BIOPAGE_FONTS.map((font) => (
-                        <option key={font} value={font}>
-                          {t(FONT_KEYS[font])}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <ColorField
-                    label={t("bgColorValue")}
-                    value={values.bgColor}
-                    placeholder="#111111"
-                    onChange={(value) => setValue("bgColor", value, { shouldDirty: true })}
-                  />
-                  <Field label={t("bgGradientValue")} className="sm:col-span-2">
-                    <Input {...register("bgGradient")} />
-                  </Field>
-                  <Field label={t("bgImage")} className="sm:col-span-2">
-                    <ImageUpload
-                      value={values.bgImageUrl}
-                      onChange={(url) => setValue("bgImageUrl", url, { shouldDirty: true })}
+                  {values.bgType === "color" ? (
+                    <ColorField
+                      label={t("bgColorValue")}
+                      value={values.bgColor}
+                      placeholder="#111111"
+                      onChange={(value) => setValue("bgColor", value, { shouldDirty: true })}
                     />
-                  </Field>
+                  ) : null}
+                  {values.bgType === "gradient" ? (
+                    <Field label={t("bgGradientValue")} className="sm:col-span-2">
+                      <Input {...register("bgGradient")} />
+                    </Field>
+                  ) : null}
+                  {values.bgType === "image" ? (
+                    <Field label={t("bgImage")} className="sm:col-span-2">
+                      <ImageUpload
+                        value={values.bgImageUrl}
+                        onChange={(url) => setValue("bgImageUrl", url, { shouldDirty: true })}
+                      />
+                    </Field>
+                  ) : null}
                   <ColorField
                     label={t("buttonColor")}
                     value={values.buttonColor}
@@ -686,7 +737,9 @@ export function BioBuilder({
                   />
                 </div>
               </Section>
+            </Card>
 
+            <Card staticHover className="gap-5">
               {canCustomCss ? (
                 <Field label={t("customCss")} hint={t("customCssHint")}>
                   <Textarea rows={5} maxLength={4000} {...register("customCss")} />
@@ -694,112 +747,192 @@ export function BioBuilder({
               ) : (
                 <p className="m-0 text-sm text-fg-muted">{t("customCssPaywall")}</p>
               )}
-            </div>
+            </Card>
           </TabPanel>
 
-          <TabPanel active={tab === "ads"}>
-            <div className="flex flex-col gap-4">
-              <Card staticHover className="flex-row items-center justify-between gap-4">
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{t("adsEnabled")}</span>
-                  <span className="block text-sm text-fg-muted">{t("adsEnabledHint")}</span>
-                </span>
-                <Switch
-                  checked={values.adsEnabled}
-                  onCheckedChange={(checked) => setValue("adsEnabled", checked, { shouldDirty: true })}
-                />
-              </Card>
-              <Field label={t("adMobile")}>
-                <ImageUpload
-                  value={values.adMobileImage}
-                  onChange={(url) => setValue("adMobileImage", url, { shouldDirty: true })}
-                />
-              </Field>
-              <Field label={t("adMobileHref")}>
-                <Input {...register("adMobileHref")} />
-              </Field>
-              <Field label={t("adLeft")}>
-                <ImageUpload
-                  value={values.adLeftImage}
-                  onChange={(url) => setValue("adLeftImage", url, { shouldDirty: true })}
-                />
-              </Field>
-              <Field label={t("adLeftHref")}>
-                <Input {...register("adLeftHref")} />
-              </Field>
-              <Field label={t("adRight")}>
-                <ImageUpload
-                  value={values.adRightImage}
-                  onChange={(url) => setValue("adRightImage", url, { shouldDirty: true })}
-                />
-              </Field>
-              <Field label={t("adRightHref")}>
-                <Input {...register("adRightHref")} />
-              </Field>
-            </div>
-          </TabPanel>
-
-          <TabPanel active={tab === "access"}>
-            <div className="flex flex-col gap-4">
-              <Card staticHover className="flex-row items-center justify-between gap-4">
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{t("sensitive")}</span>
-                  <span className="block text-sm text-fg-muted">{t("sensitiveHint")}</span>
-                </span>
-                <Switch
-                  checked={values.sensitive}
-                  onCheckedChange={(checked) => setValue("sensitive", checked, { shouldDirty: true })}
-                />
-              </Card>
-              <Field
-                label={values.hasPassword ? t("passwordReplace") : t("password")}
-                hint={t("passwordHint")}
-              >
-                <Input type="password" autoComplete="new-password" {...register("password")} />
-              </Field>
-              {values.hasPassword ? (
-                <Card staticHover className="flex-row items-center justify-between gap-4">
-                  <span className="text-sm font-medium">{t("removePassword")}</span>
-                  <Switch
-                    checked={values.removePassword}
-                    onCheckedChange={(checked) =>
-                      setValue("removePassword", checked, { shouldDirty: true })
-                    }
+          <TabPanel active={tab === "ads"} className="flex flex-col gap-4">
+            <Card staticHover className="gap-5">
+              <FlagRow
+                title={t("adsEnabled")}
+                hint={t("adsEnabledHint")}
+                checked={values.adsEnabled}
+                onCheckedChange={(checked) => setValue("adsEnabled", checked, { shouldDirty: true })}
+              />
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="flex min-w-0 flex-col gap-3 rounded-default border border-border px-4 py-4">
+                  <span className="text-sm font-medium">{t("adMobile")}</span>
+                  <ImageUpload
+                    value={values.adMobileImage}
+                    onChange={(url) => setValue("adMobileImage", url, { shouldDirty: true })}
                   />
-                </Card>
-              ) : null}
-              <Field label={t("publishAt")} hint={t("publishAtHint")}>
-                <Input type="datetime-local" {...register("publishAt")} />
-              </Field>
-              <Field label={t("unpublishAt")}>
-                <Input type="datetime-local" {...register("unpublishAt")} />
-              </Field>
-            </div>
+                  <Field label={t("adMobileHref")}>
+                    <Input {...register("adMobileHref")} />
+                  </Field>
+                </div>
+                <div className="flex min-w-0 flex-col gap-3 rounded-default border border-border px-4 py-4">
+                  <span className="text-sm font-medium">{t("adLeft")}</span>
+                  <ImageUpload
+                    value={values.adLeftImage}
+                    onChange={(url) => setValue("adLeftImage", url, { shouldDirty: true })}
+                  />
+                  <Field label={t("adLeftHref")}>
+                    <Input {...register("adLeftHref")} />
+                  </Field>
+                </div>
+                <div className="flex min-w-0 flex-col gap-3 rounded-default border border-border px-4 py-4">
+                  <span className="text-sm font-medium">{t("adRight")}</span>
+                  <ImageUpload
+                    value={values.adRightImage}
+                    onChange={(url) => setValue("adRightImage", url, { shouldDirty: true })}
+                  />
+                  <Field label={t("adRightHref")}>
+                    <Input {...register("adRightHref")} />
+                  </Field>
+                </div>
+              </div>
+            </Card>
+          </TabPanel>
+
+          <TabPanel active={tab === "access"} className="flex flex-col gap-4">
+            <Card staticHover className="gap-5">
+              <div
+                className={cn(
+                  "flex items-center justify-between gap-3 rounded-default border px-4 py-3",
+                  liveTone === "live" && "border-accent bg-accent-tint",
+                  liveTone === "scheduled" && "border-border-strong bg-surface",
+                  liveTone === "draft" && "border-border bg-surface",
+                )}
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">
+                    {liveTone === "live"
+                      ? t("statusLive")
+                      : liveTone === "scheduled"
+                        ? t("statusScheduled")
+                        : t("statusDraft")}
+                  </span>
+                  <span className="block text-sm text-fg-muted">{t("publishedHint")}</span>
+                </span>
+                <Badge tone={liveTone === "live" ? "accent" : liveTone === "scheduled" ? "warn" : "muted"}>
+                  {liveTone === "live" ? t("published") : liveTone === "scheduled" ? t("scheduled") : t("draft")}
+                </Badge>
+              </div>
+              <FlagRow
+                title={t("published")}
+                hint={t("publishedNowHint")}
+                checked={values.published}
+                onCheckedChange={(checked) => {
+                  setValue("published", checked, { shouldDirty: true });
+                  if (checked) {
+                    setValue("publishAt", "", { shouldDirty: true });
+                    setValue("unpublishAt", "", { shouldDirty: true });
+                  }
+                  if (mode !== "edit" || !biopageId) {
+                    return;
+                  }
+                  void updateBiopagePublishedAction(biopageId, checked).then((result) => {
+                    if (!result.ok) {
+                      setValue("published", !checked, { shouldDirty: true });
+                      setFormError(actionMessage(result.error));
+                    }
+                  });
+                }}
+              />
+            </Card>
+
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("schedule")} description={t("scheduleDesc")}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-sm font-medium">{t("publishAt")}</span>
+                    <DateTimePicker
+                      value={values.publishAt}
+                      onChange={(next) => setValue("publishAt", next, { shouldDirty: true })}
+                      locale={locale}
+                      placeholder={t("pickDateTime")}
+                      clearLabel={t("clearSchedule")}
+                      prevLabel={t("prevMonth")}
+                      nextLabel={t("nextMonth")}
+                      hourLabel={t("hour")}
+                      minuteLabel={t("minute")}
+                    />
+                    <span className="text-xs text-fg-subtle">{t("publishAtHint")}</span>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-sm font-medium">{t("unpublishAt")}</span>
+                    <DateTimePicker
+                      value={values.unpublishAt}
+                      onChange={(next) => setValue("unpublishAt", next, { shouldDirty: true })}
+                      locale={locale}
+                      placeholder={t("pickDateTime")}
+                      clearLabel={t("clearSchedule")}
+                      prevLabel={t("prevMonth")}
+                      nextLabel={t("nextMonth")}
+                      hourLabel={t("hour")}
+                      minuteLabel={t("minute")}
+                    />
+                  </div>
+                </div>
+              </Section>
+            </Card>
+
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("gates")} description={t("gatesDesc")}>
+                <div className="flex flex-col gap-4">
+                  <FlagRow
+                    title={t("sensitive")}
+                    hint={t("sensitiveHint")}
+                    checked={values.sensitive}
+                    onCheckedChange={(checked) => setValue("sensitive", checked, { shouldDirty: true })}
+                  />
+                  <Field
+                    label={values.hasPassword ? t("passwordReplace") : t("password")}
+                    hint={t("passwordHint")}
+                  >
+                    <Input type="password" autoComplete="new-password" {...register("password")} />
+                  </Field>
+                  {values.hasPassword ? (
+                    <FlagRow
+                      title={t("removePassword")}
+                      hint={t("removePasswordHint")}
+                      checked={values.removePassword}
+                      onCheckedChange={(checked) =>
+                        setValue("removePassword", checked, { shouldDirty: true })
+                      }
+                    />
+                  ) : null}
+                </div>
+              </Section>
+            </Card>
           </TabPanel>
 
           <TabPanel active={tab === "seo"}>
-            <div className="flex flex-col gap-4">
-              <Field
-                label={t("seoTitle")}
-                hint={t("seoTitleHint")}
-                error={bioFieldError(errors.seoTitle?.message, t, te)}
-              >
-                <Input maxLength={120} {...register("seoTitle")} />
-              </Field>
-              <Field
-                label={t("seoDescription")}
-                hint={t("seoDescriptionHint")}
-                error={bioFieldError(errors.seoDescription?.message, t, te)}
-              >
-                <Textarea rows={3} maxLength={300} {...register("seoDescription")} />
-              </Field>
-              <Field label={t("ogImage")} hint={t("ogImageHint")}>
-                <ImageUpload
-                  value={values.ogImageUrl}
-                  onChange={(url) => setValue("ogImageUrl", url, { shouldDirty: true })}
-                />
-              </Field>
-            </div>
+            <Card staticHover className="gap-5">
+              <Section headingLevel={3} title={t("tabSeo")} description={t("seoDesc")}>
+                <div className="flex flex-col gap-4">
+                  <Field
+                    label={t("seoTitle")}
+                    hint={t("seoTitleHint")}
+                    error={bioFieldError(errors.seoTitle?.message, t, te)}
+                  >
+                    <Input maxLength={120} {...register("seoTitle")} />
+                  </Field>
+                  <Field
+                    label={t("seoDescription")}
+                    hint={t("seoDescriptionHint")}
+                    error={bioFieldError(errors.seoDescription?.message, t, te)}
+                  >
+                    <Textarea rows={3} maxLength={300} {...register("seoDescription")} />
+                  </Field>
+                  <Field label={t("ogImage")} hint={t("ogImageHint")}>
+                    <ImageUpload
+                      value={values.ogImageUrl}
+                      onChange={(url) => setValue("ogImageUrl", url, { shouldDirty: true })}
+                    />
+                  </Field>
+                </div>
+              </Section>
+            </Card>
           </TabPanel>
         </div>
 

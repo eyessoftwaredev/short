@@ -450,7 +450,12 @@ export async function setBiopagePublished(
   const db = getDb();
   const [row] = await db
     .update(biopages)
-    .set({ published, updatedAt: new Date() })
+    .set({
+      published,
+      updatedAt: new Date(),
+      // The switch means "live now". A leftover future window would still 404.
+      ...(published ? { publishAt: null, unpublishAt: null } : {}),
+    })
     .where(and(eq(biopages.workspaceId, workspaceId), eq(biopages.id, id)))
     .returning();
 

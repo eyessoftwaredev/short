@@ -6,6 +6,7 @@ export { Calendar } from "./calendar";
 export { Card } from "./card";
 export { Chip } from "./chip";
 export { CopyButton } from "./copy-button";
+export { DateTimePicker } from "./date-time-picker";
 export { Dropdown, type DropdownItem } from "./dropdown";
 export { EmptyState } from "./empty-state";
 export { Field, Input, Select, Textarea } from "./field";
