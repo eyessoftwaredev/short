@@ -9,12 +9,21 @@ import { useActionMessage } from "@/lib/action-message";
 import type { PlatformBrand } from "@/lib/brand-fallback";
 import { updateBrandAction, uploadBrandAssetAction } from "./actions";
 
-const ASSET_KEYS: Record<PlatformAssetKind, "logo" | "logoDark" | "favicon" | "og"> = {
+const ASSET_KEYS: Record<
+  PlatformAssetKind,
+  "logo" | "logoDark" | "wordmark" | "wordmarkDark" | "favicon" | "og"
+> = {
   logo: "logo",
   logo_dark: "logoDark",
+  wordmark: "wordmark",
+  wordmark_dark: "wordmarkDark",
   favicon: "favicon",
   og: "og",
 };
+
+function isWordmarkKind(kind: PlatformAssetKind): boolean {
+  return kind === "wordmark" || kind === "wordmark_dark";
+}
 
 const BRAND_ERROR_KEYS = [
   "errorUnknownAsset",
@@ -165,18 +174,28 @@ export function BrandEditor({ brand, presentAssets }: BrandEditorProps) {
                 key={kind}
                 className="flex min-w-0 items-center gap-3 rounded-default border border-border bg-bg p-4"
               >
-                <span className="relative flex size-12 shrink-0 overflow-hidden rounded-default bg-surface-subtle">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- preview from our brand API */}
-                  <img
-                    src={`/api/brand/${kind}?v=${present ? "1" : "0"}`}
-                    alt=""
-                    className="size-full object-contain"
-                  />
+                <span
+                  className={
+                    isWordmarkKind(kind)
+                      ? "relative flex h-12 w-28 shrink-0 items-center justify-center overflow-hidden rounded-default bg-surface-subtle px-2"
+                      : "relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-default bg-surface-subtle"
+                  }
+                >
+                  {present || !isWordmarkKind(kind) ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- preview from our brand API
+                    <img
+                      src={`/api/brand/${kind}?v=${present ? "1" : "0"}`}
+                      alt=""
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="truncate text-xs font-semibold">{name}</span>
+                  )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-sm font-medium">{label}</span>
                   <span className="text-xs text-fg-subtle">
-                    {present ? t("uploaded") : t("fallback")}
+                    {present ? t("uploaded") : isWordmarkKind(kind) ? t("fallbackName") : t("fallback")}
                   </span>
                 </span>
                 <label className="inline-flex cursor-pointer">

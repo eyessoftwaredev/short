@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { brandInitial, getPlatformAsset, getPlatformBrand, isPlatformAssetKind } from "@/lib/brand";
+import { knockoutBrandPlate } from "@/lib/brand-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,15 +23,22 @@ export async function GET(_request: Request, { params }: { params: Promise<{ kin
     return NextResponse.json({ error: "unknown brand asset" }, { status: 404 });
   }
 
-  const asset = await getPlatformAsset(kind);
+  const asset =
+    (await getPlatformAsset(kind)) ??
+    (kind === "logo_dark" ? await getPlatformAsset("logo") : null);
   if (asset) {
-    return new NextResponse(toBodyInit(asset.bytes), {
+    const cleaned = await knockoutBrandPlate(Buffer.from(asset.bytes), asset.contentType);
+    return new NextResponse(toBodyInit(cleaned.bytes), {
       headers: {
-        "content-type": asset.contentType,
+        "content-type": cleaned.contentType,
         "cache-control": "public, max-age=300, stale-while-revalidate=86400",
         "last-modified": asset.updatedAt.toUTCString(),
       },
     });
+  }
+
+  if (kind === "wordmark" || kind === "wordmark_dark") {
+    return new NextResponse(null, { status: 404 });
   }
 
   const brand = await getPlatformBrand();

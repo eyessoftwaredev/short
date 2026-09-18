@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { cn } from "@/lib/cx";
 
 type BrandMarkProps = {
@@ -8,21 +11,38 @@ type BrandMarkProps = {
   className?: string;
 };
 
-export function BrandMark({ name, invert = false, className }: BrandMarkProps) {
+export function BrandMark({ invert = false, className }: BrandMarkProps) {
   const src = invert ? "/api/brand/logo_dark" : "/api/brand/logo";
 
   return (
     <span
-      className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-default",
-        invert ? "bg-on-inverse-soft" : "bg-inverse",
-        className,
-      )}
+      className={cn("relative flex h-8 w-8 shrink-0 items-center justify-center", className)}
       aria-hidden="true"
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- brand bytes are served from our API */}
-      <img src={src} alt="" className="size-full object-contain" />
+      <img src={src} alt="" className="max-h-full max-w-full object-contain" />
     </span>
+  );
+}
+
+function BrandWordmark({ name, invert = false }: { name: string; invert?: boolean }) {
+  const [useName, setUseName] = useState(false);
+  const src = invert ? "/api/brand/wordmark_dark" : "/api/brand/wordmark";
+
+  if (useName) {
+    return <span className="truncate text-base font-semibold tracking-tight">{name}</span>;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- brand bytes are served from our API
+    <img
+      src={src}
+      alt={name}
+      className="h-6 max-w-44 min-w-0 object-contain object-left"
+      onError={() => {
+        setUseName(true);
+      }}
+    />
   );
 }
 
@@ -44,7 +64,7 @@ export function BrandLockup({
       )}
     >
       <BrandMark name={name} invert={invert} />
-      <span className="truncate text-base font-semibold tracking-tight">{name}</span>
+      <BrandWordmark name={name} invert={invert} />
     </Link>
   );
 }

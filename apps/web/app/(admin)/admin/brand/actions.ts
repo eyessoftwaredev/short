@@ -13,6 +13,7 @@ import {
 } from "@short/db";
 import { fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { recordAudit } from "@/lib/audit";
+import { knockoutBrandPlate } from "@/lib/brand-image";
 import { requireSuperadmin } from "@/lib/session";
 
 const brandUpdateSchema = z.object({
@@ -98,19 +99,22 @@ export async function uploadBrandAssetAction(formData: FormData): Promise<Action
       return { ok: false, error: "errorInvalidType" };
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
+    const raw = Buffer.from(await file.arrayBuffer());
+    const cleaned = await knockoutBrandPlate(raw, file.type);
+    const bytes = cleaned.bytes;
+    const contentType = cleaned.contentType;
     await getDb()
       .insert(platformAssets)
       .values({
         kind,
-        contentType: file.type,
+        contentType,
         bytes,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: platformAssets.kind,
         set: {
-          contentType: file.type,
+          contentType,
           bytes,
           updatedAt: new Date(),
         },
@@ -122,7 +126,7 @@ export async function uploadBrandAssetAction(formData: FormData): Promise<Action
       action: "admin.brand.asset_uploaded",
       targetType: "platform_asset",
       targetId: kind,
-      metadata: { contentType: file.type, bytes: file.size },
+      metadata: { contentType, bytes: bytes.byteLength },
     });
 
     revalidatePath("/admin/brand");
