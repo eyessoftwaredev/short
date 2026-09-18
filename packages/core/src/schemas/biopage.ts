@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  BIOPAGE_BG_TYPES,
+  BIOPAGE_FONTS,
+  BIOPAGE_LINK_ICONS,
+  BIOPAGE_PROFILE_MODES,
+  BIOPAGE_TEMPLATES,
+  isHexColor,
+} from "../bio-chrome";
 import { SLUG_PATTERN, isReservedSlug } from "../slug";
 import { destinationSchema } from "./link";
 import { mediaPathSchema } from "./qr";
@@ -29,10 +37,33 @@ export const SOCIAL_PLATFORMS = [
   "website",
 ] as const;
 
+const hexColorSchema = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((value) => {
+    if (value == null) {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  })
+  .refine((value) => value === null || isHexColor(value), { message: "hexColor" });
+
+const optionalHrefSchema = z
+  .union([destinationSchema, z.literal(""), z.null()])
+  .optional()
+  .transform((value) => (value ? value : null));
+
+const optionalDateSchema = z
+  .union([z.coerce.date(), z.literal(""), z.null()])
+  .optional()
+  .transform((value) => (value instanceof Date ? value : null));
+
 /**
- * Block fields are deliberately required rather than defaulted: the builder binds these
- * schemas directly through `zodResolver`, which needs the parsed input and output shapes
- * to match. `newBlock()` in the panel supplies every field when a block is created.
+ * Block fields are required rather than defaulted: the builder binds these schemas
+ * through `zodResolver`, which needs the parsed input and output shapes to match.
+ * `newBlock()` supplies every field on create. `parseStoredBioBlock()` fills additive
+ * fields so stored JSON from older pages still parses.
  */
 const baseBlock = {
   id: z.string().min(1),
@@ -47,6 +78,8 @@ export const bioLinkBlockSchema = z.object({
   destination: destinationSchema,
   iconUrl: mediaPathSchema.nullable(),
   highlighted: z.boolean(),
+  iconName: z.enum(BIOPAGE_LINK_ICONS).nullable(),
+  newTab: z.boolean(),
 });
 
 export const bioSocialBlockSchema = z.object({
@@ -96,6 +129,23 @@ export const bioDividerBlockSchema = z.object({
   type: z.literal("divider"),
 });
 
+export const bioFormBlockSchema = z.object({
+  ...baseBlock,
+  type: z.literal("form"),
+  mode: z.enum(["email", "whatsapp"]),
+  title: z.string().trim().max(120),
+  buttonLabel: z.string().trim().min(1).max(40),
+  whatsappNumber: z.string().trim().max(20).nullable(),
+  successMessage: z.string().trim().max(200),
+}).superRefine((block, ctx) => {
+  if (block.mode !== "whatsapp") {
+    return;
+  }
+  if (!/^\+?[1-9]\d{6,14}$/.test(block.whatsappNumber ?? "")) {
+    ctx.addIssue({ code: "custom", message: "whatsappNumber", path: ["whatsappNumber"] });
+  }
+});
+
 export const bioBlockSchema = z.discriminatedUnion("type", [
   bioLinkBlockSchema,
   bioSocialBlockSchema,
@@ -104,10 +154,28 @@ export const bioBlockSchema = z.discriminatedUnion("type", [
   bioImageBlockSchema,
   bioEmbedBlockSchema,
   bioDividerBlockSchema,
+  bioFormBlockSchema,
 ]);
 
 export type BioBlock = z.infer<typeof bioBlockSchema>;
 export type BioBlockType = BioBlock["type"];
+
+/** Fills additive fields so stored JSON from older pages still parses. */
+export function parseStoredBioBlock(value: unknown): BioBlock | null {
+  const record = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const normalized =
+    record.type === "link"
+      ? { ...record, iconName: record.iconName ?? null, newTab: record.newTab ?? true }
+      : record.type === "form"
+        ? {
+            ...record,
+            whatsappNumber: record.whatsappNumber ?? null,
+            successMessage: record.successMessage ?? "",
+          }
+        : record;
+  const parsed = bioBlockSchema.safeParse(normalized);
+  return parsed.success ? parsed.data : null;
+}
 
 export const handleSchema = z
   .string()
@@ -124,6 +192,33 @@ export const biopageInputSchema = z.object({
   avatarUrl: mediaPathSchema.nullable().default(null),
   theme: z.enum(BIOPAGE_THEMES).default("minimal"),
   buttonStyle: z.enum(BIOPAGE_BUTTON_STYLES).default("solid"),
+  templateId: z.enum(BIOPAGE_TEMPLATES).nullable().optional().default(null),
+  bgType: z.enum(BIOPAGE_BG_TYPES).optional().default("theme"),
+  bgColor: hexColorSchema.optional().default(null),
+  bgGradient: z.string().trim().max(400).nullable().optional().default(null),
+  bgImageUrl: mediaPathSchema.nullable().optional().default(null),
+  buttonColor: hexColorSchema.optional().default(null),
+  buttonTextColor: hexColorSchema.optional().default(null),
+  textColor: hexColorSchema.optional().default(null),
+  fontFamily: z.enum(BIOPAGE_FONTS).optional().default("sans"),
+  profileMode: z.enum(BIOPAGE_PROFILE_MODES).optional().default("photo"),
+  logoUrl: mediaPathSchema.nullable().optional().default(null),
+  profileText: z.string().trim().max(40).optional().default(""),
+  coverUrl: mediaPathSchema.nullable().optional().default(null),
+  ogImageUrl: mediaPathSchema.nullable().optional().default(null),
+  adsEnabled: z.boolean().optional().default(false),
+  adMobileImage: mediaPathSchema.nullable().optional().default(null),
+  adMobileHref: optionalHrefSchema,
+  adLeftImage: mediaPathSchema.nullable().optional().default(null),
+  adLeftHref: optionalHrefSchema,
+  adRightImage: mediaPathSchema.nullable().optional().default(null),
+  adRightHref: optionalHrefSchema,
+  customCss: z.string().max(4000).optional().default(""),
+  sensitive: z.boolean().optional().default(false),
+  password: z.string().min(8).max(128).nullable().optional().default(null),
+  removePassword: z.boolean().optional().default(false),
+  publishAt: optionalDateSchema,
+  unpublishAt: optionalDateSchema,
   seoTitle: z.string().trim().max(120).default(""),
   seoDescription: z.string().trim().max(300).default(""),
   published: z.boolean().default(false),

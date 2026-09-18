@@ -34,6 +34,8 @@ export default async function NewBioPage() {
           .filter((domain) => !domain.isPlatform)
           .map((domain) => ({ id: domain.id, hostname: domain.hostname }))}
         platformHostname={serverEnv().PLATFORM_SHORT_DOMAIN}
+        canCustomCss={context.plan.features.customCss}
+        canForms={context.plan.features.bioForms}
       />
     </PanelShell>
   );

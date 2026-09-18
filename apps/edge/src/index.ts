@@ -1,6 +1,7 @@
 import {
   applyUtm,
   forwardQuery,
+  isBiopageLive,
   isSafeDestination,
   parseAcceptLanguage,
   parseUserAgent,
@@ -231,8 +232,10 @@ function applyDeepLink(link: LinkKvRecord, resolution: Resolution, os: string): 
   return resolution;
 }
 
-function gateChallenge(link: LinkKvRecord, error: boolean, status = 401): Response {
-  return new Response(passwordGateHtml({ title: link.title ?? "Protected link", error }), {
+type GateTarget = { id: string; passwordHash: string | null; title: string | null };
+
+function gateChallenge(target: GateTarget, error: boolean, status = 401): Response {
+  return new Response(passwordGateHtml({ title: target.title ?? "Protected link", error }), {
     status,
     headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
   });
@@ -263,23 +266,23 @@ async function gateAttemptsExceeded(env: EdgeEnv, linkId: string, ip: string): P
 async function handlePasswordGate(
   request: Request,
   env: EdgeEnv,
-  link: LinkKvRecord,
+  target: GateTarget,
 ): Promise<Response | null> {
-  if (!link.passwordHash) {
+  if (!target.passwordHash) {
     return null;
   }
 
-  const cookieName = gateCookieName(link.id);
+  const cookieName = gateCookieName(target.id);
   const presented = readCookie(request.headers.get("cookie"), cookieName);
 
-  if (await verifyGateCookie(presented, link.id, link.passwordHash, env.VISITOR_SALT)) {
+  if (await verifyGateCookie(presented, target.id, target.passwordHash, env.VISITOR_SALT)) {
     return null;
   }
 
   if (request.method === "POST") {
     const ip = request.headers.get("cf-connecting-ip") ?? "";
-    if (await gateAttemptsExceeded(env, link.id, ip)) {
-      return gateChallenge(link, true, 429);
+    if (await gateAttemptsExceeded(env, target.id, ip)) {
+      return gateChallenge(target, true, 429);
     }
 
     let submitted = "";
@@ -288,12 +291,12 @@ async function handlePasswordGate(
       submitted = String(form.get("password") ?? "");
     } catch {
       // A non-form body is a malformed submission, not a reason to 500 the worker.
-      return gateChallenge(link, true);
+      return gateChallenge(target, true);
     }
 
-    if (await verifyGatePassword(submitted, link.passwordHash)) {
+    if (await verifyGatePassword(submitted, target.passwordHash)) {
       const expiresAt = Date.now() + GATE_TTL_MS;
-      const value = await gateCookieValue(link.id, link.passwordHash, env.VISITOR_SALT, expiresAt);
+      const value = await gateCookieValue(target.id, target.passwordHash, env.VISITOR_SALT, expiresAt);
 
       return new Response(null, {
         status: 303,
@@ -304,10 +307,10 @@ async function handlePasswordGate(
       });
     }
 
-    return gateChallenge(link, true);
+    return gateChallenge(target, true);
   }
 
-  return gateChallenge(link, false);
+  return gateChallenge(target, false);
 }
 
 /** Biopages are rendered by the Next.js app; the worker only proxies and tracks the view. */
@@ -433,7 +436,15 @@ export default {
       return notFound(env, target.domain.rootDestination);
     }
 
-    if (target.biopage?.published) {
+    if (target.biopage && isBiopageLive(target.biopage)) {
+      const bioGate = await handlePasswordGate(request, env, {
+        id: target.biopage.id,
+        passwordHash: target.biopage.passwordHash ?? null,
+        title: target.biopage.handle,
+      });
+      if (bioGate) {
+        return bioGate;
+      }
       const response = await proxyBiopage(env, request, target.biopage.handle);
       const ua = parseUserAgent(request.headers.get("user-agent"));
       const language = parseAcceptLanguage(request.headers.get("accept-language"));

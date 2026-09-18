@@ -76,7 +76,9 @@ const FEATURE_FIELDS: Array<
         | "featureQrLogo"
         | "featureWebhooks"
         | "featureApi"
-        | "featureShortSlugs";
+        | "featureShortSlugs"
+        | "featureCustomCss"
+        | "featureBioForms";
     }
   | { key: "removeBranding"; source: "plans"; labelKey: "removeBranding" }
 > = [
@@ -88,6 +90,8 @@ const FEATURE_FIELDS: Array<
   { key: "webhooks", labelKey: "featureWebhooks", source: "billing" },
   { key: "apiAccess", labelKey: "featureApi", source: "billing" },
   { key: "shortSlugs", labelKey: "featureShortSlugs", source: "billing" },
+  { key: "customCss", labelKey: "featureCustomCss", source: "billing" },
+  { key: "bioForms", labelKey: "featureBioForms", source: "billing" },
   { key: "removeBranding", labelKey: "removeBranding", source: "plans" },
 ];
 

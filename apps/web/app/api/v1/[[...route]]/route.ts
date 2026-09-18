@@ -407,6 +407,12 @@ app.post("/biopages", async (c) => {
     throw parsed.error;
   }
   await assertQuota(context.workspace.id, context.plan, "biopages");
+  if (parsed.data.customCss.trim() !== "") {
+    assertFeature(context.plan, "customCss");
+  }
+  if (parsed.data.blocks.some((block) => block.type === "form")) {
+    assertFeature(context.plan, "bioForms");
+  }
   const row = await createBiopage(context.workspace.id, parsed.data);
   return c.json({ data: { id: row.id, handle: row.handle, published: row.published } }, 201);
 });
@@ -426,6 +432,31 @@ app.patch("/biopages/:id", async (c) => {
     avatarUrl: existing.avatarUrl,
     theme: existing.theme,
     buttonStyle: existing.buttonStyle,
+    templateId: existing.templateId,
+    bgType: existing.bgType,
+    bgColor: existing.bgColor,
+    bgGradient: existing.bgGradient,
+    bgImageUrl: existing.bgImageUrl,
+    buttonColor: existing.buttonColor,
+    buttonTextColor: existing.buttonTextColor,
+    textColor: existing.textColor,
+    fontFamily: existing.fontFamily,
+    profileMode: existing.profileMode,
+    logoUrl: existing.logoUrl,
+    profileText: existing.profileText,
+    coverUrl: existing.coverUrl,
+    ogImageUrl: existing.ogImageUrl,
+    adsEnabled: existing.adsEnabled,
+    adMobileImage: existing.adMobileImage,
+    adMobileHref: existing.adMobileHref,
+    adLeftImage: existing.adLeftImage,
+    adLeftHref: existing.adLeftHref,
+    adRightImage: existing.adRightImage,
+    adRightHref: existing.adRightHref,
+    customCss: existing.customCss,
+    sensitive: existing.sensitive,
+    publishAt: existing.publishAt,
+    unpublishAt: existing.unpublishAt,
     seoTitle: existing.seoTitle,
     seoDescription: existing.seoDescription,
     published: existing.published,
@@ -434,6 +465,12 @@ app.patch("/biopages/:id", async (c) => {
   });
   if (!parsed.success) {
     throw parsed.error;
+  }
+  if (parsed.data.customCss.trim() !== "") {
+    assertFeature(context.plan, "customCss");
+  }
+  if (parsed.data.blocks.some((block) => block.type === "form")) {
+    assertFeature(context.plan, "bioForms");
   }
   const row = await updateBiopage(context.workspace.id, id, parsed.data);
   return c.json({ data: { id: row.id, handle: row.handle, published: row.published } });

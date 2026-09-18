@@ -60,6 +60,11 @@ export type BiopageKvRecord = {
   workspaceId: string;
   handle: string;
   published: boolean;
+  /** Epoch ms. Missing/null means no lower bound. */
+  publishAt?: number | null;
+  /** Epoch ms. Missing/null means no upper bound. */
+  unpublishAt?: number | null;
+  passwordHash?: string | null;
 };
 
 export function linkKey(hostname: string, slug: string): string {

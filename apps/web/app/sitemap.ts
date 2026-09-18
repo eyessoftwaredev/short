@@ -1,3 +1,4 @@
+import { isBiopageLive } from "@short/core";
 import { and, biopages, eq, getDb, isNull } from "@short/db";
 import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/env";
@@ -22,11 +23,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const rows = await getDb()
-      .select({ handle: biopages.handle, updatedAt: biopages.updatedAt })
+      .select({
+        handle: biopages.handle,
+        updatedAt: biopages.updatedAt,
+        published: biopages.published,
+        publishAt: biopages.publishAt,
+        unpublishAt: biopages.unpublishAt,
+        sensitive: biopages.sensitive,
+        passwordHash: biopages.passwordHash,
+      })
       .from(biopages)
       .where(and(isNull(biopages.domainId), eq(biopages.published, true)));
 
     for (const row of rows) {
+      if (row.sensitive || row.passwordHash || !isBiopageLive(row)) {
+        continue;
+      }
       pages.push({
         url: `${origin}/${row.handle}`,
         lastModified: row.updatedAt ?? undefined,

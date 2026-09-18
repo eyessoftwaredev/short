@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { GOOGLE_FONT_HREF } from "@short/core";
 import { BioPageView } from "@/components/bio/bio-page-view";
+import { BioSensitiveGate } from "@/components/bio/bio-sensitive-gate";
 import { BioTracker } from "@/components/bio/bio-tracker";
 import { getPublishedBiopage, platformHostname } from "@/lib/biopages";
 import { getPlatformBrand } from "@/lib/brand";
@@ -53,6 +55,39 @@ async function load(handle: string) {
   return getPublishedBiopage(hostname, handle);
 }
 
+function viewPage(page: NonNullable<Awaited<ReturnType<typeof load>>>) {
+  return {
+    id: page.id,
+    handle: page.handle,
+    displayName: page.displayName,
+    bio: page.bio,
+    avatarUrl: page.avatarUrl,
+    theme: page.theme,
+    buttonStyle: page.buttonStyle,
+    blocks: page.blocks,
+    bgType: page.bgType,
+    bgColor: page.bgColor,
+    bgGradient: page.bgGradient,
+    bgImageUrl: page.bgImageUrl,
+    buttonColor: page.buttonColor,
+    buttonTextColor: page.buttonTextColor,
+    textColor: page.textColor,
+    fontFamily: page.fontFamily,
+    profileMode: page.profileMode,
+    logoUrl: page.logoUrl,
+    profileText: page.profileText,
+    coverUrl: page.coverUrl,
+    adsEnabled: page.adsEnabled,
+    adMobileImage: page.adMobileImage,
+    adMobileHref: page.adMobileHref,
+    adLeftImage: page.adLeftImage,
+    adLeftHref: page.adLeftHref,
+    adRightImage: page.adRightImage,
+    adRightHref: page.adRightHref,
+    customCss: page.customCss,
+  };
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { handle } = await params;
   const page = await load(handle);
@@ -61,25 +96,30 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     return { title: "Not found", robots: { index: false, follow: false } };
   }
 
+  if (page.passwordHash) {
+    return { title: page.handle, robots: { index: false, follow: false } };
+  }
+
   const title = page.seoTitle || page.displayName;
   const description = page.seoDescription || page.bio;
   const hostname = await requestHostname();
   const host = hostname || platformHostname();
   const canonical = `https://${host}/${page.handle}`;
+  const image = page.ogImageUrl || page.avatarUrl;
 
   return {
     title,
     description,
     alternates: { canonical },
-    robots: { index: true, follow: true },
+    robots: page.sensitive ? { index: false, follow: false } : { index: true, follow: true },
     openGraph: {
       title,
       description,
       type: "profile",
       url: canonical,
-      images: page.avatarUrl ? [{ url: page.avatarUrl }] : undefined,
+      images: image ? [{ url: image }] : undefined,
     },
-    twitter: { card: "summary", title, description },
+    twitter: { card: image ? "summary_large_image" : "summary", title, description },
   };
 }
 
@@ -93,27 +133,24 @@ export default async function BiopagePage({ params }: { params: Params }) {
 
   const brand = await getPlatformBrand();
   const appUrl = serverEnv().APP_URL.replace(/\/$/, "");
+  const fontHref = page.fontFamily ? GOOGLE_FONT_HREF[page.fontFamily] : undefined;
+  const view = (
+    <BioPageView
+      page={viewPage(page)}
+      showBranding={!page.removeBranding}
+      branding={{ name: brand.name, href: appUrl }}
+      formEndpoint={`${appUrl}/api/bio/leads`}
+    />
+  );
 
   return (
     <main className="min-h-screen">
-      <BioPageView
-        page={{
-          id: page.id,
-          handle: page.handle,
-          displayName: page.displayName,
-          bio: page.bio,
-          avatarUrl: page.avatarUrl,
-          theme: page.theme,
-          buttonStyle: page.buttonStyle,
-          blocks: page.blocks,
-        }}
-        showBranding={!page.removeBranding}
-        branding={{ name: brand.name, href: appUrl }}
-      />
-      <BioTracker
-        biopageId={page.id}
-        endpoint={`${serverEnv().APP_URL.replace(/\/$/, "")}/api/bio/track`}
-      />
+      {fontHref ? (
+        // eslint-disable-next-line @next/next/no-page-custom-font -- allowlisted Google fonts only
+        <link rel="stylesheet" href={fontHref} />
+      ) : null}
+      {page.sensitive ? <BioSensitiveGate pageId={page.id}>{view}</BioSensitiveGate> : view}
+      <BioTracker biopageId={page.id} endpoint={`${appUrl}/api/bio/track`} />
     </main>
   );
 }

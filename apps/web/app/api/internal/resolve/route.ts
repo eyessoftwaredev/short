@@ -1,7 +1,7 @@
 import { KV_SCHEMA_VERSION, type BiopageKvRecord, type DomainKvRecord } from "@short/core";
 import { and, biopages, domains, eq, getDb, isNull, links } from "@short/db";
 import { NextResponse, type NextRequest } from "next/server";
-import { platformHostname } from "@/lib/biopages";
+import { platformHostname, toKvRecord as toBiopageKvRecord } from "@/lib/biopages";
 import { serverEnv } from "@/lib/env";
 import { toKvRecord } from "@/lib/links";
 import { workspaceOverClickQuota } from "@/lib/quota";
@@ -82,15 +82,7 @@ export async function POST(request: NextRequest) {
     )
     .limit(1);
 
-  const biopageRecord: BiopageKvRecord | null = biopage
-    ? {
-        v: KV_SCHEMA_VERSION,
-        id: biopage.id,
-        workspaceId: biopage.workspaceId,
-        handle: biopage.handle,
-        published: biopage.published,
-      }
-    : null;
+  const biopageRecord: BiopageKvRecord | null = biopage ? toBiopageKvRecord(biopage) : null;
 
   return NextResponse.json({ link: null, domain: domainRecord, biopage: biopageRecord });
 }

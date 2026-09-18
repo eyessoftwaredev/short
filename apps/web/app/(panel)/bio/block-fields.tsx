@@ -2,7 +2,7 @@
 
 import { Icon } from "@/components/kit/icon";
 
-import { SOCIAL_PLATFORMS, type BioBlock } from "@short/core";
+import { BIOPAGE_LINK_ICONS, SOCIAL_PLATFORMS, type BioBlock } from "@short/core";
 import { useTranslations } from "next-intl";
 import { ImageUpload } from "@/components/media/image-upload";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
@@ -62,6 +62,35 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
           >
             <option value="normal">{t("normal")}</option>
             <option value="highlight">{t("highlighted")}</option>
+          </Select>
+        </Field>
+        <Field label={t("iconName")} hint={t("iconNameHint")}>
+          <Select
+            value={block.iconName ?? ""}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                iconName: event.target.value === "" ? null : (event.target.value as typeof block.iconName),
+              })
+            }
+          >
+            <option value="">{t("iconNone")}</option>
+            {BIOPAGE_LINK_ICONS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t("newTab")}>
+          <Select
+            value={block.newTab === false ? "same" : "new"}
+            onChange={(event) =>
+              onChange({ ...block, newTab: event.target.value === "new" })
+            }
+          >
+            <option value="new">{t("newTabYes")}</option>
+            <option value="same">{t("newTabNo")}</option>
           </Select>
         </Field>
       </div>
@@ -226,6 +255,63 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             onChange={(event) => onChange({ ...block, url: event.target.value })}
           />
         </Field>
+      </div>
+    );
+  }
+
+  if (block.type === "form") {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t("formMode")}>
+          <Select
+            value={block.mode}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                mode: event.target.value as "email" | "whatsapp",
+              })
+            }
+          >
+            <option value="email">{t("formModeEmail")}</option>
+            <option value="whatsapp">{t("formModeWhatsapp")}</option>
+          </Select>
+        </Field>
+        <Field label={t("formButton")}>
+          <Input
+            value={block.buttonLabel}
+            maxLength={40}
+            onChange={(event) => onChange({ ...block, buttonLabel: event.target.value })}
+          />
+        </Field>
+        <Field label={t("formTitle")} className="sm:col-span-2">
+          <Input
+            value={block.title}
+            maxLength={120}
+            onChange={(event) => onChange({ ...block, title: event.target.value })}
+          />
+        </Field>
+        {block.mode === "whatsapp" ? (
+          <Field label={t("formWhatsapp")} hint={t("formWhatsappHint")} className="sm:col-span-2">
+            <Input
+              value={block.whatsappNumber ?? ""}
+              placeholder="+905551112233"
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  whatsappNumber: event.target.value === "" ? null : event.target.value,
+                })
+              }
+            />
+          </Field>
+        ) : (
+          <Field label={t("formSuccess")} className="sm:col-span-2">
+            <Input
+              value={block.successMessage ?? ""}
+              maxLength={200}
+              onChange={(event) => onChange({ ...block, successMessage: event.target.value })}
+            />
+          </Field>
+        )}
       </div>
     );
   }

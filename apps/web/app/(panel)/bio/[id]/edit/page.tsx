@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { StatusBadge } from "@/components/shell/status-badge";
 import { Hero } from "@/components/ui";
-import type { BioFormValues } from "@/lib/bio-form";
+import { emptyBioForm, toFormDate, type BioFormValues } from "@/lib/bio-form";
 import { bioUrl, getBiopage } from "@/lib/biopages";
 import { serverEnv } from "@/lib/env";
 import { listWorkspaceDomains } from "@/lib/links";
@@ -32,6 +32,7 @@ export default async function EditBioPage({ params }: { params: Params }) {
   }
 
   const defaults: BioFormValues = {
+    ...emptyBioForm(page.handle),
     handle: page.handle,
     domainId: page.domainId ?? "",
     displayName: page.displayName,
@@ -39,6 +40,32 @@ export default async function EditBioPage({ params }: { params: Params }) {
     avatarUrl: page.avatarUrl ?? "",
     theme: page.theme,
     buttonStyle: page.buttonStyle as BioFormValues["buttonStyle"],
+    templateId: page.templateId,
+    bgType: page.bgType,
+    bgColor: page.bgColor ?? "",
+    bgGradient: page.bgGradient ?? "",
+    bgImageUrl: page.bgImageUrl ?? "",
+    buttonColor: page.buttonColor ?? "",
+    buttonTextColor: page.buttonTextColor ?? "",
+    textColor: page.textColor ?? "",
+    fontFamily: page.fontFamily,
+    profileMode: page.profileMode,
+    logoUrl: page.logoUrl ?? "",
+    profileText: page.profileText,
+    coverUrl: page.coverUrl ?? "",
+    ogImageUrl: page.ogImageUrl ?? "",
+    adsEnabled: page.adsEnabled,
+    adMobileImage: page.adMobileImage ?? "",
+    adMobileHref: page.adMobileHref ?? "",
+    adLeftImage: page.adLeftImage ?? "",
+    adLeftHref: page.adLeftHref ?? "",
+    adRightImage: page.adRightImage ?? "",
+    adRightHref: page.adRightHref ?? "",
+    customCss: page.customCss,
+    sensitive: page.sensitive,
+    hasPassword: Boolean(page.passwordHash),
+    publishAt: toFormDate(page.publishAt),
+    unpublishAt: toFormDate(page.unpublishAt),
     seoTitle: page.seoTitle,
     seoDescription: page.seoDescription,
     published: page.published,
@@ -65,6 +92,8 @@ export default async function EditBioPage({ params }: { params: Params }) {
           .filter((domain) => !domain.isPlatform)
           .map((domain) => ({ id: domain.id, hostname: domain.hostname }))}
         platformHostname={serverEnv().PLATFORM_SHORT_DOMAIN}
+        canCustomCss={context.plan.features.customCss}
+        canForms={context.plan.features.bioForms}
       />
     </PanelShell>
   );

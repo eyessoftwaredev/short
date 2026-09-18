@@ -57,6 +57,13 @@
       "when": 1789900000000,
       "tag": "0007_account_deactivation",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789980000000,
+      "tag": "0008_biopage_chrome",
+      "breakpoints": true
     }
   ]
 }

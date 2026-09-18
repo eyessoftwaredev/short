@@ -1,5 +1,6 @@
 import {
   BIOPAGE_BUTTON_STYLES,
+  BIOPAGE_FONTS,
   BIOPAGE_THEMES,
   bioBlockSchema,
   biopageInputSchema,
@@ -18,6 +19,34 @@ export const bioFormSchema = z.object({
   avatarUrl: z.string().trim().max(2048),
   theme: z.enum(BIOPAGE_THEMES),
   buttonStyle: z.enum(BIOPAGE_BUTTON_STYLES),
+  templateId: z.string().nullable(),
+  bgType: z.enum(["theme", "color", "gradient", "image"]),
+  bgColor: z.string(),
+  bgGradient: z.string(),
+  bgImageUrl: z.string(),
+  buttonColor: z.string(),
+  buttonTextColor: z.string(),
+  textColor: z.string(),
+  fontFamily: z.enum(BIOPAGE_FONTS),
+  profileMode: z.enum(["photo", "text", "logo"]),
+  logoUrl: z.string(),
+  profileText: z.string().max(40),
+  coverUrl: z.string(),
+  ogImageUrl: z.string(),
+  adsEnabled: z.boolean(),
+  adMobileImage: z.string(),
+  adMobileHref: z.string(),
+  adLeftImage: z.string(),
+  adLeftHref: z.string(),
+  adRightImage: z.string(),
+  adRightHref: z.string(),
+  customCss: z.string().max(4000),
+  sensitive: z.boolean(),
+  password: z.string(),
+  removePassword: z.boolean(),
+  hasPassword: z.boolean(),
+  publishAt: z.string(),
+  unpublishAt: z.string(),
   seoTitle: z.string().trim().max(120),
   seoDescription: z.string().trim().max(300),
   published: z.boolean(),
@@ -25,6 +54,10 @@ export const bioFormSchema = z.object({
 });
 
 export type BioFormValues = z.infer<typeof bioFormSchema>;
+
+function emptyMedia(): string {
+  return "";
+}
 
 export const emptyBioForm = (handle = ""): BioFormValues => ({
   handle,
@@ -34,11 +67,51 @@ export const emptyBioForm = (handle = ""): BioFormValues => ({
   avatarUrl: "",
   theme: "minimal",
   buttonStyle: "solid",
+  templateId: null,
+  bgType: "theme",
+  bgColor: "",
+  bgGradient: "",
+  bgImageUrl: "",
+  buttonColor: "",
+  buttonTextColor: "",
+  textColor: "",
+  fontFamily: "sans",
+  profileMode: "photo",
+  logoUrl: "",
+  profileText: "",
+  coverUrl: "",
+  ogImageUrl: "",
+  adsEnabled: false,
+  adMobileImage: "",
+  adMobileHref: "",
+  adLeftImage: "",
+  adLeftHref: "",
+  adRightImage: "",
+  adRightHref: "",
+  customCss: "",
+  sensitive: false,
+  password: "",
+  removePassword: false,
+  hasPassword: false,
+  publishAt: "",
+  unpublishAt: "",
   seoTitle: "",
   seoDescription: "",
   published: false,
   blocks: [],
 });
+
+function optionalDate(value: string): Date | null {
+  if (value.trim() === "") {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function emptyToNull(value: string): string | null {
+  return value.trim() === "" ? null : value;
+}
 
 export function toBiopageInput(values: BioFormValues): BiopageInput {
   return biopageInputSchema.parse({
@@ -46,9 +119,36 @@ export function toBiopageInput(values: BioFormValues): BiopageInput {
     domainId: values.domainId === "" ? null : values.domainId,
     displayName: values.displayName,
     bio: values.bio,
-    avatarUrl: values.avatarUrl === "" ? null : values.avatarUrl,
+    avatarUrl: emptyToNull(values.avatarUrl),
     theme: values.theme,
     buttonStyle: values.buttonStyle,
+    templateId: values.templateId,
+    bgType: values.bgType,
+    bgColor: emptyToNull(values.bgColor),
+    bgGradient: emptyToNull(values.bgGradient),
+    bgImageUrl: emptyToNull(values.bgImageUrl),
+    buttonColor: emptyToNull(values.buttonColor),
+    buttonTextColor: emptyToNull(values.buttonTextColor),
+    textColor: emptyToNull(values.textColor),
+    fontFamily: values.fontFamily,
+    profileMode: values.profileMode,
+    logoUrl: emptyToNull(values.logoUrl),
+    profileText: values.profileText,
+    coverUrl: emptyToNull(values.coverUrl),
+    ogImageUrl: emptyToNull(values.ogImageUrl),
+    adsEnabled: values.adsEnabled,
+    adMobileImage: emptyToNull(values.adMobileImage),
+    adMobileHref: emptyToNull(values.adMobileHref),
+    adLeftImage: emptyToNull(values.adLeftImage),
+    adLeftHref: emptyToNull(values.adLeftHref),
+    adRightImage: emptyToNull(values.adRightImage),
+    adRightHref: emptyToNull(values.adRightHref),
+    customCss: values.customCss,
+    sensitive: values.sensitive,
+    password: values.password.trim() === "" ? null : values.password,
+    removePassword: values.removePassword,
+    publishAt: optionalDate(values.publishAt),
+    unpublishAt: optionalDate(values.unpublishAt),
     seoTitle: values.seoTitle,
     seoDescription: values.seoDescription,
     published: values.published,
@@ -70,6 +170,8 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
         destination: "https://",
         iconUrl: null,
         highlighted: false,
+        iconName: null,
+        newTab: true,
         visible: true,
       };
     case "social":
@@ -88,7 +190,33 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
       return { id, position, type: "image", url: "https://", alt: "", href: null, visible: true };
     case "embed":
       return { id, position, type: "embed", provider: "youtube", url: "https://", visible: true };
+    case "form":
+      return {
+        id,
+        position,
+        type: "form",
+        mode: "email",
+        title: "",
+        buttonLabel: "Subscribe",
+        whatsappNumber: null,
+        successMessage: "",
+        visible: true,
+      };
     default:
       return { id, position, type: "divider", visible: true };
   }
 }
+
+export function toFormDate(value: Date | string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+void emptyMedia;

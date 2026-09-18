@@ -1,5 +1,9 @@
 import {
   KV_SCHEMA_VERSION,
+  parseStoredBioBlock,
+  hashGatePassword,
+  isBiopageLive,
+  sanitizeBioCss,
   type BioBlock,
   type BiopageInput,
   type BiopageKvRecord,
@@ -8,6 +12,7 @@ import {
   and,
   asc,
   bioBlocks,
+  bioLeads,
   biopages,
   count,
   desc,
@@ -20,6 +25,7 @@ import {
   plans,
   subscriptions,
   type BioBlockRow,
+  type BioLeadRow,
   type BiopageRow,
 } from "@short/db";
 import { serverEnv } from "./env";
@@ -42,13 +48,16 @@ export function platformHostname(): string {
   return serverEnv().PLATFORM_SHORT_DOMAIN.toLowerCase().split(":")[0] ?? "";
 }
 
-function toKvRecord(page: BiopageRow): BiopageKvRecord {
+export function toKvRecord(page: BiopageRow): BiopageKvRecord {
   return {
     v: KV_SCHEMA_VERSION,
     id: page.id,
     workspaceId: page.workspaceId,
     handle: page.handle,
     published: page.published,
+    publishAt: page.publishAt ? page.publishAt.getTime() : null,
+    unpublishAt: page.unpublishAt ? page.unpublishAt.getTime() : null,
+    passwordHash: page.passwordHash,
   };
 }
 
@@ -57,7 +66,58 @@ function orderBlocks(rows: BioBlockRow[]): BioBlock[] {
   return rows
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map((row, index) => ({ ...row.config, id: row.id, position: index }) as BioBlock);
+    .flatMap((row, index) => {
+      const parsed = parseStoredBioBlock({
+        ...row.config,
+        id: row.id,
+        position: index,
+        visible: row.visible,
+      });
+      return parsed ? [parsed] : [];
+    });
+}
+
+function chromeFields(input: BiopageInput) {
+  return {
+    templateId: input.templateId,
+    bgType: input.bgType,
+    bgColor: input.bgColor,
+    bgGradient: input.bgGradient,
+    bgImageUrl: input.bgImageUrl,
+    buttonColor: input.buttonColor,
+    buttonTextColor: input.buttonTextColor,
+    textColor: input.textColor,
+    fontFamily: input.fontFamily,
+    profileMode: input.profileMode,
+    logoUrl: input.logoUrl,
+    profileText: input.profileText ?? "",
+    coverUrl: input.coverUrl,
+    ogImageUrl: input.ogImageUrl,
+    adsEnabled: input.adsEnabled,
+    adMobileImage: input.adMobileImage,
+    adMobileHref: input.adMobileHref,
+    adLeftImage: input.adLeftImage,
+    adLeftHref: input.adLeftHref,
+    adRightImage: input.adRightImage,
+    adRightHref: input.adRightHref,
+    customCss: sanitizeBioCss(input.customCss ?? ""),
+    sensitive: input.sensitive,
+    publishAt: input.publishAt,
+    unpublishAt: input.unpublishAt,
+  };
+}
+
+async function nextPasswordHash(
+  previous: string | null | undefined,
+  input: BiopageInput,
+): Promise<string | null> {
+  if (input.removePassword) {
+    return null;
+  }
+  if (input.password) {
+    return hashGatePassword(input.password);
+  }
+  return previous ?? null;
 }
 
 async function resolveHostname(domainId: string | null): Promise<string> {
@@ -175,28 +235,18 @@ export async function getPublishedBiopage(
     ? await db
         .select({ page: biopages })
         .from(biopages)
-        .where(
-          and(
-            eq(biopages.handle, normalized),
-            eq(biopages.published, true),
-            isNull(biopages.domainId),
-          ),
-        )
+        .where(and(eq(biopages.handle, normalized), isNull(biopages.domainId)))
         .limit(1)
     : await db
         .select({ page: biopages })
         .from(biopages)
         .innerJoin(domains, eq(biopages.domainId, domains.id))
         .where(
-          and(
-            eq(biopages.handle, normalized),
-            eq(biopages.published, true),
-            eq(domains.hostname, host),
-          ),
+          and(eq(biopages.handle, normalized), eq(domains.hostname, host)),
         )
         .limit(1);
 
-  if (!row) {
+  if (!row || !isBiopageLive(row.page)) {
     return null;
   }
 
@@ -268,6 +318,8 @@ export async function createBiopage(
       avatarUrl: input.avatarUrl,
       theme: input.theme,
       buttonStyle: input.buttonStyle,
+      ...chromeFields(input),
+      passwordHash: await nextPasswordHash(null, input),
       seoTitle: input.seoTitle,
       seoDescription: input.seoDescription,
       published: input.published,
@@ -309,6 +361,8 @@ export async function updateBiopage(
       avatarUrl: input.avatarUrl,
       theme: input.theme,
       buttonStyle: input.buttonStyle,
+      ...chromeFields(input),
+      passwordHash: await nextPasswordHash(previous.passwordHash, input),
       seoTitle: input.seoTitle,
       seoDescription: input.seoDescription,
       published: input.published,
@@ -363,4 +417,64 @@ export async function handleTaken(
     .limit(20);
 
   return rows.some((row) => row.domainId === domainId && row.id !== exceptId);
+}
+
+export async function getLiveBiopageById(id: string): Promise<BiopageWithBlocks | null> {
+  if (!UUID.test(id)) {
+    return null;
+  }
+  const db = getDb();
+  const [row] = await db.select().from(biopages).where(eq(biopages.id, id)).limit(1);
+  if (!row || !isBiopageLive(row)) {
+    return null;
+  }
+  const blocks = await db
+    .select()
+    .from(bioBlocks)
+    .where(and(eq(bioBlocks.biopageId, id), eq(bioBlocks.visible, true)))
+    .orderBy(asc(bioBlocks.position));
+  return {
+    ...row,
+    hostname: await resolveHostname(row.domainId),
+    blocks: orderBlocks(blocks),
+  };
+}
+
+export async function createBioLead(input: {
+  biopageId: string;
+  blockId: string;
+  email: string;
+  payload?: Record<string, string>;
+  ipHash?: string | null;
+}): Promise<BioLeadRow> {
+  const [row] = await getDb()
+    .insert(bioLeads)
+    .values({
+      biopageId: input.biopageId,
+      blockId: input.blockId,
+      email: input.email,
+      payload: input.payload ?? {},
+      ipHash: input.ipHash ?? null,
+    })
+    .returning();
+  if (!row) {
+    throw new Error("Failed to store lead");
+  }
+  return row;
+}
+
+export async function listBioLeads(
+  workspaceId: string,
+  biopageId: string,
+): Promise<BioLeadRow[]> {
+  const page = await getBiopage(workspaceId, biopageId);
+  if (!page) {
+    return [];
+  }
+  return getDb()
+    .select()
+    .from(bioLeads)
+    .where(eq(bioLeads.biopageId, biopageId))
+    .orderBy(desc(bioLeads.createdAt))
+    .limit(500);
 }

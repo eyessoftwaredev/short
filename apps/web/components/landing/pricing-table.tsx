@@ -51,6 +51,8 @@ const FEATURE_KEYS = [
   ["webhooks", "featureWebhooks"],
   ["apiAccess", "featureApi"],
   ["shortSlugs", "featureShortSlugs"],
+  ["customCss", "featureCustomCss"],
+  ["bioForms", "featureBioForms"],
   ["removeBranding", "featureBranding"],
 ] as const;
 

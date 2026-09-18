@@ -4,6 +4,9 @@ import { Icon } from "@/components/kit/icon";
 
 import {
   BIOPAGE_BUTTON_STYLES,
+  BIOPAGE_FONTS,
+  BIOPAGE_TEMPLATE_PRESETS,
+  BIOPAGE_TEMPLATES,
   BIOPAGE_THEMES,
   type BioBlock,
   type BioBlockType,
@@ -62,11 +65,22 @@ type BioBuilderProps = {
   defaultValues: BioFormValues;
   domains: BioDomainOption[];
   platformHostname: string;
+  canCustomCss?: boolean;
+  canForms?: boolean;
 };
 
-type TabId = "blocks" | "profile" | "design" | "seo";
+type TabId = "blocks" | "profile" | "design" | "ads" | "access" | "seo";
 
-const ADDABLE: BioBlockType[] = ["link", "social", "header", "text", "image", "embed", "divider"];
+const ADDABLE: BioBlockType[] = [
+  "link",
+  "social",
+  "header",
+  "text",
+  "image",
+  "embed",
+  "form",
+  "divider",
+];
 
 const BLOCK_KEYS = {
   link: "block.link",
@@ -75,6 +89,7 @@ const BLOCK_KEYS = {
   header: "block.header",
   image: "block.image",
   embed: "block.embed",
+  form: "block.form",
   divider: "block.divider",
 } as const;
 
@@ -92,6 +107,27 @@ const BUTTON_STYLE_KEYS = {
   outline: "buttonStyleName.outline",
   soft: "buttonStyleName.soft",
   pill: "buttonStyleName.pill",
+} as const;
+
+const TEMPLATE_KEYS = {
+  minimal: "templateName.minimal",
+  midnight: "templateName.midnight",
+  sunset: "templateName.sunset",
+  forest: "templateName.forest",
+  mono: "templateName.mono",
+  candy: "templateName.candy",
+  glass: "templateName.glass",
+  neon: "templateName.neon",
+} as const;
+
+const FONT_KEYS = {
+  sans: "fontName.sans",
+  serif: "fontName.serif",
+  mono: "fontName.mono",
+  inter: "fontName.inter",
+  poppins: "fontName.poppins",
+  playfair: "fontName.playfair",
+  space: "fontName.space",
 } as const;
 
 function bioFieldError(
@@ -128,6 +164,8 @@ function describeBlock(block: BioBlock, t: (key: string, values?: { count: numbe
       return block.alt || block.url;
     case "embed":
       return `${block.provider} · ${block.url}`;
+    case "form":
+      return block.title || t("block.form");
     default:
       return t("block.divider");
   }
@@ -208,6 +246,8 @@ export function BioBuilder({
   defaultValues,
   domains,
   platformHostname,
+  canCustomCss = false,
+  canForms = false,
 }: BioBuilderProps) {
   const router = useRouter();
   const t = useTranslations("bio");
@@ -223,6 +263,8 @@ export function BioBuilder({
     { id: "blocks", label: t("tabBlocks") },
     { id: "profile", label: t("tabProfile") },
     { id: "design", label: t("tabDesign") },
+    { id: "ads", label: t("tabAds") },
+    { id: "access", label: t("tabAccess") },
     { id: "seo", label: t("tabSeo") },
   ];
 
@@ -335,7 +377,7 @@ export function BioBuilder({
           <TabPanel active={tab === "blocks"}>
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap gap-2">
-                {ADDABLE.map((type) => (
+                {ADDABLE.filter((type) => type !== "form" || canForms).map((type) => (
                   <Chip key={type} onClick={() => addBlock(type)}>
                     <Icon name="plus" className="text-xs" />
                     {t(BLOCK_KEYS[type])}
@@ -406,10 +448,45 @@ export function BioBuilder({
                 <Input placeholder="Acme Studio" {...register("displayName")} />
               </Field>
 
+              <Field label={t("profileMode")} className="sm:col-span-2">
+                <Select
+                  value={values.profileMode}
+                  onChange={(event) =>
+                    setValue(
+                      "profileMode",
+                      event.target.value as BioFormValues["profileMode"],
+                      { shouldDirty: true },
+                    )
+                  }
+                >
+                  <option value="photo">{t("profilePhoto")}</option>
+                  <option value="text">{t("profileTextMode")}</option>
+                  <option value="logo">{t("profileLogo")}</option>
+                </Select>
+              </Field>
+
               <Field label={t("avatar")} error={bioFieldError(errors.avatarUrl?.message, t, te)}>
                 <ImageUpload
                   value={values.avatarUrl}
                   onChange={(url) => setValue("avatarUrl", url, { shouldDirty: true })}
+                />
+              </Field>
+
+              <Field label={t("logo")}>
+                <ImageUpload
+                  value={values.logoUrl}
+                  onChange={(url) => setValue("logoUrl", url, { shouldDirty: true })}
+                />
+              </Field>
+
+              <Field label={t("profileTextLabel")}>
+                <Input maxLength={40} {...register("profileText")} />
+              </Field>
+
+              <Field label={t("cover")}>
+                <ImageUpload
+                  value={values.coverUrl}
+                  onChange={(url) => setValue("coverUrl", url, { shouldDirty: true })}
                 />
               </Field>
 
@@ -434,6 +511,32 @@ export function BioBuilder({
 
           <TabPanel active={tab === "design"}>
             <div className="flex flex-col gap-6">
+              <Section title={t("templates")} description={t("templatesDesc")}>
+                <div className="flex flex-wrap gap-2">
+                  {BIOPAGE_TEMPLATES.map((id) => (
+                    <Chip
+                      key={id}
+                      active={values.templateId === id}
+                      onClick={() => {
+                        const preset = BIOPAGE_TEMPLATE_PRESETS[id];
+                        setValue("templateId", id, { shouldDirty: true });
+                        setValue("theme", preset.theme, { shouldDirty: true });
+                        setValue("buttonStyle", preset.buttonStyle, { shouldDirty: true });
+                        setValue("fontFamily", preset.fontFamily, { shouldDirty: true });
+                        setValue("bgType", preset.bgType, { shouldDirty: true });
+                        setValue("bgColor", preset.bgColor ?? "", { shouldDirty: true });
+                        setValue("bgGradient", preset.bgGradient ?? "", { shouldDirty: true });
+                        setValue("buttonColor", preset.buttonColor ?? "", { shouldDirty: true });
+                        setValue("buttonTextColor", preset.buttonTextColor ?? "", { shouldDirty: true });
+                        setValue("textColor", preset.textColor ?? "", { shouldDirty: true });
+                      }}
+                    >
+                      {t(TEMPLATE_KEYS[id])}
+                    </Chip>
+                  ))}
+                </div>
+              </Section>
+
               <Section title={t("theme")} description={t("themeDesc")}>
                 <div className="flex flex-wrap gap-2">
                   {BIOPAGE_THEMES.map((theme) => (
@@ -461,6 +564,144 @@ export function BioBuilder({
                   ))}
                 </div>
               </Section>
+
+              <Section title={t("background")} description={t("backgroundDesc")}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={t("bgType")}>
+                    <Select
+                      value={values.bgType}
+                      onChange={(event) =>
+                        setValue("bgType", event.target.value as BioFormValues["bgType"], {
+                          shouldDirty: true,
+                        })
+                      }
+                    >
+                      <option value="theme">{t("bgTheme")}</option>
+                      <option value="color">{t("bgColor")}</option>
+                      <option value="gradient">{t("bgGradient")}</option>
+                      <option value="image">{t("bgImage")}</option>
+                    </Select>
+                  </Field>
+                  <Field label={t("fontFamily")}>
+                    <Select {...register("fontFamily")}>
+                      {BIOPAGE_FONTS.map((font) => (
+                        <option key={font} value={font}>
+                          {t(FONT_KEYS[font])}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t("bgColorValue")}>
+                    <Input placeholder="#111111" {...register("bgColor")} />
+                  </Field>
+                  <Field label={t("bgGradientValue")} className="sm:col-span-2">
+                    <Input {...register("bgGradient")} />
+                  </Field>
+                  <Field label={t("bgImage")} className="sm:col-span-2">
+                    <ImageUpload
+                      value={values.bgImageUrl}
+                      onChange={(url) => setValue("bgImageUrl", url, { shouldDirty: true })}
+                    />
+                  </Field>
+                  <Field label={t("buttonColor")}>
+                    <Input placeholder="#0f766e" {...register("buttonColor")} />
+                  </Field>
+                  <Field label={t("buttonTextColor")}>
+                    <Input placeholder="#ffffff" {...register("buttonTextColor")} />
+                  </Field>
+                  <Field label={t("textColor")}>
+                    <Input placeholder="#171717" {...register("textColor")} />
+                  </Field>
+                </div>
+              </Section>
+
+              {canCustomCss ? (
+                <Field label={t("customCss")} hint={t("customCssHint")}>
+                  <Textarea rows={5} maxLength={4000} {...register("customCss")} />
+                </Field>
+              ) : (
+                <p className="m-0 text-sm text-fg-muted">{t("customCssPaywall")}</p>
+              )}
+            </div>
+          </TabPanel>
+
+          <TabPanel active={tab === "ads"}>
+            <div className="flex flex-col gap-4">
+              <Card staticHover className="flex-row items-center justify-between gap-4">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{t("adsEnabled")}</span>
+                  <span className="block text-sm text-fg-muted">{t("adsEnabledHint")}</span>
+                </span>
+                <Switch
+                  checked={values.adsEnabled}
+                  onCheckedChange={(checked) => setValue("adsEnabled", checked, { shouldDirty: true })}
+                />
+              </Card>
+              <Field label={t("adMobile")}>
+                <ImageUpload
+                  value={values.adMobileImage}
+                  onChange={(url) => setValue("adMobileImage", url, { shouldDirty: true })}
+                />
+              </Field>
+              <Field label={t("adMobileHref")}>
+                <Input {...register("adMobileHref")} />
+              </Field>
+              <Field label={t("adLeft")}>
+                <ImageUpload
+                  value={values.adLeftImage}
+                  onChange={(url) => setValue("adLeftImage", url, { shouldDirty: true })}
+                />
+              </Field>
+              <Field label={t("adLeftHref")}>
+                <Input {...register("adLeftHref")} />
+              </Field>
+              <Field label={t("adRight")}>
+                <ImageUpload
+                  value={values.adRightImage}
+                  onChange={(url) => setValue("adRightImage", url, { shouldDirty: true })}
+                />
+              </Field>
+              <Field label={t("adRightHref")}>
+                <Input {...register("adRightHref")} />
+              </Field>
+            </div>
+          </TabPanel>
+
+          <TabPanel active={tab === "access"}>
+            <div className="flex flex-col gap-4">
+              <Card staticHover className="flex-row items-center justify-between gap-4">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{t("sensitive")}</span>
+                  <span className="block text-sm text-fg-muted">{t("sensitiveHint")}</span>
+                </span>
+                <Switch
+                  checked={values.sensitive}
+                  onCheckedChange={(checked) => setValue("sensitive", checked, { shouldDirty: true })}
+                />
+              </Card>
+              <Field
+                label={values.hasPassword ? t("passwordReplace") : t("password")}
+                hint={t("passwordHint")}
+              >
+                <Input type="password" autoComplete="new-password" {...register("password")} />
+              </Field>
+              {values.hasPassword ? (
+                <Card staticHover className="flex-row items-center justify-between gap-4">
+                  <span className="text-sm font-medium">{t("removePassword")}</span>
+                  <Switch
+                    checked={values.removePassword}
+                    onCheckedChange={(checked) =>
+                      setValue("removePassword", checked, { shouldDirty: true })
+                    }
+                  />
+                </Card>
+              ) : null}
+              <Field label={t("publishAt")} hint={t("publishAtHint")}>
+                <Input type="datetime-local" {...register("publishAt")} />
+              </Field>
+              <Field label={t("unpublishAt")}>
+                <Input type="datetime-local" {...register("unpublishAt")} />
+              </Field>
             </div>
           </TabPanel>
 
@@ -479,6 +720,12 @@ export function BioBuilder({
                 error={bioFieldError(errors.seoDescription?.message, t, te)}
               >
                 <Textarea rows={3} maxLength={300} {...register("seoDescription")} />
+              </Field>
+              <Field label={t("ogImage")} hint={t("ogImageHint")}>
+                <ImageUpload
+                  value={values.ogImageUrl}
+                  onChange={(url) => setValue("ogImageUrl", url, { shouldDirty: true })}
+                />
               </Field>
             </div>
           </TabPanel>
@@ -501,6 +748,26 @@ export function BioBuilder({
                   theme: values.theme,
                   buttonStyle: values.buttonStyle,
                   blocks: values.blocks,
+                  bgType: values.bgType,
+                  bgColor: values.bgColor || null,
+                  bgGradient: values.bgGradient || null,
+                  bgImageUrl: values.bgImageUrl || null,
+                  buttonColor: values.buttonColor || null,
+                  buttonTextColor: values.buttonTextColor || null,
+                  textColor: values.textColor || null,
+                  fontFamily: values.fontFamily,
+                  profileMode: values.profileMode,
+                  logoUrl: values.logoUrl || null,
+                  profileText: values.profileText,
+                  coverUrl: values.coverUrl || null,
+                  adsEnabled: values.adsEnabled,
+                  adMobileImage: values.adMobileImage || null,
+                  adMobileHref: values.adMobileHref || null,
+                  adLeftImage: values.adLeftImage || null,
+                  adLeftHref: values.adLeftHref || null,
+                  adRightImage: values.adRightImage || null,
+                  adRightHref: values.adRightHref || null,
+                  customCss: values.customCss,
                 }}
                 interactive={false}
                 showBranding={false}

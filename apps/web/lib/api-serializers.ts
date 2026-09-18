@@ -76,6 +76,8 @@ export function serializeBiopage(page: BiopageListRow) {
     theme: page.theme,
     buttonStyle: page.buttonStyle,
     published: page.published,
+    profileMode: page.profileMode,
+    sensitive: page.sensitive,
     blockCount: page.blockCount,
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString(),

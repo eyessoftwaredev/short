@@ -40,6 +40,8 @@ const planUpdateSchema = z.object({
     apiAccess: z.boolean(),
     removeBranding: z.boolean(),
     shortSlugs: z.boolean(),
+    customCss: z.boolean(),
+    bioForms: z.boolean(),
   }),
 });
 

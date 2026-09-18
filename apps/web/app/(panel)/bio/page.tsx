@@ -93,6 +93,14 @@ export default async function BioListPage({ searchParams }: { searchParams: Sear
                       <Icon name="pen" className="text-sm" />
                       {tc("edit")}
                     </Button>
+                    <Button size="sm" href={`/bio/${item.id}/stats`}>
+                      <Icon name="chart-line" className="text-sm" />
+                      {t("stats")}
+                    </Button>
+                    <Button size="sm" href={`/bio/${item.id}/leads`}>
+                      <Icon name="inbox" className="text-sm" />
+                      {t("leadsTitle")}
+                    </Button>
                     <CopyButton value={url} label={t("copyUrl")} />
                     {item.published ? (
                       <Button size="sm" icon aria-label={t("openPage")} href={url}>

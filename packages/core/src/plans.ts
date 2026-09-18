@@ -38,6 +38,8 @@ export type PlanFeatures = {
   removeBranding: boolean;
   /** Custom slugs and bio handles of 3–5 characters. 1–2 stay superadmin-only. */
   shortSlugs: boolean;
+  customCss: boolean;
+  bioForms: boolean;
 };
 
 export type PlanDefinition = {
@@ -79,6 +81,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       apiAccess: false,
       removeBranding: false,
       shortSlugs: false,
+      customCss: false,
+      bioForms: false,
     },
   },
   pro: {
@@ -108,6 +112,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       apiAccess: true,
       removeBranding: true,
       shortSlugs: true,
+      customCss: true,
+      bioForms: true,
     },
   },
   business: {
@@ -137,6 +143,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       apiAccess: true,
       removeBranding: true,
       shortSlugs: true,
+      customCss: true,
+      bioForms: true,
     },
   },
   enterprise: {
@@ -166,6 +174,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       apiAccess: true,
       removeBranding: true,
       shortSlugs: true,
+      customCss: true,
+      bioForms: true,
     },
   },
   infinity: {
@@ -195,6 +205,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       apiAccess: true,
       removeBranding: true,
       shortSlugs: true,
+      customCss: true,
+      bioForms: true,
     },
   },
 };

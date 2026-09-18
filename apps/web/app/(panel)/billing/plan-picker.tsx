@@ -64,6 +64,8 @@ const FEATURE_ROWS = [
   ["webhooks", "featureWebhooks"],
   ["apiAccess", "featureApi"],
   ["shortSlugs", "featureShortSlugs"],
+  ["customCss", "featureCustomCss"],
+  ["bioForms", "featureBioForms"],
   ["removeBranding", "featureBranding"],
 ] as const;
 

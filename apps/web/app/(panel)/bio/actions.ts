@@ -6,10 +6,44 @@ import { recordAudit } from "@/lib/audit";
 import { createBiopage, deleteBiopage, getBiopage, handleTaken, updateBiopage } from "@/lib/biopages";
 import { toBiopageInput, type BioFormValues } from "@/lib/bio-form";
 import { assertOwnedMedia } from "@/lib/media";
-import { assertQuota, assertSlugLength } from "@/lib/quota";
+import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 
 export type SavedBiopage = { id: string; handle: string };
+
+async function assertBioMedia(workspaceId: string, input: ReturnType<typeof toBiopageInput>): Promise<void> {
+  await assertOwnedMedia(workspaceId, input.avatarUrl);
+  await assertOwnedMedia(workspaceId, input.logoUrl);
+  await assertOwnedMedia(workspaceId, input.coverUrl);
+  await assertOwnedMedia(workspaceId, input.ogImageUrl);
+  await assertOwnedMedia(workspaceId, input.bgImageUrl);
+  await assertOwnedMedia(workspaceId, input.adMobileImage);
+  await assertOwnedMedia(workspaceId, input.adLeftImage);
+  await assertOwnedMedia(workspaceId, input.adRightImage);
+  for (const block of input.blocks) {
+    if (block.type === "link") {
+      await assertOwnedMedia(workspaceId, block.iconUrl);
+    }
+    if (block.type === "image") {
+      await assertOwnedMedia(workspaceId, block.url);
+    }
+  }
+}
+
+function assertBioFeatures(
+  plan: Parameters<typeof assertFeature>[0],
+  input: ReturnType<typeof toBiopageInput>,
+): void {
+  if (input.customCss.trim() !== "") {
+    assertFeature(plan, "customCss");
+  }
+  if (input.blocks.some((block) => block.type === "form")) {
+    assertFeature(plan, "bioForms");
+  }
+  if (input.password) {
+    assertFeature(plan, "passwordProtection");
+  }
+}
 
 export async function createBiopageAction(
   values: BioFormValues,
@@ -17,15 +51,8 @@ export async function createBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
-    await assertOwnedMedia(context.workspace.id, input.avatarUrl);
-    for (const block of input.blocks) {
-      if (block.type === "link") {
-        await assertOwnedMedia(context.workspace.id, block.iconUrl);
-      }
-      if (block.type === "image") {
-        await assertOwnedMedia(context.workspace.id, block.url);
-      }
-    }
+    await assertBioMedia(context.workspace.id, input);
+    assertBioFeatures(context.plan, input);
 
     await assertQuota(context.workspace.id, context.plan, "biopages");
     assertSlugLength({
@@ -52,6 +79,7 @@ export async function createBiopageAction(
     });
 
     revalidatePath("/bio");
+    revalidatePath(`/${row.handle}`);
     return ok({ id: row.id, handle: row.handle });
   } catch (error) {
     return toActionError(error);
@@ -65,15 +93,8 @@ export async function updateBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
-    await assertOwnedMedia(context.workspace.id, input.avatarUrl);
-    for (const block of input.blocks) {
-      if (block.type === "link") {
-        await assertOwnedMedia(context.workspace.id, block.iconUrl);
-      }
-      if (block.type === "image") {
-        await assertOwnedMedia(context.workspace.id, block.url);
-      }
-    }
+    await assertBioMedia(context.workspace.id, input);
+    assertBioFeatures(context.plan, input);
     const existing = await getBiopage(context.workspace.id, id);
     assertSlugLength({
       slug: input.handle,
@@ -101,8 +122,10 @@ export async function updateBiopageAction(
 
     revalidatePath("/bio");
     revalidatePath(`/bio/${id}/edit`);
-    // The published page is rendered with ISR, so the new content needs a purge.
     revalidatePath(`/${row.handle}`);
+    if (existing && existing.handle !== row.handle) {
+      revalidatePath(`/${existing.handle}`);
+    }
     return ok({ id: row.id, handle: row.handle });
   } catch (error) {
     return toActionError(error);
@@ -112,6 +135,7 @@ export async function updateBiopageAction(
 export async function deleteBiopageAction(id: string): Promise<ActionResult<null>> {
   try {
     const context = await requireWorkspace();
+    const existing = await getBiopage(context.workspace.id, id);
     await deleteBiopage(context.workspace.id, id);
 
     await recordAudit({
@@ -124,6 +148,9 @@ export async function deleteBiopageAction(id: string): Promise<ActionResult<null
     });
 
     revalidatePath("/bio");
+    if (existing) {
+      revalidatePath(`/${existing.handle}`);
+    }
     return ok(null);
   } catch (error) {
     return toActionError(error);

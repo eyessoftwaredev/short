@@ -343,6 +343,79 @@ describe("biopages", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("bio");
   });
+
+  it("does not proxy an unpublished or off-window handle", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response("<html>bio</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const unpublished = setup({
+      ...domainSeed,
+      [keys.biopageKey("go.test", "acme")]: biopageRecord({ published: false }),
+    });
+    const unpublishedResponse = await worker.fetch(
+      edgeRequest("https://go.test/acme"),
+      unpublished.env,
+      unpublished.ctx,
+    );
+    expect(unpublishedResponse.headers.get("location")).toBe("https://short.test/404");
+
+    const future = setup({
+      ...domainSeed,
+      [keys.biopageKey("go.test", "acme")]: biopageRecord({
+        published: true,
+        publishAt: Date.parse("2099-01-01T00:00:00.000Z"),
+      }),
+    });
+    const futureResponse = await worker.fetch(
+      edgeRequest("https://go.test/acme"),
+      future.env,
+      future.ctx,
+    );
+    expect(futureResponse.headers.get("location")).toBe("https://short.test/404");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("gates a passworded bio before the panel proxy", async () => {
+    const passwordHash = await hashGatePassword("open-sesame");
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.biopageKey("go.test", "acme")]: biopageRecord({ passwordHash }),
+    });
+    const fetchMock = vi.fn(
+      async () => new Response("<html>bio</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const challenge = await worker.fetch(edgeRequest("https://go.test/acme"), env, ctx);
+    expect(challenge.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const accepted = await worker.fetch(
+      edgeRequest("https://go.test/acme", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "password=open-sesame",
+      }),
+      env,
+      ctx,
+    );
+    expect(accepted.status).toBe(303);
+    const cookie = accepted.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain("HttpOnly");
+
+    const withCookie = await worker.fetch(
+      edgeRequest("https://go.test/acme", {
+        headers: { cookie: cookie.split(";")[0] ?? "" },
+      }),
+      env,
+      ctx,
+    );
+    expect(withCookie.status).toBe(200);
+    expect(await withCookie.text()).toContain("bio");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("apex site vs panel", () => {

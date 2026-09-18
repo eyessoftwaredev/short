@@ -209,6 +209,8 @@ const FEATURE_LABELS: Record<keyof PlanFeatures, string> = {
   apiAccess: "API access",
   removeBranding: "Branding removal",
   shortSlugs: "Short vanity slugs",
+  customCss: "Custom bio CSS",
+  bioForms: "Bio capture forms",
 };
 
 export function assertFeature(plan: PlanDefinition, feature: keyof PlanFeatures): void {

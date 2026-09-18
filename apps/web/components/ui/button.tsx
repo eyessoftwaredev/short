@@ -17,6 +17,8 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   href?: string;
   /** Opens in a new tab and applies the matching `rel`. Only meaningful with `href`. */
   external?: boolean;
+  /** Native download filename. Renders a real `<a>` so Next Link does not swallow it. */
+  download?: string;
   /**
    * Swaps the leading glyph for a spinner and blocks input. The button keeps
    * its width so a row of actions does not reflow mid-submit.
@@ -57,6 +59,7 @@ export function Button({
   icon = false,
   href,
   external = false,
+  download,
   loading = false,
   block = false,
   className,
@@ -95,6 +98,22 @@ export function Button({
     const anchorProps: AnchorHTMLAttributes<HTMLAnchorElement> = external
       ? { target: "_blank", rel: "noreferrer noopener" }
       : {};
+
+    if (download) {
+      return (
+        <a
+          href={href}
+          download={download}
+          className={classes}
+          aria-label={props["aria-label"]}
+          aria-disabled={loading || undefined}
+          title={props.title}
+          {...anchorProps}
+        >
+          {content}
+        </a>
+      );
+    }
 
     return (
       <Link
