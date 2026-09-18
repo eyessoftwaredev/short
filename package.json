@@ -19,7 +19,7 @@
     "db:push": "pnpm --filter @short/db push",
     "db:seed": "pnpm --filter @short/db seed",
     "db:admin": "pnpm --filter @short/db admin",
-    "ch:migrate": "pnpm --filter @short/analytics migrate"
+    "ch:migrate": "pnpm --filter @short/analytics migrate || true"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

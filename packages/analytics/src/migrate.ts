@@ -40,6 +40,7 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  console.error("ClickHouse migration failed:", error);
-  process.exitCode = 1;
+  // A down ClickHouse must not take the panel with it. Schema is IF NOT EXISTS;
+  // the next healthy deploy reapplies it.
+  console.error("ClickHouse migration failed; continuing without analytics schema:", error);
 }
