@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBiopageLive, isHexColor, sanitizeBioCss } from "../bio-chrome";
+import { isBiopageLive, isHexColor, isPlatformRequestHost, platformHostAliases, sanitizeBioCss } from "../bio-chrome";
 import { parseStoredBioBlock, biopageInputSchema } from "../schemas/biopage";
 
 describe("sanitizeBioCss", () => {
@@ -45,6 +45,15 @@ describe("isBiopageLive", () => {
         now,
       ),
     ).toBe(true);
+  });
+});
+
+describe("platform hosts", () => {
+  it("treats www and apex as the same platform", () => {
+    expect(platformHostAliases("short.ky")).toEqual(["short.ky", "www.short.ky"]);
+    expect(isPlatformRequestHost("www.short.ky", "short.ky")).toBe(true);
+    expect(isPlatformRequestHost("short.ky", "www.short.ky")).toBe(true);
+    expect(isPlatformRequestHost("app.short.ky", "short.ky")).toBe(false);
   });
 });
 

@@ -59,6 +59,20 @@ export function isHexColor(value: string): boolean {
   return HEX.test(value);
 }
 
+/** Apex, bare host and www all serve the same platform bio pages. */
+export function platformHostAliases(host: string): string[] {
+  const normalized = host.trim().toLowerCase();
+  if (normalized === "") {
+    return [];
+  }
+  const bare = normalized.replace(/^www\./, "");
+  return [...new Set([normalized, bare, `www.${bare}`])];
+}
+
+export function isPlatformRequestHost(hostname: string, platformHost: string): boolean {
+  return platformHostAliases(platformHost).includes(hostname.trim().toLowerCase());
+}
+
 const CSS_PROPS = new Set([
   "color",
   "background",

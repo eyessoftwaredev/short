@@ -2,7 +2,7 @@ import { and, eq, getDb, workspaceMedia, type WorkspaceMediaRow } from "@short/d
 
 export const MEDIA_PATH = /^\/api\/media\/([0-9a-f-]{36})$/i;
 export const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"] as const;
-export const MAX_MEDIA_BYTES = 1024 * 1024;
+export const MAX_MEDIA_BYTES = 4 * 1024 * 1024;
 
 export function mediaUrl(id: string): string {
   return `/api/media/${id}`;

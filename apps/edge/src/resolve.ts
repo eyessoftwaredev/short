@@ -147,7 +147,18 @@ export async function resolveTarget(
   ]);
 
   // A cached link miss is not a bio miss — the two keys are independent.
+  // Still ask origin: a 404 written before the bio was published must not hide it.
   if (domain && isMiss(cached) && !biopage) {
+    const lookup = await lookupOrigin(env, hostname, slug);
+    if (lookup?.biopage) {
+      return {
+        domain: lookup.domain ?? domain,
+        link: null,
+        biopage: lookup.biopage,
+        fromOrigin: true,
+        backfill: () => backfill(env, lookup, hostname, slug, true),
+      };
+    }
     return { domain, link: null, biopage: null, fromOrigin: false, backfill: async () => {} };
   }
 

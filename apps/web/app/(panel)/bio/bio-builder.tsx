@@ -150,6 +150,52 @@ function bioFieldError(
   return te("validation");
 }
 
+function hexToPicker(value: string, fallback: string): string {
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const r = trimmed[1];
+    const g = trimmed[2];
+    const b = trimmed[3];
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return /^#[0-9a-fA-F]{6}$/.test(fallback) ? fallback : "#000000";
+}
+
+function ColorField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <div className="flex min-w-0 items-center gap-2">
+        <input
+          type="color"
+          value={hexToPicker(value, placeholder)}
+          aria-label={label}
+          className="size-10 shrink-0 cursor-pointer rounded-default border border-border bg-bg p-1"
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <Input
+          value={value}
+          placeholder={placeholder}
+          spellCheck={false}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </div>
+    </Field>
+  );
+}
+
 function describeBlock(block: BioBlock, t: (key: string, values?: { count: number }) => string): string {
   switch (block.type) {
     case "link":
@@ -591,9 +637,12 @@ export function BioBuilder({
                       ))}
                     </Select>
                   </Field>
-                  <Field label={t("bgColorValue")}>
-                    <Input placeholder="#111111" {...register("bgColor")} />
-                  </Field>
+                  <ColorField
+                    label={t("bgColorValue")}
+                    value={values.bgColor}
+                    placeholder="#111111"
+                    onChange={(value) => setValue("bgColor", value, { shouldDirty: true })}
+                  />
                   <Field label={t("bgGradientValue")} className="sm:col-span-2">
                     <Input {...register("bgGradient")} />
                   </Field>
@@ -603,15 +652,24 @@ export function BioBuilder({
                       onChange={(url) => setValue("bgImageUrl", url, { shouldDirty: true })}
                     />
                   </Field>
-                  <Field label={t("buttonColor")}>
-                    <Input placeholder="#0f766e" {...register("buttonColor")} />
-                  </Field>
-                  <Field label={t("buttonTextColor")}>
-                    <Input placeholder="#ffffff" {...register("buttonTextColor")} />
-                  </Field>
-                  <Field label={t("textColor")}>
-                    <Input placeholder="#171717" {...register("textColor")} />
-                  </Field>
+                  <ColorField
+                    label={t("buttonColor")}
+                    value={values.buttonColor}
+                    placeholder="#0f766e"
+                    onChange={(value) => setValue("buttonColor", value, { shouldDirty: true })}
+                  />
+                  <ColorField
+                    label={t("buttonTextColor")}
+                    value={values.buttonTextColor}
+                    placeholder="#ffffff"
+                    onChange={(value) => setValue("buttonTextColor", value, { shouldDirty: true })}
+                  />
+                  <ColorField
+                    label={t("textColor")}
+                    value={values.textColor}
+                    placeholder="#171717"
+                    onChange={(value) => setValue("textColor", value, { shouldDirty: true })}
+                  />
                 </div>
               </Section>
 

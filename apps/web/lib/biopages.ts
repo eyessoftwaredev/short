@@ -3,6 +3,8 @@ import {
   parseStoredBioBlock,
   hashGatePassword,
   isBiopageLive,
+  isPlatformRequestHost,
+  platformHostAliases,
   sanitizeBioCss,
   type BioBlock,
   type BiopageInput,
@@ -22,6 +24,8 @@ import {
   inArray,
   isNull,
   member,
+  normalizePlatformHostname,
+  or,
   plans,
   subscriptions,
   type BioBlockRow,
@@ -45,8 +49,44 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * request's hostname never does, so the port has to go before the two are compared.
  */
 export function platformHostname(): string {
-  return serverEnv().PLATFORM_SHORT_DOMAIN.toLowerCase().split(":")[0] ?? "";
+  return normalizePlatformHostname(serverEnv().PLATFORM_SHORT_DOMAIN).split(":")[0] ?? "";
 }
+
+export function isPlatformBioHost(hostname: string): boolean {
+  return isPlatformRequestHost(hostname, platformHostname());
+}
+
+export async function findBiopageForHost(hostname: string, handle: string): Promise<BiopageRow | null> {
+  const db = getDb();
+  const normalized = handle.toLowerCase();
+  const host = hostname.toLowerCase();
+
+  if (isPlatformBioHost(host)) {
+    const aliases = platformHostAliases(platformHostname());
+    const platformDomains = await db
+      .select({ id: domains.id })
+      .from(domains)
+      .where(or(...aliases.map((alias) => eq(domains.hostname, alias))));
+    const ids = platformDomains.map((row) => row.id);
+    const domainFilter =
+      ids.length > 0 ? or(isNull(biopages.domainId), inArray(biopages.domainId, ids)) : isNull(biopages.domainId);
+    const [row] = await db
+      .select()
+      .from(biopages)
+      .where(and(eq(biopages.handle, normalized), domainFilter))
+      .limit(1);
+    return row ?? null;
+  }
+
+  const [row] = await db
+    .select({ page: biopages })
+    .from(biopages)
+    .innerJoin(domains, eq(biopages.domainId, domains.id))
+    .where(and(eq(biopages.handle, normalized), eq(domains.hostname, host)))
+    .limit(1);
+  return row?.page ?? null;
+}
+
 
 export function toKvRecord(page: BiopageRow): BiopageKvRecord {
   return {
@@ -122,14 +162,14 @@ async function nextPasswordHash(
 
 async function resolveHostname(domainId: string | null): Promise<string> {
   if (!domainId) {
-    return serverEnv().PLATFORM_SHORT_DOMAIN;
+    return platformHostname();
   }
   const [row] = await getDb()
     .select({ hostname: domains.hostname })
     .from(domains)
     .where(eq(domains.id, domainId))
     .limit(1);
-  return row?.hostname ?? serverEnv().PLATFORM_SHORT_DOMAIN;
+  return normalizePlatformHostname(row?.hostname ?? platformHostname()).split(":")[0] ?? platformHostname();
 }
 
 export function bioUrl(hostname: string, handle: string): string {
@@ -224,42 +264,22 @@ export async function getPublishedBiopage(
   hostname: string,
   handle: string,
 ): Promise<(BiopageWithBlocks & { removeBranding: boolean }) | null> {
-  const db = getDb();
-  const normalized = handle.toLowerCase();
   const host = hostname.toLowerCase();
-  const isPlatformHost = host === platformHostname();
-
-  // A null `domain_id` means the page is served from the platform domain, so the two
-  // cases need different joins rather than one filtered afterwards.
-  const [row] = isPlatformHost
-    ? await db
-        .select({ page: biopages })
-        .from(biopages)
-        .where(and(eq(biopages.handle, normalized), isNull(biopages.domainId)))
-        .limit(1)
-    : await db
-        .select({ page: biopages })
-        .from(biopages)
-        .innerJoin(domains, eq(biopages.domainId, domains.id))
-        .where(
-          and(eq(biopages.handle, normalized), eq(domains.hostname, host)),
-        )
-        .limit(1);
-
-  if (!row || !isBiopageLive(row.page)) {
+  const page = await findBiopageForHost(host, handle);
+  if (!page || !isBiopageLive(page)) {
     return null;
   }
 
   const [blocks, removeBranding] = await Promise.all([
-    db
+    getDb()
       .select()
       .from(bioBlocks)
-      .where(and(eq(bioBlocks.biopageId, row.page.id), eq(bioBlocks.visible, true)))
+      .where(and(eq(bioBlocks.biopageId, page.id), eq(bioBlocks.visible, true)))
       .orderBy(asc(bioBlocks.position)),
-    brandingRemoved(row.page.workspaceId),
+    brandingRemoved(page.workspaceId),
   ]);
 
-  return { ...row.page, hostname: host, blocks: orderBlocks(blocks), removeBranding };
+  return { ...page, hostname: host, blocks: orderBlocks(blocks), removeBranding };
 }
 
 /** Paid plans hide the "Powered by" footer on public bio pages. */

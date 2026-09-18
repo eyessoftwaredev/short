@@ -73,7 +73,7 @@
     "remove": "Kaldır",
     "uploading": "Yükleniyor…",
     "media_type": "PNG, JPEG, WebP veya SVG kullan.",
-    "media_size": "Görseller en fazla 1 MB olabilir.",
+    "media_size": "Görseller en fazla 4 MB olabilir.",
     "media_failed": "Yükleme başarısız. Başka bir dosya dene."
   },
   "nav": {

@@ -73,7 +73,7 @@
     "remove": "Remove",
     "uploading": "Uploading…",
     "media_type": "Use PNG, JPEG, WebP or SVG.",
-    "media_size": "Images must be 1 MB or smaller.",
+    "media_size": "Images must be 4 MB or smaller.",
     "media_failed": "Upload failed. Try another file."
   },
   "nav": {

@@ -326,6 +326,32 @@ describe("biopages", () => {
     expect(queue.sent[0]?.ip).toBe("203.0.113.10");
   });
 
+  it("resolves a published bio after a cached link miss", async () => {
+    const kv = fakeKv({
+      ...domainSeed,
+      [keys.linkKey("go.test", "acme")]: { v: KV_SCHEMA_VERSION, miss: true },
+    });
+    const queue = fakeQueue();
+    const ctx = fakeCtx();
+    const env = makeEnv(kv, queue);
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/api/internal/resolve")) {
+        return Response.json({
+          link: null,
+          domain: domainRecord(),
+          biopage: biopageRecord(),
+        });
+      }
+      return new Response("<html>bio</html>", { headers: { "content-type": "text/html" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await worker.fetch(edgeRequest("https://go.test/acme"), env, ctx);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("bio");
+  });
+
   it("still proxies a bio when the link key is a cached miss", async () => {
     const { env, ctx } = setup({
       ...domainSeed,

@@ -5,15 +5,15 @@ import { GOOGLE_FONT_HREF } from "@short/core";
 import { BioPageView } from "@/components/bio/bio-page-view";
 import { BioSensitiveGate } from "@/components/bio/bio-sensitive-gate";
 import { BioTracker } from "@/components/bio/bio-tracker";
-import { getPublishedBiopage, platformHostname } from "@/lib/biopages";
+import { getPublishedBiopage, isPlatformBioHost, platformHostname } from "@/lib/biopages";
 import { getPlatformBrand } from "@/lib/brand";
 import { serverEnv } from "@/lib/env";
 
 /**
- * Bio pages are proxied here by the redirect worker on the customer's own hostname, so
- * they are rendered with ISR: cheap to serve, and a publish shows up within a minute.
+ * Bio pages are proxied here by the redirect worker. Render on demand so a
+ * publish is visible on the next request instead of a cached 404.
  */
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 
 type Params = Promise<{ handle: string }>;
@@ -49,7 +49,7 @@ async function load(handle: string) {
   // panel host outright would mean no bio page ever resolves in development. Real routes
   // still win over this catch-all, so only a non-short-domain panel host is refused —
   // unless the edge worker is proxying a published handle.
-  if (isPanelHost(hostname) && hostname !== platformHostname() && !fromEdge) {
+  if (isPanelHost(hostname) && !isPlatformBioHost(hostname) && !fromEdge) {
     return null;
   }
   return getPublishedBiopage(hostname, handle);
