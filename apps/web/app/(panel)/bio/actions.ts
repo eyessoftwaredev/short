@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { recordAudit } from "@/lib/audit";
-import { createBiopage, deleteBiopage, getBiopage, handleTaken, updateBiopage } from "@/lib/biopages";
+import {
+  createBiopage,
+  deleteBiopage,
+  getBiopage,
+  handleTaken,
+  setBiopagePublished,
+  updateBiopage,
+} from "@/lib/biopages";
 import { toBiopageInput, type BioFormValues } from "@/lib/bio-form";
 import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
@@ -127,6 +134,33 @@ export async function updateBiopageAction(
       revalidatePath(`/${existing.handle}`);
     }
     return ok({ id: row.id, handle: row.handle });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function updateBiopagePublishedAction(
+  id: string,
+  published: boolean,
+): Promise<ActionResult<{ published: boolean; handle: string }>> {
+  try {
+    const context = await requireWorkspace();
+    const row = await setBiopagePublished(context.workspace.id, id, published);
+
+    await recordAudit({
+      workspaceId: context.workspace.id,
+      actorId: context.user.id,
+      impersonatorId: context.impersonatedBy,
+      action: "biopage.update",
+      targetType: "biopage",
+      targetId: row.id,
+      metadata: { handle: row.handle, published: row.published },
+    });
+
+    revalidatePath("/bio");
+    revalidatePath(`/bio/${id}/edit`);
+    revalidatePath(`/${row.handle}`);
+    return ok({ published: row.published, handle: row.handle });
   } catch (error) {
     return toActionError(error);
   }

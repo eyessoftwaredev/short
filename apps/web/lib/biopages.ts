@@ -99,7 +99,17 @@ export async function findBiopageForHost(hostname: string, handle: string): Prom
       .from(biopages)
       .where(and(eq(biopages.handle, normalized), domainFilter))
       .limit(1);
-    return row ?? null;
+    if (row) {
+      return row;
+    }
+
+    // Stale or mismatched domainId still has to resolve on the public short domain.
+    const matches = await db
+      .select()
+      .from(biopages)
+      .where(eq(biopages.handle, normalized))
+      .limit(5);
+    return matches.find((match) => match.published) ?? matches[0] ?? null;
   }
 
   const [row] = await db
@@ -429,6 +439,26 @@ export async function updateBiopage(
   }
   await putBiopageRecord(hostname, toKvRecord(row));
 
+  return row;
+}
+
+export async function setBiopagePublished(
+  workspaceId: string,
+  id: string,
+  published: boolean,
+): Promise<BiopageRow> {
+  const db = getDb();
+  const [row] = await db
+    .update(biopages)
+    .set({ published, updatedAt: new Date() })
+    .where(and(eq(biopages.workspaceId, workspaceId), eq(biopages.id, id)))
+    .returning();
+
+  if (!row) {
+    throw new Error("Bio page not found");
+  }
+
+  await putBiopageRecord(await resolveHostname(row.domainId), toKvRecord(row));
   return row;
 }
 

@@ -1,6 +1,7 @@
 import { isBiopageLive } from "@short/core";
-import { and, biopages, eq, getDb, isNull } from "@short/db";
+import { and, biopages, eq, getDb, isNull, or } from "@short/db";
 import type { MetadataRoute } from "next";
+import { findPlatformDomain } from "@/lib/biopages";
 import { siteUrl } from "@/lib/env";
 
 const MARKETING = ["/", "/pricing", "/terms", "/privacy", "/cookies"] as const;
@@ -22,6 +23,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   try {
+    const platform = await findPlatformDomain();
+    const domainFilter = platform
+      ? or(isNull(biopages.domainId), eq(biopages.domainId, platform.id))
+      : isNull(biopages.domainId);
     const rows = await getDb()
       .select({
         handle: biopages.handle,
@@ -33,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         passwordHash: biopages.passwordHash,
       })
       .from(biopages)
-      .where(and(isNull(biopages.domainId), eq(biopages.published, true)));
+      .where(and(domainFilter, eq(biopages.published, true)));
 
     for (const row of rows) {
       if (row.sensitive || row.passwordHash || !isBiopageLive(row)) {

@@ -55,7 +55,12 @@ import {
 } from "@/components/ui";
 import { bioFormSchema, newBlock, type BioFormValues } from "@/lib/bio-form";
 import { BlockFields } from "./block-fields";
-import { createBiopageAction, deleteBiopageAction, updateBiopageAction } from "./actions";
+import {
+  createBiopageAction,
+  deleteBiopageAction,
+  updateBiopageAction,
+  updateBiopagePublishedAction,
+} from "./actions";
 
 export type BioDomainOption = { id: string; hostname: string };
 
@@ -547,9 +552,18 @@ export function BioBuilder({
                 </span>
                 <Switch
                   checked={values.published}
-                  onCheckedChange={(checked) =>
-                    setValue("published", checked, { shouldDirty: true })
-                  }
+                  onCheckedChange={(checked) => {
+                    setValue("published", checked, { shouldDirty: true });
+                    if (mode !== "edit" || !biopageId) {
+                      return;
+                    }
+                    void updateBiopagePublishedAction(biopageId, checked).then((result) => {
+                      if (!result.ok) {
+                        setValue("published", !checked, { shouldDirty: true });
+                        setFormError(actionMessage(result.error));
+                      }
+                    });
+                  }}
                 />
               </Card>
             </div>

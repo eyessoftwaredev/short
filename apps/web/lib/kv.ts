@@ -2,6 +2,7 @@ import {
   biopageKey,
   domainKey,
   linkKey,
+  platformHostAliases,
   type BiopageKvRecord,
   type DomainKvRecord,
   type LinkKvRecord,
@@ -118,13 +119,20 @@ export async function putBiopageRecord(
   hostname: string,
   record: BiopageKvRecord,
 ): Promise<void> {
-  await writeBulk([
-    { key: biopageKey(hostname, record.handle), value: JSON.stringify(record) },
-  ]);
+  const hosts = platformHostAliases(hostname);
+  const keys = hosts.length > 0 ? hosts : [hostname];
+  await writeBulk(
+    keys.map((host) => ({
+      key: biopageKey(host, record.handle),
+      value: JSON.stringify(record),
+    })),
+  );
 }
 
 export async function deleteBiopageRecord(hostname: string, handle: string): Promise<void> {
-  await deleteKeys([biopageKey(hostname, handle)]);
+  const hosts = platformHostAliases(hostname);
+  const keys = hosts.length > 0 ? hosts : [hostname];
+  await deleteKeys(keys.map((host) => biopageKey(host, handle)));
 }
 
 /** Used when a slug or handle changes: the old key must go before the new one lands. */
