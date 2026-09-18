@@ -353,7 +353,11 @@ describe("apex site vs panel", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await worker.fetch(edgeRequest("https://test/"), env, ctx);
+    const response = await worker.fetch(
+      edgeRequest("https://test/", { headers: { cookie: "short-locale=tr", rsc: "1" } }),
+      env,
+      ctx,
+    );
 
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("landing");
@@ -362,6 +366,9 @@ describe("apex site vs panel", () => {
     const headers = init.headers as Record<string, string>;
     expect(headers["x-short-surface"]).toBe("site");
     expect(headers["x-forwarded-host"]).toBe("test");
+    expect(headers.cookie).toBe("short-locale=tr");
+    expect(headers.rsc).toBe("1");
+    expect(response.headers.get("cache-control")).toBe("private, no-cache, no-store");
   });
 
   it("302s /login to the panel origin", async () => {

@@ -1,9 +1,9 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import { Icon } from "@/components/kit/icon";
 import { LOCALES, LOCALE_COOKIE, type Locale } from "@/i18n/locales";
+import { writeClientCookie } from "@/lib/client-cookie";
 import { cn } from "@/lib/cx";
 
 const LOCALE_LABEL: Record<Locale, string> = {
@@ -13,12 +13,11 @@ const LOCALE_LABEL: Record<Locale, string> = {
 
 export function LocaleSwitcher({ invert = false }: { invert?: boolean }) {
   const locale = useLocale();
-  const router = useRouter();
   const t = useTranslations("common");
 
   const setLocale = (next: Locale): void => {
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-    router.refresh();
+    writeClientCookie(LOCALE_COOKIE, next);
+    window.location.reload();
   };
 
   return (

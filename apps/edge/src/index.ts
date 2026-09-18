@@ -109,18 +109,39 @@ function redirectPermanent(destination: string): Response {
  * Traefik often overwrites `X-Forwarded-Host`, so Next keys off `x-short-surface`
  * rather than Host when deciding whether `/` is the landing or the panel.
  */
+const SITE_FORWARD_HEADERS = [
+  "accept-language",
+  "user-agent",
+  "cookie",
+  "rsc",
+  "next-router-state-tree",
+  "next-router-prefetch",
+  "next-router-segment-prefetch",
+  "next-url",
+] as const;
+
+function siteProxyHeaders(request: Request, host: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    accept: request.headers.get("accept") ?? "text/html",
+    "x-short-surface": "site",
+    "x-forwarded-host": host,
+    "x-forwarded-proto": "https",
+  };
+  for (const name of SITE_FORWARD_HEADERS) {
+    const value = request.headers.get(name);
+    if (value) {
+      headers[name] = value;
+    }
+  }
+  return headers;
+}
+
 async function proxySite(request: Request, env: EdgeEnv, url: URL): Promise<Response> {
   const target = new URL(url.pathname + url.search, env.ORIGIN_URL);
   try {
     const upstream = await fetch(target.toString(), {
       method: request.method === "HEAD" ? "HEAD" : "GET",
-      headers: {
-        accept: request.headers.get("accept") ?? "text/html",
-        "accept-language": request.headers.get("accept-language") ?? "",
-        "user-agent": request.headers.get("user-agent") ?? "",
-        "x-short-surface": "site",
-        "x-forwarded-host": url.hostname,
-      },
+      headers: siteProxyHeaders(request, url.hostname),
       redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
@@ -132,7 +153,15 @@ async function proxySite(request: Request, env: EdgeEnv, url: URL): Promise<Resp
         headers.set(name, value);
       }
     }
-    headers.set("cache-control", upstream.headers.get("cache-control") ?? "public, max-age=0, s-maxage=60");
+    const vary = headers.get("vary");
+    headers.set("vary", vary && !/\bcookie\b/i.test(vary) ? `${vary}, cookie` : (vary ?? "cookie"));
+    const personalized = Boolean(request.headers.get("cookie") || request.headers.get("rsc"));
+    headers.set(
+      "cache-control",
+      personalized
+        ? "private, no-cache, no-store"
+        : (upstream.headers.get("cache-control") ?? "public, max-age=0, must-revalidate"),
+    );
     return new Response(upstream.body, { status: upstream.status, headers });
   } catch {
     return new Response("Bad gateway", { status: 502, headers: { "content-type": "text/plain; charset=utf-8" } });
