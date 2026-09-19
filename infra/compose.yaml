@@ -53,11 +53,12 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
       timeout: 5s
-      start_period: 40s
-      retries: 3
+      start_period: 90s
+      retries: 6
+    stop_grace_period: 60s
 
   migrate:
     build:

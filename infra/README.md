@@ -38,6 +38,26 @@ Expose only `web` through Coolify's proxy. ClickHouse's HTTP port has to be reac
 from Cloudflare for the ingest worker; put it behind a separate subdomain with TLS and
 restrict it to [Cloudflare's IP ranges](https://www.cloudflare.com/ips/).
 
+### Zero-downtime deploys (Coolify rolling updates)
+
+Coolify keeps the **old container running** while the new image builds, starts the
+replacement, waits for its health check, and only then stops the old one. If health
+checks are off, Coolify treats “container started” as ready — Next.js is still booting,
+the old container is removed, and the site drops until `/api/health` passes.
+
+Requirements (already wired in `Dockerfile` + panel resources):
+
+| Setting | Value |
+| --- | --- |
+| Health check | `GET http://localhost:3000/api/health` |
+| Start period | 90s (cold Next boot + Postgres ping) |
+| Stop grace | 60s (`--stop-timeout=60`) |
+| Host port mapping | **none** — published ports disable rolling updates |
+| Consistent container name | **off** |
+
+After changing health-check settings, redeploy once so Coolify recreates the container
+labels Traefik uses to route only to healthy targets.
+
 ### Schema migrations
 
 Run before the first deploy and on every deploy that changes a schema:

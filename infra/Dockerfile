@@ -37,8 +37,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# sharp needs libc++ for its prebuilt binaries on alpine.
-RUN apk add --no-cache libstdc++ \
+# sharp needs libc++ for its prebuilt binaries on alpine; curl for Coolify/Traefik health probes.
+RUN apk add --no-cache libstdc++ curl \
   && addgroup -g 1001 -S nodejs \
   && adduser -S nextjs -u 1001
 
@@ -49,7 +49,8 @@ COPY --from=build --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public
 USER nextjs
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+HEALTHCHECK --interval=10s --timeout=5s --start-period=90s --retries=6 \
+  CMD curl --fail --silent --show-error http://127.0.0.1:3000/api/health || exit 1
 
+STOPSIGNAL SIGTERM
 CMD ["node", "apps/web/server.js"]
