@@ -180,8 +180,18 @@ export function BioPageView({
         }
       : undefined;
 
+  const hasSideAds =
+    page.adsEnabled && Boolean(page.adLeftImage || page.adRightImage);
+
   return (
-    <div className={cn("relative w-full", page.adsEnabled && "lg:px-56")} data-bio-page={page.id}>
+    <div
+      className={cn(
+        "relative w-full",
+        hasSideAds && page.adLeftImage && "lg:pl-56",
+        hasSideAds && page.adRightImage && "lg:pr-56",
+      )}
+      data-bio-page={page.id}
+    >
       {page.adsEnabled && page.adLeftImage ? (
         <div className="fixed top-24 left-4 z-10 hidden w-44 lg:block">
           <Banner src={page.adLeftImage} href={page.adLeftHref ?? null} interactive={interactive} />
@@ -196,7 +206,7 @@ export function BioPageView({
       <div
         className={cn(
           `bio-theme-${page.theme}`,
-          "flex min-h-full w-full flex-col items-center bg-bio-bg px-5 py-10 text-bio-fg",
+          "flex w-full flex-col items-center bg-bio-bg px-5 py-10 text-bio-fg",
           className,
         )}
         style={rootStyle}

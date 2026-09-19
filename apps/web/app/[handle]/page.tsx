@@ -143,6 +143,7 @@ export default async function BiopagePage({ params }: { params: Params }) {
       showBranding={!page.removeBranding}
       branding={{ name: brand.name, href: appUrl }}
       formEndpoint={`${appUrl}/api/bio/leads`}
+      className="min-h-screen"
     />
   );
 
