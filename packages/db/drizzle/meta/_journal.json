@@ -64,6 +64,13 @@
       "when": 1789980000000,
       "tag": "0008_biopage_chrome",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790060000000,
+      "tag": "0009_media_library_qr_templates",
+      "breakpoints": true
     }
   ]
 }

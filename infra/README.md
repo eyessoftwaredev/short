@@ -130,6 +130,12 @@ pnpm --filter @short/ingest run deploy
 Deploy `ingest` first on a fresh environment. A consumer-less queue buffers messages
 for four days, so the ordering only matters for how soon events show up.
 
+### ClickHouse proxy (`ch.short.ky`)
+
+Workers reach ClickHouse over HTTPS at `ch.short.ky`. The nginx config in
+`infra/clickhouse-proxy/nginx.conf` uses Docker's resolver so upstream IPs stay fresh
+after ClickHouse redeploys — without it, analytics silently 502 until the proxy restarts.
+
 ## 3. Cloudflare for SaaS
 
 1. Enable **Cloudflare for SaaS** on the zone.

@@ -20,13 +20,27 @@ import {
   Input,
   Modal,
   SaveBar,
+  SecretInput,
   Select,
   Switch,
 } from "@/components/ui";
 import { buildQrSvg } from "@/lib/qr-svg";
 import { cn } from "@/lib/cx";
-import { qrFormSchema, toQrInput, toQrStyle, type QrFormValues } from "@/lib/qr-form";
-import { createQrCodeAction, deleteQrCodeAction, updateQrCodeAction } from "./actions";
+import {
+  applyQrStyleToForm,
+  qrFormSchema,
+  toQrInput,
+  toQrStyle,
+  type QrFormValues,
+} from "@/lib/qr-form";
+import type { QrTemplateView } from "@/lib/qr-templates";
+import {
+  createQrCodeAction,
+  deleteQrCodeAction,
+  deleteQrTemplateAction,
+  saveQrTemplateAction,
+  updateQrCodeAction,
+} from "./actions";
 import { QR_PALETTES, scanQuality, type ScanQualityKind } from "./qr-presets";
 
 export type QrLinkOption = { id: string; label: string; url: string };
@@ -38,6 +52,7 @@ type QrDesignerProps = {
   links: QrLinkOption[];
   /** `qrLogo` is a paid feature; the UI explains it instead of failing on submit. */
   canUseLogo: boolean;
+  templates: QrTemplateView[];
 };
 
 const EXPORT_SIZES = [512, 1024, 2048] as const;
@@ -215,7 +230,14 @@ function ColorControl({
   );
 }
 
-export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrDesignerProps) {
+export function QrDesigner({
+  mode,
+  qrId,
+  defaultValues,
+  links,
+  canUseLogo,
+  templates,
+}: QrDesignerProps) {
   const router = useRouter();
   const t = useTranslations("qr");
   const tc = useTranslations("common");
@@ -225,6 +247,11 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pngSize, setPngSize] = useState<number>(1024);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
 
   const {
     register,
@@ -238,6 +265,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
     defaultValues,
   });
 
+  const wifiPasswordField = register("wifiPassword");
   const values = watch();
   const target = links.find((link) => link.id === values.linkId) ?? links[0];
   const payload = useMemo(() => {
@@ -309,6 +337,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
   return (
     <form
       className="flex min-w-0 flex-col gap-6"
+      autoComplete="off"
       onSubmit={(event) => {
         void onSubmit(event);
       }}
@@ -499,7 +528,12 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                   <Input {...register("wifiSsid")} />
                 </Field>
                 <Field label={t("wifiPassword")}>
-                  <Input type="password" {...register("wifiPassword")} />
+                  <SecretInput
+                    domName="qr-wifi-password"
+                    ref={wifiPasswordField.ref}
+                    onChange={wifiPasswordField.onChange}
+                    onBlur={wifiPasswordField.onBlur}
+                  />
                 </Field>
                 <Field label={t("wifiSecurity")}>
                   <Select {...register("wifiSecurity")}>
@@ -528,6 +562,81 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
             action={<Badge tone={quality.tone}>{qualityLabel}</Badge>}
           >
             <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium">{t("templatesTitle")}</span>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSaveTemplateOpen(true)}>
+                  {t("saveTemplate")}
+                </Button>
+              </div>
+              {templates.length > 0 ? (
+                <div className="flex min-w-0 flex-wrap gap-2">
+                  {templates.map((template) => {
+                    const active = activeTemplateId === template.id;
+                    return (
+                      <span
+                        key={template.id}
+                        className={cn(
+                          "inline-flex min-w-0 items-stretch overflow-hidden rounded-pill border border-border-strong bg-bg text-sm",
+                          active && "border-accent bg-accent-surface font-medium text-accent-on-surface",
+                        )}
+                      >
+                        <button
+                          type="button"
+                          aria-pressed={active}
+                          disabled={templateBusy}
+                          className="inline-flex min-w-0 items-center gap-1.5 px-3 py-1.5 transition hover:bg-surface-subtle disabled:opacity-50"
+                          onClick={() => {
+                            applyQrStyleToForm(setValue, template.style);
+                            setActiveTemplateId(template.id);
+                          }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="size-3.5 shrink-0 rounded-full border border-border-strong"
+                            style={{ background: template.style.foreground }}
+                          />
+                          <span className="truncate">{template.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={t("deleteTemplate", { name: template.name })}
+                          disabled={templateBusy}
+                          className="inline-flex shrink-0 items-center border-l border-border-strong px-2 text-fg-subtle hover:bg-surface-subtle hover:text-danger disabled:opacity-50"
+                          onClick={() => {
+                            void (async () => {
+                              setTemplateBusy(true);
+                              setTemplateError(null);
+                              try {
+                                const result = await deleteQrTemplateAction(template.id);
+                                if (!result.ok) {
+                                  setTemplateError(t("templateDeleteFailed"));
+                                  return;
+                                }
+                                if (activeTemplateId === template.id) {
+                                  setActiveTemplateId(null);
+                                }
+                                router.refresh();
+                              } catch {
+                                setTemplateError(t("templateDeleteFailed"));
+                              } finally {
+                                setTemplateBusy(false);
+                              }
+                            })();
+                          }}
+                        >
+                          <Icon name="xmark" className="text-[10px]" aria-hidden="true" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="m-0 text-xs text-fg-subtle">{t("templatesEmpty")}</p>
+              )}
+              {templateError ? <p className="m-0 text-xs text-danger">{templateError}</p> : null}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-2">
               <span className="text-sm font-medium">{t("presets")}</span>
               <div className="flex min-w-0 flex-wrap gap-2">
                 {QR_PALETTES.map((palette) => {
@@ -542,6 +651,7 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
                       onClick={() => {
                         setValue("foreground", palette.foreground, { shouldDirty: true });
                         setValue("background", palette.background, { shouldDirty: true });
+                        setActiveTemplateId(null);
                       }}
                     >
                       <span
@@ -754,6 +864,70 @@ export function QrDesigner({ mode, qrId, defaultValues, links, canUseLogo }: QrD
             <li>{t("deleteBullet2")}</li>
             <li>{t("deleteBullet3")}</li>
           </ul>
+        </div>
+      </Modal>
+
+      <Modal
+        open={saveTemplateOpen}
+        title={t("saveTemplateTitle")}
+        description={t("saveTemplateDesc")}
+        onClose={() => {
+          setSaveTemplateOpen(false);
+          setTemplateName("");
+          setTemplateError(null);
+        }}
+        footer={
+          <>
+            <Button
+              disabled={templateBusy}
+              onClick={() => {
+                setSaveTemplateOpen(false);
+                setTemplateName("");
+                setTemplateError(null);
+              }}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={templateBusy || templateName.trim().length === 0}
+              onClick={() => {
+                void (async () => {
+                  setTemplateBusy(true);
+                  setTemplateError(null);
+                  try {
+                    const result = await saveQrTemplateAction(templateName.trim(), values);
+                    if (!result.ok) {
+                      setTemplateError(t("templateSaveFailed"));
+                      return;
+                    }
+                    setSaveTemplateOpen(false);
+                    setTemplateName("");
+                    setActiveTemplateId(result.data.id);
+                    router.refresh();
+                  } catch {
+                    setTemplateError(t("templateSaveFailed"));
+                  } finally {
+                    setTemplateBusy(false);
+                  }
+                })();
+              }}
+            >
+              {templateBusy ? t("saving") : t("saveTemplateConfirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="px-6 py-4">
+          <Field label={t("templateName")}>
+            <Input
+              value={templateName}
+              maxLength={120}
+              placeholder={t("templateNamePlaceholder")}
+              onChange={(event) => setTemplateName(event.target.value)}
+            />
+          </Field>
+          {templateError ? <p className="mt-2 text-xs text-danger">{templateError}</p> : null}
         </div>
       </Modal>
     </form>

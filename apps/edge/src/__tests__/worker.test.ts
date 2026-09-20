@@ -445,6 +445,41 @@ describe("biopages", () => {
 });
 
 describe("apex site vs panel", () => {
+  it("proxies POST server actions on the apex with body and action headers", async () => {
+    const { env, ctx } = setup({});
+    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) =>
+      new Response("1:{}", {
+        headers: { "content-type": "text/x-component" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await worker.fetch(
+      edgeRequest("https://test/", {
+        method: "POST",
+        headers: {
+          "content-type": "text/plain;charset=UTF-8",
+          "next-action": "abc123",
+          origin: "https://test",
+          cookie: "better-auth.session_token=signed-in",
+        },
+        body: '["https://example.com"]',
+      }),
+      env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    const [, init = {}] = fetchMock.mock.calls[0] ?? [];
+    expect(init.method).toBe("POST");
+    expect(init.body).toBeTruthy();
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-short-surface"]).toBe("site");
+    expect(headers["next-action"]).toBe("abc123");
+    expect(headers.origin).toBe("https://test");
+    expect(headers.cookie).toContain("better-auth.session_token");
+  });
+
   it("proxies / on the platform apex to origin with site surface headers", async () => {
     const { env, ctx } = setup({});
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>

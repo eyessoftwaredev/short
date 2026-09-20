@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { sharedCookieOptions } from "./cookie-domain";
 import { serverEnv } from "./env";
 
 export const DRAFT_COOKIE = "short_draft";
@@ -76,10 +77,8 @@ export async function writeDraftDestination(url: string): Promise<void> {
   const jar = await cookies();
   jar.set(DRAFT_COOKIE, createDraft(normalized), {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
     maxAge: DRAFT_TTL_SEC,
+    ...sharedCookieOptions(),
   });
 }
 
@@ -90,7 +89,7 @@ export async function readDraftDestination(): Promise<string | null> {
 
 export async function clearDraftDestination(): Promise<void> {
   const jar = await cookies();
-  jar.delete(DRAFT_COOKIE);
+  jar.delete({ name: DRAFT_COOKIE, ...sharedCookieOptions() });
 }
 
 /** After verify/onboarding, send a first-time member to the prefilled editor. */

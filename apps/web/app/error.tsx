@@ -25,7 +25,12 @@ export default function AppError({
   return (
     <div className="flex min-h-screen min-w-0 flex-col bg-bg">
       <header className="flex min-w-0 items-center justify-between gap-4 border-b border-border px-6 py-4">
-        <BrandLockup name={FALLBACK_BRAND.name} href="/" />
+        <BrandLockup
+          name={FALLBACK_BRAND.name}
+          href="/"
+          logoSrc="/api/brand/logo"
+          hasWordmark={false}
+        />
       </header>
 
       <main className="flex min-w-0 flex-1 items-center justify-center px-6 py-16">

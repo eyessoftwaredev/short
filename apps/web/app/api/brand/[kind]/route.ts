@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { brandInitial, getPlatformAsset, getPlatformBrand, isPlatformAssetKind } from "@/lib/brand";
-import { knockoutBrandPlate } from "@/lib/brand-image";
+import { readDeliverCache, writeDeliverCache } from "@/lib/brand-deliver-cache";
+import { deliverBrandAsset, knockoutBrandPlate } from "@/lib/brand-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,9 @@ function toBodyInit(bytes: Uint8Array): BodyInit {
   return copy;
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ kind: string }> }) {
+const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
+
+export async function GET(request: Request, { params }: { params: Promise<{ kind: string }> }) {
   const { kind } = await params;
   if (!isPlatformAssetKind(kind)) {
     return NextResponse.json({ error: "unknown brand asset" }, { status: 404 });
@@ -27,11 +30,38 @@ export async function GET(_request: Request, { params }: { params: Promise<{ kin
     (await getPlatformAsset(kind)) ??
     (kind === "logo_dark" ? await getPlatformAsset("logo") : null);
   if (asset) {
-    const cleaned = await knockoutBrandPlate(Buffer.from(asset.bytes), asset.contentType);
-    return new NextResponse(toBodyInit(cleaned.bytes), {
+    const accept = request.headers.get("accept") ?? "";
+    const format = accept.includes("image/avif")
+      ? "avif"
+      : accept.includes("image/webp")
+        ? "webp"
+        : "png";
+    const cached = readDeliverCache(kind, asset.updatedAt, format);
+    const delivered =
+      cached ??
+      (await (async () => {
+        const cleaned = await knockoutBrandPlate(Buffer.from(asset.bytes), asset.contentType);
+        const next = await deliverBrandAsset(cleaned.bytes, kind, accept, asset.updatedAt);
+        writeDeliverCache(kind, asset.updatedAt, format, next);
+        return next;
+      })());
+    const ifNoneMatch = request.headers.get("if-none-match");
+    if (ifNoneMatch === delivered.etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          "cache-control": CACHE_CONTROL,
+          etag: delivered.etag,
+          "last-modified": asset.updatedAt.toUTCString(),
+        },
+      });
+    }
+
+    return new NextResponse(toBodyInit(delivered.bytes), {
       headers: {
-        "content-type": cleaned.contentType,
-        "cache-control": "public, max-age=300, stale-while-revalidate=86400",
+        "content-type": delivered.contentType,
+        "cache-control": CACHE_CONTROL,
+        etag: delivered.etag,
         "last-modified": asset.updatedAt.toUTCString(),
       },
     });

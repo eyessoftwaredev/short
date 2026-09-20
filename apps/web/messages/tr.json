@@ -19,6 +19,8 @@
     "skipToContent": "İçeriğe geç",
     "expandSidebar": "Kenar çubuğunu aç",
     "collapseSidebar": "Kenar çubuğunu daralt",
+    "openMenu": "Menüyü aç",
+    "mobileTabs": "Hızlı gezinme",
     "switchWorkspace": "Değiştir",
     "personal": "Kişisel",
     "team": "Takım",
@@ -72,6 +74,17 @@
     "replace": "Değiştir",
     "remove": "Kaldır",
     "uploading": "Yükleniyor…",
+    "library": "Kütüphane",
+    "libraryTitle": "Medya kütüphanesi",
+    "libraryDesc": "Bu workspace'e yüklenen görseller — link, QR ve bio sayfalarında paylaşılır.",
+    "libraryLoading": "Kütüphane yükleniyor…",
+    "libraryEmpty": "Henüz görsel yok. Başlamak için bir tane yükleyin.",
+    "libraryLoadFailed": "Kütüphane yüklenemedi. Tekrar deneyin.",
+    "uploadNew": "Yeni yükle",
+    "closeLibrary": "Kapat",
+    "deleteImage": "Görseli sil",
+    "mediaInUse": "Bu görsel hâlâ bir link, QR kodu veya bio sayfasında kullanılıyor.",
+    "mediaDeleteFailed": "Görsel silinemedi.",
     "media_type": "PNG, JPEG, WebP veya SVG kullan.",
     "media_size": "Görseller en fazla 4 MB olabilir.",
     "media_failed": "Yükleme başarısız. Başka bir dosya dene."
@@ -89,7 +102,7 @@
     "domains": "Domainler",
     "settings": "Ayarlar",
     "billing": "Faturalandırma",
-    "docs": "Bileşenler",
+    "docs": "Dokümantasyon",
     "admin": "Genel bakış",
     "admin-brand": "Marka",
     "admin-users": "Kullanıcılar",
@@ -1939,6 +1952,17 @@
       "forest": "Orman",
       "inverted": "Ters"
     },
+    "templatesTitle": "Kayıtlı şablonlar",
+    "templatesEmpty": "Mevcut renk, şekil ve logoyu şablon olarak kaydedin; sonraki kodda tekrar kullanın.",
+    "saveTemplate": "Şablon kaydet",
+    "saveTemplateTitle": "Şablon olarak kaydet",
+    "saveTemplateDesc": "Renk, modül şekli, quiet zone, logo ve alt yazıyı kaydeder — link veya URL payload'ı değil.",
+    "saveTemplateConfirm": "Şablonu kaydet",
+    "templateName": "Şablon adı",
+    "templateNamePlaceholder": "Marka afiş stili",
+    "deleteTemplate": "{name} şablonunu sil",
+    "templateSaveFailed": "Şablon kaydedilemedi.",
+    "templateDeleteFailed": "Şablon silinemedi.",
     "quality": {
       "invalid": "Renkleri kontrol et",
       "fail": "Taranmaz",
@@ -1949,5 +1973,321 @@
     "qualityFailAdvice": "Ön plan ve arka plan parlaklıkta çok yakın. Birini koyulaştır.",
     "qualityLowAdvice": "Yakından okunur, afişte veya loş ışıkta büyük olasılıkla başarısız olur.",
     "qualityInvertedAdvice": "Koyu zeminde açık modüller — bazı eski tarayıcılar bunları reddeder."
+  },
+  "docs": {
+    "shellTitle": "Dokümantasyon",
+    "sidebarLabel": "Dokümantasyon",
+    "navGroups": {
+      "start": "Başlangıç",
+      "guides": "Rehberler",
+      "developers": "Geliştiriciler"
+    },
+    "nav": {
+      "overview": "Genel bakış",
+      "gettingStarted": "Başlarken",
+      "links": "Linkler",
+      "qrCodes": "QR kodlar",
+      "bioPages": "Bio sayfaları",
+      "domains": "Özel alan adları",
+      "routing": "Akıllı yönlendirme",
+      "analytics": "Analitik",
+      "api": "REST API",
+      "webhooks": "Webhook'lar"
+    },
+    "overview": {
+      "metaTitle": "Dokümantasyon",
+      "eyebrow": "Short.ky dokümantasyon",
+      "title": "Linkleri ölçekte yönetmek için ihtiyacınız olan her şey",
+      "description": "Panel için adım adım rehberler; otomasyon için REST API ve webhook'lar.",
+      "intro": "Aşağıdan bir konu seçin veya doğrudan ürüne geçin. Her rehber panelde neye tıklayacağınızı ve birinin linki açtığında edge'de ne olduğunu anlatır.",
+      "quickLinksTitle": "Hızlı erişim",
+      "quickLinkCreate": "İlk linkinizi oluşturun",
+      "quickLinkSettings": "Ayarlar'dan API anahtarı alın",
+      "quickLinkApi": "REST API referansına göz atın",
+      "cards": {
+        "getting-started": "Hesap açın, alan adı seçin ve dakikalar içinde ilk kısa linkinizi yayınlayın.",
+        "links": "Slug, şifre, süre sonu, UTM etiketleri, klasörler ve link detay ekranı.",
+        "qr-codes": "Link veya ham payload'dan markanıza uygun QR kod üretin.",
+        "bio-pages": "Bloklar, temalar ve isteğe bağlı lead formu ile link-in-bio sayfası.",
+        "domains": "Kendi alan adınızı bağlayın, DNS doğrulayın, TLS otomatik gelsin.",
+        "routing": "Ülke, cihaz, dil veya A/B varyantına göre farklı hedeflere yönlendirin.",
+        "analytics": "Tıklama, referrer, coğrafya ve cihaz — link veya workspace bazında.",
+        "api": "Link, QR, bio sayfası ve alan adlarını kendi backend'inizden yönetin.",
+        "webhooks": "Link değişince veya tıklanınca imzalı POST alın."
+      }
+    },
+    "gettingStarted": {
+      "metaTitle": "Başlarken",
+      "title": "Başlarken",
+      "description": "Boş bir workspace'ten paylaşılabilir canlı kısa linke.",
+      "steps": {
+        "account": {
+          "title": "Workspace oluşturun",
+          "body": "E-posta veya Google ile kayıt olun. Kişisel workspace'ler ücretsiz planda başlar; özel alan adı veya API gerektiğinde Faturalandırma'dan yükseltin."
+        },
+        "domain": {
+          "title": "Linklerin nerede yaşayacağını seçin",
+          "body": "Her link bir alan adına bağlıdır. Hazır platform alan adını kullanın veya planınız uygunsa Alan Adları'ndan kendi hostname'inizi ekleyin."
+        },
+        "link": {
+          "title": "Link oluşturun",
+          "body": "Linkler → Yeni link'e gidin, uzun URL'yi yapıştırın, alan adını seçin ve isteğe bağlı özel slug belirleyin. Şifre, süre sonu ve yönlendirme kurallarını şimdi veya sonra ekleyebilirsiniz."
+        },
+        "share": {
+          "title": "Paylaşın ve ölçün",
+          "body": "Kısa URL'yi kopyalayın veya QR indirin. Tıklamalar saniyeler içinde Dashboard'da görünür; detay için linkin İstatistik sekmesine gidin."
+        }
+      },
+      "tip": {
+        "title": "Takım workspace'leri",
+        "body": "Takım workspace'i için ücretli plana geçin. Üyeler link ve alan adlarını paylaşır; faturalandırma ve API anahtarlarını sahip ve admin yönetir."
+      },
+      "nextTitle": "Sırada ne var",
+      "nextLinks": "Linkler — seçenekler ve düzen",
+      "nextAnalytics": "Analitik — tıklamalar nasıl sayılır",
+      "nextApi": "REST API — link oluşturmayı otomatikleştirin"
+    },
+    "links": {
+      "metaTitle": "Linkler",
+      "title": "Linkler",
+      "description": "Kısa URL'ler Short.ky'nin çekirdeğidir. Oluşturma, seçenekler ve günlük yönetim.",
+      "createTitle": "Link oluşturma",
+      "createBody": "Her link, bir alan adındaki slug'ı hedef URL'ye bağlar. Edge worker hostname + slug çözer, kuralları uygular, yönlendirir veya ara sayfa gösterir.",
+      "createSteps": {
+        "0": "Linkler'e gidin ve Yeni link'e tıklayın.",
+        "1": "Slug'ın yaşayacağı alan adını seçin.",
+        "2": "Hedef URL'yi girin — şemayı normalize eder, güvensiz hedefleri reddederiz.",
+        "3": "Kaydedin. Kısa URL anında kopyalanabilir."
+      },
+      "optionsTitle": "Link seçenekleri",
+      "optionsBody": "Tablodan bir link açarak bu alanları düzenleyin. Değişiklikler saniyeler içinde edge'e yansır.",
+      "table": {
+        "option": "Seçenek",
+        "description": "Ne işe yarar",
+        "rows": {
+          "slug": { "label": "Özel slug", "desc": "Rastgele kodu /launch gibi okunabilir bir yolla değiştirin." },
+          "password": { "label": "Şifre", "desc": "Yönlendirmeden önce ziyaretçi şifre girer." },
+          "expiry": { "label": "Süre sonu", "desc": "Tarihten sonra yönlendirme durur; isteğe bağlı alternatif hedef." },
+          "utm": { "label": "UTM parametreleri", "desc": "Yönlendirmede hedef URL'ye kampanya etiketleri ekler." },
+          "tags": { "label": "Etiketler", "desc": "Listede ve API'de filtrelemek için etiketleyin." },
+          "cloak": { "label": "Cloaking", "desc": "Anında yönlendirme yerine önizleme sayfası — sosyal platformlar için." }
+        }
+      },
+      "organizeTitle": "Klasörler ve arşiv",
+      "organizeBody": "Kampanya linklerini klasörlerde gruplayın. Artık kullanmadıklarınızı arşivleyin — tıklama kabul etmezler ama analitik geçmişi kalır.",
+      "relatedTitle": "İlgili rehberler",
+      "relatedRouting": "Akıllı yönlendirme — ülke, cihaz ve A/B",
+      "relatedAnalytics": "Analitik — link bazında istatistik"
+    },
+    "qrCodes": {
+      "metaTitle": "QR kodlar",
+      "title": "QR kodlar",
+      "description": "Herhangi bir link veya payload'dan indirilebilir, markalı QR kod.",
+      "createTitle": "QR kod oluşturma",
+      "createBody": "QR kodlar bir Short linkine (hedefi sonra değiştirebilirsiniz) veya ham URL, kartvizit veya Wi‑Fi ağına işaret edebilir.",
+      "createSteps": {
+        "0": "QR kodlar → Yeni QR kod'a gidin.",
+        "1": "Payload türünü seçin ve alanları doldurun.",
+        "2": "Renk, nokta stili ve isteğe bağlı logo ayarlayın, kaydedin."
+      },
+      "payloadTitle": "Payload türleri",
+      "payloadBody": "Link destekli kodlar alttaki kısa linkin yönlendirme ve analitiğini devralır.",
+      "table": {
+        "kind": "Tür",
+        "use": "En uygun",
+        "rows": {
+          "link": "Link",
+          "linkDesc": "Mevcut kısa linke bağlı, izlenebilir kod.",
+          "url": "URL",
+          "urlDesc": "Sabit URL kodlayan tek seferlik kod.",
+          "vcard": "Kişi",
+          "vcardDesc": "Taranınca ad, telefon ve e-posta paylaşın.",
+          "wifi": "Wi‑Fi",
+          "wifiDesc": "Poster veya menüden ağa katılım."
+        }
+      },
+      "designTitle": "Tasarım ipuçları",
+      "designBody": "Tasarımcı, güvenilir tarama için kontrast çok düşükse uyarır.",
+      "designTips": {
+        "0": "Kod etrafında boş alan (margin) bırakın — görselle bitişik kırpmayın.",
+        "1": "Maksimum uyumluluk için açık zemin üzerinde koyu modül tercih edin.",
+        "2": "Ekranda değil, basacağınız boyutta kağıtta test edin."
+      }
+    },
+    "bioPages": {
+      "metaTitle": "Bio sayfaları",
+      "title": "Bio sayfaları",
+      "description": "Alan adınızda veya Short.ky handle'ında barındırılan link-in-bio sayfası.",
+      "handleTitle": "Handle ve URL'ler",
+      "handleBody": "Her bio sayfasının benzersiz handle'ı vardır; alan adı ayarına göre yourdomain.com/@handle veya handle.short.ky olur.",
+      "blocksTitle": "Bloklar",
+      "blocksBody": "Sayfayı bloklarla oluşturun. Sürükleyerek sıralayın; silmeden görünürlüğü kapatın.",
+      "blocks": {
+        "0": "Linkler — diğer Short linkleri dahil herhangi bir URL'ye düğme.",
+        "1": "Sosyal ikonlar — profillere hızlı erişim.",
+        "2": "Metin ve başlıklar — kısa bio veya duyuru.",
+        "3": "Medya — görsel veya embed.",
+        "4": "Lead formu — isteğe bağlı onay metniyle e-posta toplama."
+      },
+      "publishTitle": "Yayınlama",
+      "publishBody": "Taslak değişiklikler yayınlanana kadar gizli kalır. Herkese açık sayfa hızlı yükleme için edge'de önbelleğe alınır.",
+      "leadsTitle": "Lead toplama",
+      "leadsBody": "Lead formu açıkken gönderimler Bio → Leadler altında görünür. Uygun planlarda dışa aktarma veya webhook.",
+      "statsTitle": "İstatistik",
+      "statsBody": "Bio görüntülemeleri link tıklamalarından ayrı sayılır. Bio sayfasında İstatistik sekmesinden görüntüleme ve çıkış linklerini görün."
+    },
+    "domains": {
+      "metaTitle": "Özel alan adları",
+      "title": "Özel alan adları",
+      "description": "Kısa linkleri kendi hostname'inizden otomatik TLS ile sunun.",
+      "steps": {
+        "add": {
+          "title": "Hostname ekleyin",
+          "body": "Alan Adları → Yeni alan adı'nda go.acme.com gibi alt alan adı girin — www kullanmayın."
+        },
+        "dns": {
+          "title": "DNS yönlendirin",
+          "body": "Panelde gösterilen CNAME kaydını oluşturun. Cloudflare kullanıyorsanız entegrasyonla tek tıkla doğrulayın."
+        },
+        "verify": {
+          "title": "Doğrulayın ve TLS sağlayın",
+          "body": "DNS yayıldığında durum doğrulandı olur ve sertifika otomatik verilir."
+        },
+        "default": {
+          "title": "Varsayılan yapın",
+          "body": "Yeni linklerin editörde önceden seçilmesi için bir alan adını varsayılan işaretleyin."
+        }
+      },
+      "rootTitle": "Kök ve 404 davranışı",
+      "rootBody": "Alan adı köküne gelen ziyaretçileri pazarlama sayfasına, bilinmeyen slug'ları özel 404 hedefine yönlendirebilirsiniz.",
+      "sslTitle": "Sertifikalar",
+      "sslBody": "Sertifikalar otomatik yenilenir. DNS Short.ky'ye işaret etmeli — CNAME kaldırılırsa issuance durur ve HTTPS bozulur."
+    },
+    "routing": {
+      "metaTitle": "Akıllı yönlendirme",
+      "title": "Akıllı yönlendirme",
+      "description": "Tek kısa link, bağlama göre her ziyaretçiyi farklı hedefe gönderebilir.",
+      "howTitle": "Kurallar nasıl çalışır",
+      "howBody": "Kurallar yönlendirmeden önce edge'de değerlendirilir. İlk eşleşen kural kazanır; hiçbiri tutmazsa ana hedef kullanılır.",
+      "table": {
+        "rule": "Kural türü",
+        "example": "Örnek",
+        "rows": {
+          "country": "Ülke",
+          "countryEx": "TR → Türkçe fiyatlandırma sayfası",
+          "device": "Cihaz",
+          "deviceEx": "iOS → App Store listesi",
+          "language": "Dil",
+          "languageEx": "de → Almanca landing",
+          "ab": "A/B varyant",
+          "abEx": "Deney için iki URL arasında %50 bölünme"
+        }
+      },
+      "priorityTitle": "Öncelik",
+      "priorityBody": "Link editöründe kuralları sürükleyerek sıralayın. En spesifik kuralları öne alın — örn. geniş cihaz kuralından önce ülke.",
+      "exampleTitle": "API örneği",
+      "exampleBody": "REST API ile link oluştururken destination ile birlikte rules dizisi gönderin:",
+      "mobileTitle": "Mobil mağaza linkleri",
+      "mobileBody": "Kural yazmadan basit mağaza yönlendirmesi için iosDestination ve androidDestination kullanın. İkisi de varken cihaza özel kurallar bunları geçersiz kılar."
+    },
+    "analytics": {
+      "metaTitle": "Analitik",
+      "title": "Analitik",
+      "description": "Kim, nereden ve hangi cihazdan tıkladı — anlayın.",
+      "dashboardTitle": "Workspace dashboard",
+      "dashboardBody": "Dashboard seçili aralıkta tüm linklerdeki tıklama ve tekil ziyaretçiyi toplar. En çok tıklanan linkler ve son aktivite ani artışları gösterir.",
+      "linkTitle": "Link bazında istatistik",
+      "linkBody": "Her linkin o slug'a özel aynı kırılımlarla İstatistik sekmesi vardır. QR taramaları ve bio görüntülemeleri ayrı raporlanır.",
+      "table": {
+        "metric": "Metrik",
+        "meaning": "Anlam",
+        "rows": {
+          "clicks": "Tıklamalar",
+          "clicksDesc": "Tekrar ziyaretler dahil toplam yönlendirme.",
+          "visitors": "Ziyaretçiler",
+          "visitorsDesc": "Aralıkta link başına tekilleştirilmiş tarayıcı.",
+          "referrer": "Referrer",
+          "referrerDesc": "Ziyaretçiyi gönderen site veya uygulama.",
+          "country": "Ülke",
+          "countryDesc": "IP'den türetilen coğrafya — yaklaşık, PII değil.",
+          "device": "Cihaz",
+          "deviceDesc": "Telefon, tablet veya masaüstü sınıflandırması."
+        }
+      },
+      "rangesTitle": "Zaman aralıkları",
+      "rangesBody": "24 saat ile 12 ay arasında geçiş yapın. Karşılaştırmalar önceki dönemi gösterir — sadece toplam değil trend görün.",
+      "exportTitle": "Dışa aktarma",
+      "exportBody": "Uygun planlarda Analitik'ten ham olayları kendi BI aracınıza aktarın. API ile GET /links/{id}/stats'tan özet de alınabilir."
+    },
+    "api": {
+      "metaTitle": "REST API",
+      "title": "REST API",
+      "description": "Link, QR, bio sayfası, alan adı ve analitiğe programatik erişim.",
+      "authTitle": "Kimlik doğrulama",
+      "authBody": "Her istek workspace API anahtarı gerektirir. Anahtarlar Ayarlar → API'de oluşturulur ve tam değer yalnızca bir kez gösterilir.",
+      "authTable": {
+        "header": "Yöntem",
+        "value": "Değer",
+        "keyHeader": "Header (önerilen)",
+        "bearerHeader": "Alternatif",
+        "scope": "Kapsam",
+        "scopeValue": "Tek workspace — anahtar plan limit ve kotasını devralır."
+      },
+      "keysTitle": "Anahtar yönetimi",
+      "keysBody": "Ortam başına adlandırılmış anahtar oluşturun. Sızıntıda hemen iptal edin — geri alınamaz.",
+      "keysLink": "Ayarlar'ı aç",
+      "baseTitle": "Temel URL",
+      "baseBody": "Aşağıdaki tüm yollar şuna göre:",
+      "exampleTitle": "Link oluşturma",
+      "exampleBody": "domainId ve destination ile POST /links. slug atlanırsa otomatik üretilir.",
+      "errorsTitle": "Hatalar",
+      "errorsBody": "Hatalar sabit kod ve okunabilir mesajla JSON döner. Doğrulama hatalarında alan bazlı detay vardır.",
+      "errorsTable": {
+        "code": "Kod",
+        "meaning": "Anlam",
+        "rows": {
+          "missing": "API anahtarı header'ı yok.",
+          "invalid": "Anahtar iptal, hatalı veya bozuk.",
+          "plan": "Mevcut planda yok (örn. Free'de API).",
+          "rate": "Saatlik limit aşıldı — x-ratelimit-* header'larına bakın.",
+          "validation": "Gövde şema doğrulamasından geçmedi."
+        }
+      },
+      "referenceTitle": "OpenAPI",
+      "referenceBody": "Makine okunabilir spec:"
+    },
+    "webhooks": {
+      "metaTitle": "Webhook'lar",
+      "title": "Webhook'lar",
+      "description": "Link ve bio olaylarını gerçekleştiği anda backend'inize iletin.",
+      "setupTitle": "Endpoint ekleyin",
+      "setupBody": "HTTPS URL kaydedin ve alınacak olayları seçin. Her endpoint'in kendi imza secret'ı vardır.",
+      "settingsTitle": "Yapılandırma",
+      "settingsBody": "Endpoint'leri yönetin, teslimatı duraklatın ve secret döndürün: Ayarlar → Webhook'lar.",
+      "settingsLink": "Ayarlar'ı aç",
+      "eventsTitle": "Olay türleri",
+      "eventsBody": "Payload'lar JSON POST isteğidir. Olay adı gövdede kaynak anlık görüntüsüyle birlikte gelir.",
+      "eventsTable": {
+        "event": "Olay",
+        "when": "Ne zaman",
+        "rows": {
+          "link.created": "Panel veya API ile link oluşturuldu.",
+          "link.updated": "Herhangi bir link alanı değişti.",
+          "link.deleted": "Link kalıcı silindi.",
+          "link.clicked": "Biri yönlendirmeyi tamamladı (yüksek hacimde örneklenir).",
+          "biopage.viewed": "Herkese açık bio sayfası görüntülendi.",
+          "domain.verified": "Özel alan adı DNS doğrulaması başarılı."
+        }
+      },
+      "signatureTitle": "İmzayı doğrulayın",
+      "signatureBody": "x-short-signature header'ını imza secret'ınızla ham gövdenin HMAC-SHA256 özetiyle karşılaştırın. Uyuşmayanları reddedin.",
+      "deliveryTitle": "Teslimat davranışı",
+      "deliveryBody": "Endpoint birkaç saniye içinde 2xx dönmeli.",
+      "deliveryTips": {
+        "0": "Hızlıca 200 dönün, gerekirse asenkron işleyin.",
+        "1": "Kullanmadığınız endpoint'leri kapatın — duraklatılanlar yeniden denemez.",
+        "2": "İmza secret'ını vault'ta saklayın — panelden tekrar okunamaz."
+      }
+    }
   }
 }

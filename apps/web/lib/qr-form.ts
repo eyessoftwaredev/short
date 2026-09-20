@@ -71,6 +71,36 @@ export const emptyQrForm = (linkId: string): QrFormValues => ({
   caption: "",
 });
 
+export function styleToFormPatch(style: QrStyle): Partial<QrFormValues> {
+  return {
+    foreground: style.foreground,
+    background: style.background,
+    useCustomCorners: style.cornerColor != null,
+    cornerColor: style.cornerColor ?? "#0f766e",
+    dotStyle: style.dotStyle,
+    errorCorrection: style.errorCorrection,
+    margin: style.margin,
+    size: style.size,
+    logoUrl: style.logoUrl ?? "",
+    logoScale: style.logoScale,
+    caption: style.caption,
+  };
+}
+
+export function applyQrStyleToForm(
+  setValue: (
+    name: keyof QrFormValues,
+    value: QrFormValues[keyof QrFormValues],
+    options?: { shouldDirty?: boolean },
+  ) => void,
+  style: QrStyle,
+): void {
+  const patch = styleToFormPatch(style);
+  for (const [key, value] of Object.entries(patch) as [keyof QrFormValues, QrFormValues[keyof QrFormValues]][]) {
+    setValue(key, value, { shouldDirty: true });
+  }
+}
+
 export function toQrStyle(values: QrFormValues): QrStyle {
   return {
     foreground: values.foreground,

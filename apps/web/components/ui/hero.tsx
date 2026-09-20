@@ -16,8 +16,8 @@ export function Hero({ eyebrow, title, description, actions, variant = "default"
     <section
       className={cn(
         "flex flex-wrap items-start justify-between gap-5 rounded-default border bg-bg transition duration-200",
-        variant === "default" && "border-border p-7",
-        variant === "compact" && "border-border px-6 py-5",
+        variant === "default" && "border-border p-4 sm:p-7",
+        variant === "compact" && "border-border px-4 py-4 sm:px-6 sm:py-5",
         variant === "inverse" && "border-on-inverse-border bg-inverse p-7 text-on-inverse",
       )}
     >

@@ -4,7 +4,9 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BrandLockup } from "@/components/brand/brand-mark";
+import { BrandPreload } from "@/components/brand/brand-preload";
 import { getPlatformBrand } from "@/lib/brand";
+import { getBrandLockupSources } from "@/lib/brand-assets";
 import { firstWinPath } from "@/lib/draft-link";
 import { requireSession } from "@/lib/session";
 import { OnboardingForm } from "./onboarding-form";
@@ -12,10 +14,11 @@ import { OnboardingForm } from "./onboarding-form";
 export const metadata: Metadata = { title: "Create your account" };
 
 export default async function OnboardingPage() {
-  const [context, brand, t] = await Promise.all([
+  const [context, brand, t, brandSources] = await Promise.all([
     requireSession(),
     getPlatformBrand(),
     getTranslations("onboarding"),
+    getBrandLockupSources(),
   ]);
 
   if (context.workspace) {
@@ -31,8 +34,15 @@ export default async function OnboardingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-subtle">
+      <BrandPreload sources={brandSources} />
       <header className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-bg px-6 py-4">
-        <BrandLockup name={brand.name} href="/" />
+        <BrandLockup
+          name={brand.name}
+          href="/"
+          logoSrc={brandSources.logoSrc}
+          wordmarkSrc={brandSources.wordmarkSrc}
+          hasWordmark={brandSources.hasWordmark}
+        />
         <span className="min-w-0 truncate text-sm text-fg-muted">
           {t("signedInAs")} <span className="text-ink">{context.user.email}</span>
         </span>

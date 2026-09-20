@@ -97,10 +97,10 @@ export const navGroups: NavGroup[] = [
       },
       {
         id: "docs",
-        label: "Components",
+        label: "Docs",
         href: "/docs",
         icon: "book",
-        roles: ["superadmin"],
+        roles: ["owner", "admin", "member", "superadmin"],
       },
     ],
   },

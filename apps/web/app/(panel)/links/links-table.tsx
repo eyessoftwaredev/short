@@ -30,6 +30,7 @@ import {
   type DropdownItem,
   type FilterOption,
 } from "@/components/ui";
+import { cn } from "@/lib/cx";
 import { archiveLinkAction, deleteLinkAction } from "./actions";
 
 export type LinkListRow = {
@@ -65,6 +66,14 @@ const COLUMN_WIDTHS: Record<string, string> = {
 };
 
 const NUMERIC_COLUMNS = new Set(["clicks"]);
+
+/** Columns dropped on small screens so slug + clicks stay readable without the sidebar. */
+const COLUMN_RESPONSIVE: Record<string, string> = {
+  destination: "hidden md:table-cell",
+  tags: "hidden lg:table-cell",
+  archived: "hidden sm:table-cell",
+  createdAt: "hidden lg:table-cell",
+};
 
 type LinksTableProps = {
   rows: LinkListRow[];
@@ -418,7 +427,7 @@ export function LinksTable({
                     <TableHeaderCell
                       key={header.id}
                       numeric={NUMERIC_COLUMNS.has(header.column.id)}
-                      className={COLUMN_WIDTHS[header.column.id]}
+                      className={cn(COLUMN_WIDTHS[header.column.id], COLUMN_RESPONSIVE[header.column.id])}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHeaderCell>
@@ -434,6 +443,7 @@ export function LinksTable({
                       key={cell.id}
                       numeric={NUMERIC_COLUMNS.has(cell.column.id)}
                       truncate={cell.column.id === "slug" || cell.column.id === "destination"}
+                      className={COLUMN_RESPONSIVE[cell.column.id]}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>

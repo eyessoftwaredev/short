@@ -17,6 +17,7 @@ import {
   Grid,
   Input,
   SaveBar,
+  SecretInput,
   Section,
   Select,
   Sheet,
@@ -109,6 +110,7 @@ export function LinkForm({
     defaultValues,
   });
 
+  const passwordField = register("password");
   const values = watch();
   const selectedDomain = useMemo(
     () => domains.find((domain) => domain.id === values.domainId) ?? domains[0],
@@ -152,6 +154,7 @@ export function LinkForm({
   return (
     <form
       className="flex min-w-0 flex-col gap-6"
+      autoComplete="off"
       onSubmit={(event) => {
         void onSubmit(event);
       }}
@@ -165,7 +168,11 @@ export function LinkForm({
             error={fieldError(errors.destination?.message, t)}
             hint={t("destinationHint")}
           >
-            <Input placeholder={t("destinationPlaceholder")} {...register("destination")} />
+            <Input
+              placeholder={t("destinationPlaceholder")}
+              autoComplete="off"
+              {...register("destination")}
+            />
           </Field>
 
           <Grid columns={2}>
@@ -407,10 +414,14 @@ export function LinkForm({
         <div className="flex flex-col gap-4">
           <Grid columns={2}>
             <Field label={t("expiresAt")} error={errors.expiresAt?.message}>
-              <Input type="datetime-local" {...register("expiresAt")} />
+              <Input type="datetime-local" autoComplete="off" {...register("expiresAt")} />
             </Field>
             <Field label={t("expiredDestination")}>
-              <Input placeholder={t("expiredPlaceholder")} {...register("expiredDestination")} />
+              <Input
+                placeholder={t("expiredPlaceholder")}
+                autoComplete="off"
+                {...register("expiredDestination")}
+              />
             </Field>
           </Grid>
 
@@ -424,7 +435,13 @@ export function LinkForm({
                   : t("passwordHint")
             }
           >
-            <Input type="password" disabled={!canProtect} {...register("password")} />
+            <SecretInput
+              domName="link-gate-password"
+              disabled={!canProtect}
+              ref={passwordField.ref}
+              onChange={passwordField.onChange}
+              onBlur={passwordField.onBlur}
+            />
           </Field>
 
           <Card staticHover className="flex-row items-center justify-between gap-4">

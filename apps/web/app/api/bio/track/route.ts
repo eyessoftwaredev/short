@@ -10,7 +10,7 @@ import {
 } from "@short/core";
 import { biopages, domains, eq, getDb } from "@short/db";
 import { NextResponse, type NextRequest } from "next/server";
-import { serverEnv } from "@/lib/env";
+import { serverEnv, visitorSalt } from "@/lib/env";
 import { cacheGet, cacheSet, rateLimit } from "@/lib/redis";
 
 export const runtime = "nodejs";
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
           ip,
           userAgent,
           linkId: biopageId,
-          dailySalt: `${serverEnv().INTERNAL_TOKEN}:${utcDayStamp()}`,
+          dailySalt: `${visitorSalt()}:${utcDayStamp()}`,
         }),
         ip,
         biopageId,

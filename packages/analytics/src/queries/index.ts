@@ -100,6 +100,8 @@ export type SummaryResult = {
   /** Same-length window immediately before `from`, for delta badges. */
   previousClicks: number;
   previousVisitors: number;
+  previousBioViews: number;
+  previousBioClicks: number;
 };
 
 export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
@@ -138,6 +140,8 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
       countries: Number(current?.countries ?? 0),
       previousClicks: 0,
       previousVisitors: 0,
+      previousBioViews: 0,
+      previousBioClicks: 0,
     };
   }
 
@@ -147,8 +151,18 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
     to: scope.from,
   });
 
-  const [prior] = await chQuery<{ clicks: string; visitors: string }>(
-    `SELECT count() AS clicks, uniq(visitor_id) AS visitors FROM events WHERE ${previous.where}`,
+  const [prior] = await chQuery<{
+    clicks: string;
+    bio_views: string;
+    bio_clicks: string;
+    visitors: string;
+  }>(
+    `SELECT
+        countIf(type = 'click') AS clicks,
+        countIf(type = 'bio_view') AS bio_views,
+        countIf(type = 'bio_click') AS bio_clicks,
+        uniq(visitor_id) AS visitors
+     FROM events WHERE ${previous.where}`,
     previous.params,
   );
 
@@ -161,6 +175,8 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
     countries: Number(current?.countries ?? 0),
     previousClicks: Number(prior?.clicks ?? 0),
     previousVisitors: Number(prior?.visitors ?? 0),
+    previousBioViews: Number(prior?.bio_views ?? 0),
+    previousBioClicks: Number(prior?.bio_clicks ?? 0),
   };
 }
 
@@ -390,6 +406,7 @@ export async function getMonthlyClickTotal(workspaceId: string, period: string):
     `SELECT sum(clicks) AS clicks
      FROM link_daily
      WHERE workspace_id = {workspaceId:String}
+       AND link_id != ''
        AND toYYYYMM(day) = toUInt32(replace({period:String}, '-', ''))`,
     { workspaceId, period },
   );

@@ -1,5 +1,5 @@
-import { customType, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { organization } from "./auth";
+import { customType, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { organization, user } from "./auth";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -20,6 +20,9 @@ export const workspaceMedia = pgTable(
     kind: text("kind").$type<WorkspaceMediaKind>().notNull().default("image"),
     contentType: text("content_type").notNull(),
     bytes: bytea("bytes").notNull(),
+    filename: text("filename"),
+    byteSize: integer("byte_size"),
+    uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("workspace_media_workspace_idx").on(table.workspaceId)],

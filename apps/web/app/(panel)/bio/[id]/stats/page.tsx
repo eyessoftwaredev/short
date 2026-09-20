@@ -127,10 +127,10 @@ export default async function BioStatsPage({
               icon={<Icon name="eye" className="text-sm" />}
               label={ts("bioViews")}
               value={formatNumber(summary.bioViews)}
-              trend={trendOf(summary.bioViews, summary.previousClicks)}
+              trend={trendOf(summary.bioViews, summary.previousBioViews)}
               delta={
                 range.comparePrevious
-                  ? formatDelta(summary.bioViews, summary.previousClicks, noneDelta)
+                  ? formatDelta(summary.bioViews, summary.previousBioViews, noneDelta)
                   : rangeLabel
               }
             />

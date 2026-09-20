@@ -75,6 +75,13 @@ export const qrInputSchema = z
 
 export type QrInput = z.infer<typeof qrInputSchema>;
 
+export const qrTemplateInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  style: qrStyleSchema,
+});
+
+export type QrTemplateInput = z.infer<typeof qrTemplateInputSchema>;
+
 export const QR_EXPORT_FORMATS = ["svg", "png", "pdf"] as const;
 export type QrExportFormat = (typeof QR_EXPORT_FORMATS)[number];
 

@@ -37,6 +37,7 @@ export {
   QR_PAYLOAD_KINDS,
   mediaPathSchema,
   qrInputSchema,
+  qrTemplateInputSchema,
   qrStyleSchema,
   qrVcardSchema,
   qrWifiSchema,
@@ -47,6 +48,7 @@ export {
   type QrInput,
   type QrPayloadKind,
   type QrStyle,
+  type QrTemplateInput,
 } from "./qr";
 
 export {

@@ -22,3 +22,7 @@
   background: transparent;
   outline: none;
 }
+
+.landing-shorten--result {
+  flex-wrap: wrap;
+}

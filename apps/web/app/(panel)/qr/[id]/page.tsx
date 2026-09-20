@@ -7,6 +7,7 @@ import { Button, Hero } from "@/components/ui";
 import { listLinks, shortUrl } from "@/lib/links";
 import { getQrCode } from "@/lib/qr-codes";
 import { toQrForm } from "@/lib/qr-form";
+import { listQrTemplates } from "@/lib/qr-templates";
 import { requireWorkspace } from "@/lib/session";
 import { QrDesigner, type QrLinkOption } from "../qr-designer";
 
@@ -26,12 +27,15 @@ export default async function EditQrPage({ params }: { params: Params }) {
     notFound();
   }
 
-  const { items } = await listLinks(context.workspace.id, {
+  const [{ items }, templates] = await Promise.all([
+    listLinks(context.workspace.id, {
     status: "all",
     sort: "created_desc",
     page: 1,
     pageSize: 200,
-  });
+  }),
+    listQrTemplates(context.workspace.id),
+  ]);
 
   const options: QrLinkOption[] = items.map((link) => ({
     id: link.id,
@@ -75,6 +79,7 @@ export default async function EditQrPage({ params }: { params: Params }) {
         })}
         links={options}
         canUseLogo={context.plan.features.qrLogo}
+        templates={templates}
       />
     </PanelShell>
   );

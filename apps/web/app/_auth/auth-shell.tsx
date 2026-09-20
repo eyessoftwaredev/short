@@ -3,8 +3,10 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { BrandLockup } from "@/components/brand/brand-mark";
+import { BrandPreload } from "@/components/brand/brand-preload";
 import { LocaleSwitcher } from "@/components/brand/locale-switcher";
 import { getPlatformBrand } from "@/lib/brand";
+import { getBrandLockupSources } from "@/lib/brand-assets";
 
 export type AuthHighlight = {
   id: string;
@@ -30,12 +32,25 @@ export async function AuthShell({
   crossLink,
   children,
 }: AuthShellProps) {
-  const [brand, t] = await Promise.all([getPlatformBrand(), getTranslations("auth")]);
+  const [brand, t, brandSources, brandSourcesInvert] = await Promise.all([
+    getPlatformBrand(),
+    getTranslations("auth"),
+    getBrandLockupSources(false),
+    getBrandLockupSources(true),
+  ]);
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-bg lg:grid-cols-5">
+      <BrandPreload sources={brandSources} />
       <aside className="hidden min-w-0 flex-col justify-between gap-10 border-r border-on-inverse-border bg-inverse p-12 text-on-inverse lg:col-span-2 lg:flex">
-        <BrandLockup name={brand.name} invert href="/" />
+        <BrandLockup
+          name={brand.name}
+          invert
+          href="/"
+          logoSrc={brandSourcesInvert.logoSrc}
+          wordmarkSrc={brandSourcesInvert.wordmarkSrc}
+          hasWordmark={brandSourcesInvert.hasWordmark}
+        />
 
         <div className="flex min-w-0 flex-col gap-8">
           <div className="flex flex-col gap-3">
@@ -96,7 +111,13 @@ export async function AuthShell({
       <div className="flex min-w-0 flex-col lg:col-span-3">
         <header className="flex min-w-0 items-center justify-between gap-4 border-b border-border px-6 py-4 lg:border-b-0 lg:px-10 lg:py-6">
           <span className="lg:hidden">
-            <BrandLockup name={brand.name} href="/" />
+            <BrandLockup
+              name={brand.name}
+              href="/"
+              logoSrc={brandSources.logoSrc}
+              wordmarkSrc={brandSources.wordmarkSrc}
+              hasWordmark={brandSources.hasWordmark}
+            />
           </span>
           <span className="ml-auto flex min-w-0 items-center gap-3">
             {brand.localeSwitcherEnabled ? <LocaleSwitcher /> : null}

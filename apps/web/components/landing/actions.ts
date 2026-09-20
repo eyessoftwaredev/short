@@ -1,11 +1,7 @@
 "use server";
 
-import { normalizeDestination, writeDraftDestination } from "@/lib/draft-link";
+import { createLandingShortLink, type LandingShortenResult } from "@/lib/landing-shorten";
 
-export async function saveLandingDraft(raw: string): Promise<{ ok: true; href: string }> {
-  const url = normalizeDestination(raw);
-  if (url) {
-    await writeDraftDestination(url);
-  }
-  return { ok: true, href: "/register" };
+export async function shortenLandingUrl(raw: string): Promise<LandingShortenResult> {
+  return createLandingShortLink(raw);
 }

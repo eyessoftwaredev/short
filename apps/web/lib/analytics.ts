@@ -28,6 +28,8 @@ const EMPTY_SUMMARY: SummaryResult = {
   countries: 0,
   previousClicks: 0,
   previousVisitors: 0,
+  previousBioViews: 0,
+  previousBioClicks: 0,
 };
 
 /**

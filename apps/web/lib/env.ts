@@ -33,6 +33,8 @@ const serverSchema = z.object({
 
   /** Shared secret the edge worker presents to /api/internal/resolve. */
   INTERNAL_TOKEN: z.string().min(16),
+  /** Must match the edge worker secret so bio view + click share the same visitor_id. */
+  VISITOR_SALT: z.string().min(16).optional(),
 
   CF_ACCOUNT_ID: z.string().optional(),
   CF_ZONE_ID: z.string().optional(),
@@ -74,6 +76,12 @@ export function serverEnv(): ServerEnv {
 
   cached = parsed.data;
   return cached;
+}
+
+/** Daily visitor_id salt — must match apps/edge `VISITOR_SALT`. */
+export function visitorSalt(): string {
+  const env = serverEnv();
+  return env.VISITOR_SALT ?? env.INTERNAL_TOKEN;
 }
 
 /** Marketing origin. Localhost (no `app.` prefix) stays the same host as the panel. */

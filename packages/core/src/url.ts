@@ -101,6 +101,28 @@ export function forwardQuery(destination: string, inbound: URLSearchParams): str
   return url.toString();
 }
 
+/**
+ * Parent Domain= value so `app.short.ky` and `short.ky` share a cookie.
+ * Localhost and raw IPs stay host-only.
+ */
+export function parentCookieDomain(hostname: string): string | undefined {
+  const host = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, "")
+    .replace(/^(www|app)\./, "");
+  if (host === "" || host === "localhost" || host.endsWith(".localhost")) {
+    return undefined;
+  }
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+    return undefined;
+  }
+  if (!host.includes(".")) {
+    return undefined;
+  }
+  return `.${host}`;
+}
+
 export function hostnameOf(raw: string): string {
   try {
     return new URL(raw).hostname.toLowerCase().replace(/^www\./, "");

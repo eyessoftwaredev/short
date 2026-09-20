@@ -112,13 +112,20 @@ function redirectPermanent(destination: string): Response {
  */
 const SITE_FORWARD_HEADERS = [
   "accept-language",
+  "accept",
   "user-agent",
   "cookie",
+  "content-type",
+  "content-length",
+  "origin",
+  "referer",
   "rsc",
+  "next-action",
   "next-router-state-tree",
   "next-router-prefetch",
   "next-router-segment-prefetch",
   "next-url",
+  "x-forwarded-for",
 ] as const;
 
 function siteProxyHeaders(request: Request, host: string): Record<string, string> {
@@ -128,6 +135,10 @@ function siteProxyHeaders(request: Request, host: string): Record<string, string
     "x-forwarded-host": host,
     "x-forwarded-proto": "https",
   };
+  const clientIp = request.headers.get("cf-connecting-ip");
+  if (clientIp) {
+    headers["x-forwarded-for"] = clientIp;
+  }
   for (const name of SITE_FORWARD_HEADERS) {
     const value = request.headers.get(name);
     if (value) {
@@ -139,12 +150,16 @@ function siteProxyHeaders(request: Request, host: string): Record<string, string
 
 async function proxySite(request: Request, env: EdgeEnv, url: URL): Promise<Response> {
   const target = new URL(url.pathname + url.search, env.ORIGIN_URL);
+  const method = request.method;
+  const hasBody = method !== "GET" && method !== "HEAD";
   try {
     const upstream = await fetch(target.toString(), {
-      method: request.method === "HEAD" ? "HEAD" : "GET",
+      method,
       headers: siteProxyHeaders(request, url.hostname),
+      body: hasBody ? request.body : undefined,
       redirect: "manual",
       signal: AbortSignal.timeout(8000),
+      ...(hasBody ? { duplex: "half" as const } : {}),
     });
 
     const headers = new Headers();

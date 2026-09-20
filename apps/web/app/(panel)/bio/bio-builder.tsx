@@ -47,6 +47,7 @@ import {
   Field,
   Input,
   SaveBar,
+  SecretInput,
   Section,
   Select,
   Switch,
@@ -361,6 +362,7 @@ export function BioBuilder({
     defaultValues,
   });
 
+  const passwordField = register("password");
   const values = watch();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -456,6 +458,7 @@ export function BioBuilder({
   return (
     <form
       className="flex min-w-0 flex-col gap-6"
+      autoComplete="off"
       onSubmit={(event) => {
         void onSubmit(event);
       }}
@@ -889,7 +892,12 @@ export function BioBuilder({
                     label={values.hasPassword ? t("passwordReplace") : t("password")}
                     hint={t("passwordHint")}
                   >
-                    <Input type="password" autoComplete="new-password" {...register("password")} />
+                    <SecretInput
+                      domName="bio-gate-password"
+                      ref={passwordField.ref}
+                      onChange={passwordField.onChange}
+                      onBlur={passwordField.onBlur}
+                    />
                   </Field>
                   {values.hasPassword ? (
                     <FlagRow
@@ -942,8 +950,9 @@ export function BioBuilder({
               {t("livePreview")}
             </span>
             {/* Phone frame follows the Sec25Mobile pattern: fixed aspect, scrollable body. */}
-            <div className="h-144 w-full max-w-80 overflow-y-auto rounded-default border border-border-strong bg-bg">
+            <div className="h-144 w-full max-w-80 overflow-y-auto rounded-default border border-border-strong">
               <BioPageView
+                embedded
                 page={{
                   id: biopageId ?? "preview",
                   handle: values.handle,

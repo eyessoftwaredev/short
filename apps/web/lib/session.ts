@@ -91,6 +91,16 @@ async function loadUserPlan(userId: string): Promise<{
   return { plan: mergePlan(row.planKey, row.limits, row.features, row.name), status: row.status };
 }
 
+/** Lightweight auth probe for public marketing pages — no DB workspace/plan queries. */
+export const getLandingAuthState = cache(async (): Promise<boolean> => {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    return Boolean(session?.user.emailVerified);
+  } catch {
+    return false;
+  }
+});
+
 /**
  * Resolved once per request. `cache` keeps layout, page and server actions from each
  * issuing their own session + workspace queries.

@@ -48,6 +48,7 @@ export function SettingsAccount({
           <Field label={t("currentPassword")}>
             <Input
               type="password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
             />
@@ -55,6 +56,7 @@ export function SettingsAccount({
           <Field label={t("newPassword")}>
             <Input
               type="password"
+              autoComplete="new-password"
               value={newPassword}
               minLength={10}
               onChange={(event) => setNewPassword(event.target.value)}

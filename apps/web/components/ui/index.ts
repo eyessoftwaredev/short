@@ -23,6 +23,7 @@ export { QuotaMeter } from "./quota-meter";
 export { Progress } from "./progress";
 export { SaveBar } from "./save-bar";
 export { Section } from "./section";
+export { SecretInput } from "./secret-input";
 export { Sheet } from "./sheet";
 export { Skeleton, SkeletonCard, SkeletonChart, SkeletonTable, SkeletonText } from "./skeleton";
 export { Switch } from "./switch";

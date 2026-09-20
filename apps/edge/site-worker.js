@@ -2,13 +2,20 @@ const SITE = new Set(["/", "/pricing", "/terms", "/privacy", "/cookies", "/sitem
 const PROXY = ["content-type", "content-language", "etag", "last-modified", "vary", "link"];
 const PASS = [
   "accept-language",
+  "accept",
   "user-agent",
   "cookie",
+  "content-type",
+  "content-length",
+  "origin",
+  "referer",
   "rsc",
+  "next-action",
   "next-router-state-tree",
   "next-router-prefetch",
   "next-router-segment-prefetch",
   "next-url",
+  "x-forwarded-for",
 ];
 
 function first(path) {
@@ -39,6 +46,8 @@ export default {
       return new Response("Not found", { status: 404 });
     }
     const target = new URL(path + url.search, origin);
+    const method = request.method;
+    const hasBody = method !== "GET" && method !== "HEAD";
     try {
       const fwd = {
         accept: request.headers.get("accept") ?? "text/html",
@@ -46,6 +55,10 @@ export default {
         "x-forwarded-host": host,
         "x-forwarded-proto": "https",
       };
+      const clientIp = request.headers.get("cf-connecting-ip");
+      if (clientIp) {
+        fwd["x-forwarded-for"] = clientIp;
+      }
       for (const name of PASS) {
         const value = request.headers.get(name);
         if (value) {
@@ -53,9 +66,11 @@ export default {
         }
       }
       const upstream = await fetch(target.toString(), {
-        method: request.method === "HEAD" ? "HEAD" : "GET",
+        method,
         headers: fwd,
+        body: hasBody ? request.body : undefined,
         redirect: "manual",
+        ...(hasBody ? { duplex: "half" } : {}),
       });
       const headers = new Headers();
       for (const name of PROXY) {

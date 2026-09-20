@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Icon } from "@/components/kit/icon";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +13,16 @@ import { initials, usePanelSession } from "@/components/providers/session-provid
 import { cn } from "@/lib/cx";
 import { getNavForRole, type NavGroup } from "@/lib/nav";
 
-type SidebarProps = {
+type SidebarShellProps = {
   brand: ReactNode;
   collapsed?: boolean;
   onToggle?: () => void;
   onSwitchWorkspace: (workspaceId: string) => void;
   onCreateTeam: () => void;
   onSignOut: () => void;
+  /** Called after a nav link is chosen — closes the mobile drawer. */
+  onNavigate?: () => void;
+  showCollapseToggle?: boolean;
 };
 
 /**
@@ -46,6 +49,7 @@ function SidebarNavItem({
   count,
   active,
   collapsed,
+  onNavigate,
 }: {
   href: string;
   label: string;
@@ -53,17 +57,17 @@ function SidebarNavItem({
   count?: string;
   active: boolean;
   collapsed: boolean;
+  onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
       title={collapsed ? label : undefined}
       aria-current={active ? "page" : undefined}
+      onClick={onNavigate}
       className={cn(
         "relative flex min-w-0 items-center gap-2.5 rounded-default py-2 text-sm no-underline transition duration-200 hover:bg-surface hover:text-ink hover:no-underline",
         collapsed ? "justify-center px-0" : "px-2.5",
-        // A rail plus the tint: the active row still reads as active in a
-        // high-contrast or forced-colours view where the tint is dropped.
         active
           ? "bg-accent-surface font-medium text-accent-on-surface before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-pill before:bg-accent"
           : "text-fg-muted",
@@ -78,14 +82,16 @@ function SidebarNavItem({
   );
 }
 
-export function Sidebar({
+function SidebarPanel({
   brand,
   collapsed = false,
   onToggle,
   onSwitchWorkspace,
   onCreateTeam,
   onSignOut,
-}: SidebarProps) {
+  onNavigate,
+  showCollapseToggle = true,
+}: SidebarShellProps) {
   const pathname = usePathname();
   const session = usePanelSession();
   const t = useTranslations("nav");
@@ -135,14 +141,7 @@ export function Sidebar({
   ];
 
   return (
-    // Pinned to the viewport: the nav and the account footer stay put no matter
-    // how long the page it sits beside is.
-    <aside
-      className={cn(
-        "sticky top-0 flex h-svh shrink-0 flex-col border-r border-border bg-surface-subtle transition-[width] duration-200",
-        collapsed ? "w-16" : "w-60",
-      )}
-    >
+    <>
       <div
         className={cn(
           "flex min-h-14 min-w-0 items-center gap-2.5 border-b border-border px-3.5",
@@ -150,7 +149,7 @@ export function Sidebar({
         )}
       >
         <div className={cn("min-w-0 flex-1", collapsed && "sr-only")}>{brand}</div>
-        {onToggle ? (
+        {showCollapseToggle && onToggle ? (
           <Button
             variant="ghost"
             icon
@@ -158,15 +157,19 @@ export function Sidebar({
             aria-expanded={!collapsed}
             onClick={onToggle}
           >
-            {collapsed ? <Icon name="chevron-right" className="text-sm" /> : <Icon name="chevron-left" className="text-sm" />}
+            {collapsed ? (
+              <Icon name="chevron-right" className="text-sm" />
+            ) : (
+              <Icon name="chevron-left" className="text-sm" />
+            )}
+          </Button>
+        ) : onNavigate ? (
+          <Button variant="ghost" icon aria-label={tc("close")} onClick={onNavigate}>
+            <Icon name="xmark" className="text-sm" />
           </Button>
         ) : null}
       </div>
 
-      {/*
-        Solo accounts only have a personal box — no third noun, no switcher.
-        Once a team exists the menu is Personal + team names.
-      */}
       {showSwitcher ? (
         <div className={cn("border-b border-border p-2", collapsed && "px-2")}>
           <Dropdown
@@ -214,8 +217,6 @@ export function Sidebar({
         {groups.map((group, groupIndex) => (
           <div key={group.label} className="flex flex-col gap-1">
             {collapsed ? (
-              // The label is unreadable at 64px, but the grouping still is —
-              // a rule keeps the rhythm the words used to carry.
               groupIndex > 0 ? (
                 <span className="mx-2 mb-1 h-px bg-border" aria-hidden="true" />
               ) : null
@@ -237,6 +238,7 @@ export function Sidebar({
                     count={item.count}
                     collapsed={collapsed}
                     active={current === item.href}
+                    onNavigate={onNavigate}
                   />
                 </li>
               ))}
@@ -266,12 +268,87 @@ export function Sidebar({
             </div>
             <div className="truncate text-xs text-fg-subtle">{session.user.email}</div>
           </div>
-          {/* Previously dropped entirely when collapsed, stranding the user. */}
           <Button variant="ghost" icon aria-label={tc("signOut")} onClick={onSignOut}>
             <Icon name="right-from-bracket" className="text-sm" />
           </Button>
         </div>
       </div>
+    </>
+  );
+}
+
+export function Sidebar(props: SidebarShellProps) {
+  const { collapsed = false, ...rest } = props;
+
+  return (
+    <aside
+      className={cn(
+        "sticky top-0 hidden h-svh shrink-0 flex-col border-r border-border bg-surface-subtle transition-[width] duration-200 lg:flex",
+        collapsed ? "w-16" : "w-60",
+      )}
+    >
+      <SidebarPanel collapsed={collapsed} showCollapseToggle {...rest} />
     </aside>
+  );
+}
+
+type MobileNavDrawerProps = SidebarShellProps & {
+  open: boolean;
+  onClose: () => void;
+};
+
+export function MobileNavDrawer({ open, onClose, ...props }: MobileNavDrawerProps) {
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  return (
+    <div
+      className={cn(
+        "fixed inset-0 z-modal lg:hidden",
+        open ? "pointer-events-auto" : "pointer-events-none",
+      )}
+      aria-hidden={!open}
+    >
+      <div
+        role="presentation"
+        className={cn(
+          "absolute inset-0 bg-overlay transition-opacity duration-200",
+          open ? "opacity-100" : "opacity-0",
+        )}
+        onClick={onClose}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
+        className={cn(
+          "absolute inset-y-0 left-0 flex w-72 max-w-[min(20rem,85vw)] flex-col border-r border-border bg-surface-subtle shadow-modal transition-transform duration-200",
+          open ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <SidebarPanel {...props} collapsed={false} showCollapseToggle={false} onNavigate={onClose} />
+      </aside>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Field, Input, Switch } from "@/components/ui";
+import { Button, Field, Input, SecretInput, Switch } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { savePixelAction } from "./pixel-actions";
@@ -60,8 +60,9 @@ export function SettingsPixels({
         <Input value={pixelId} onChange={(event) => setPixelId(event.target.value)} disabled={!canManage} />
       </Field>
       <Field label={t("metaCapiToken")} hint={t("metaCapiHint")}>
-        <Input
-          type="password"
+        <SecretInput
+          domName="meta-capi-token"
+          blockAutofill={false}
           value={token}
           onChange={(event) => setToken(event.target.value)}
           disabled={!canManage}

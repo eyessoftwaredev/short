@@ -28,6 +28,7 @@ type TopbarProps = {
    */
   searchable?: boolean;
   actions?: ReactNode;
+  onMenuClick?: () => void;
 };
 
 /** True when the keystroke belongs to whatever the user is currently typing in. */
@@ -49,6 +50,7 @@ export function Topbar({
   searchPlaceholder,
   searchable = true,
   actions,
+  onMenuClick,
 }: TopbarProps) {
   const { dark, toggleTheme } = useTheme();
   const session = usePanelSession();
@@ -58,7 +60,6 @@ export function Topbar({
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // The `/` hint next to the field was decorative until now.
   useEffect(() => {
     if (!searchable) {
       return undefined;
@@ -89,15 +90,29 @@ export function Topbar({
     ? [...crumbs, { label: current, current: true }]
     : crumbs;
 
+  const pageTitle = current ?? trail.at(-1)?.label ?? session.workspace.name;
+
   return (
-    // Sticky so the breadcrumb, search and primary action stay reachable while
-    // a long table scrolls underneath.
-    <header className="sticky top-0 z-sticky flex min-h-14 flex-nowrap items-center gap-4 border-b border-border bg-bg px-5">
-      <nav className="flex min-w-0 shrink items-center" aria-label={t("breadcrumb")}>
+    <header className="sticky top-0 z-sticky flex min-h-14 flex-wrap items-center gap-2 border-b border-border bg-bg px-4 py-2 lg:flex-nowrap lg:gap-4 lg:px-5 lg:py-0">
+      {onMenuClick ? (
+        <Button
+          variant="ghost"
+          icon
+          className="shrink-0 lg:hidden"
+          aria-label={t("openMenu")}
+          onClick={onMenuClick}
+        >
+          <Icon name="bars" className="text-sm" />
+        </Button>
+      ) : null}
+
+      <nav
+        className="hidden min-w-0 shrink items-center md:flex"
+        aria-label={t("breadcrumb")}
+      >
         <ol className="m-0 flex min-w-0 list-none items-center gap-2 p-0 text-sm">
           {trail.map((crumb, index) => (
             <li key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-2">
-              {/* Separators sit between items, never trailing off the last one. */}
               {index > 0 ? (
                 <span className="shrink-0 text-fg-faint" aria-hidden="true">
                   /
@@ -125,12 +140,18 @@ export function Topbar({
         </ol>
       </nav>
 
+      <h1 className="m-0 min-w-0 flex-1 truncate text-base font-semibold md:hidden">{pageTitle}</h1>
+
       {searchable ? (
-        <div className="relative ml-auto max-w-xs min-w-40 flex-1">
+        <div className="relative order-last hidden w-full min-w-0 md:order-none md:ml-auto md:block md:max-w-xs md:flex-1">
           <label htmlFor="topbar-search" className="sr-only">
             {placeholder}
           </label>
-          <Icon name="search" className="pointer-events-none absolute top-1/2 left-3 text-sm -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
+          <Icon
+            name="search"
+            className="pointer-events-none absolute top-1/2 left-3 text-sm -translate-y-1/2 text-fg-subtle"
+            aria-hidden="true"
+          />
           <input
             id="topbar-search"
             ref={searchRef}
@@ -148,21 +169,54 @@ export function Topbar({
               }
             }}
           />
-          <Kbd className="absolute top-1/2 right-2 -translate-y-1/2" aria-hidden="true">
+          <Kbd className="absolute top-1/2 right-2 hidden -translate-y-1/2 lg:inline-flex" aria-hidden="true">
             /
           </Kbd>
         </div>
       ) : null}
 
-      <div className={cn("flex shrink-0 flex-nowrap items-center gap-2", !searchable && "ml-auto")}>
-        {actions ?? (
-          <Button variant="primary" size="sm" onClick={() => router.push("/links/new")}>
-            <Icon name="plus" className="text-sm" />
-            {t("newLink")}
-          </Button>
+      <div
+        className={cn(
+          "flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2",
+          !searchable && "ml-auto",
+          searchable && "md:ml-0",
         )}
-        {/* Separates the page's own action from the always-present shell control. */}
-        <span className="h-5 w-px bg-border" aria-hidden="true" />
+      >
+        {searchable ? (
+          <Button
+            variant="ghost"
+            icon
+            className="md:hidden"
+            aria-label={placeholder}
+            onClick={() => router.push("/links")}
+          >
+            <Icon name="search" className="text-sm" />
+          </Button>
+        ) : null}
+        {actions ?? (
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              className="hidden sm:inline-flex"
+              onClick={() => router.push("/links/new")}
+            >
+              <Icon name="plus" className="text-sm" />
+              {t("newLink")}
+            </Button>
+            <Button
+              variant="primary"
+              icon
+              size="sm"
+              className="sm:hidden"
+              aria-label={t("newLink")}
+              onClick={() => router.push("/links/new")}
+            >
+              <Icon name="plus" className="text-sm" />
+            </Button>
+          </>
+        )}
+        <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
         {session.localeSwitcherEnabled ? <LocaleSwitcher /> : null}
         <Button
           variant="ghost"

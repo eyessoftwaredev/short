@@ -3,6 +3,7 @@ import { getDb, organization } from "@short/db";
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion";
 import { syncClickUsage } from "@/lib/billing";
 import { serverEnv } from "@/lib/env";
+import { resyncWorkspaceLinks } from "@/lib/links";
 import { currentPeriod } from "@/lib/quota";
 
 export const runtime = "nodejs";
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
   for (const workspace of workspaces) {
     try {
       await syncClickUsage(workspace.id, period);
+      await resyncWorkspaceLinks(workspace.id);
       synced += 1;
     } catch (error) {
       console.error("usage sync failed", workspace.id, error);

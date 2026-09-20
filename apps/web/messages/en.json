@@ -19,6 +19,8 @@
     "skipToContent": "Skip to content",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
+    "openMenu": "Open menu",
+    "mobileTabs": "Quick navigation",
     "switchWorkspace": "Switch",
     "personal": "Personal",
     "team": "Team",
@@ -72,6 +74,17 @@
     "replace": "Replace",
     "remove": "Remove",
     "uploading": "Uploading…",
+    "library": "Library",
+    "libraryTitle": "Media library",
+    "libraryDesc": "Images uploaded in this workspace — shared across links, QR codes and bio pages.",
+    "libraryLoading": "Loading library…",
+    "libraryEmpty": "No images yet. Upload one to get started.",
+    "libraryLoadFailed": "Could not load the library. Try again.",
+    "uploadNew": "Upload new",
+    "closeLibrary": "Close",
+    "deleteImage": "Delete image",
+    "mediaInUse": "This image is still used by a link, QR code or bio page.",
+    "mediaDeleteFailed": "Could not delete the image.",
     "media_type": "Use PNG, JPEG, WebP or SVG.",
     "media_size": "Images must be 4 MB or smaller.",
     "media_failed": "Upload failed. Try another file."
@@ -89,7 +102,7 @@
     "domains": "Domains",
     "settings": "Settings",
     "billing": "Billing",
-    "docs": "Components",
+    "docs": "Docs",
     "admin": "Overview",
     "admin-brand": "Brand",
     "admin-users": "Users",
@@ -1939,6 +1952,17 @@
       "forest": "Forest",
       "inverted": "Inverted"
     },
+    "templatesTitle": "Saved templates",
+    "templatesEmpty": "Save your current colours, shape and logo as a template to reuse on the next code.",
+    "saveTemplate": "Save template",
+    "saveTemplateTitle": "Save as template",
+    "saveTemplateDesc": "Stores colours, module shape, quiet zone, logo and caption — not the link or URL payload.",
+    "saveTemplateConfirm": "Save template",
+    "templateName": "Template name",
+    "templateNamePlaceholder": "Brand poster style",
+    "deleteTemplate": "Delete template {name}",
+    "templateSaveFailed": "Could not save the template.",
+    "templateDeleteFailed": "Could not delete the template.",
     "quality": {
       "invalid": "Check colours",
       "fail": "Will not scan",
@@ -1949,5 +1973,321 @@
     "qualityFailAdvice": "Foreground and background are too close in brightness. Darken one of them.",
     "qualityLowAdvice": "Readable up close, but likely to fail on a poster or in dim light.",
     "qualityInvertedAdvice": "Light modules on a dark background — some older scanners refuse these."
+  },
+  "docs": {
+    "shellTitle": "Docs",
+    "sidebarLabel": "Documentation",
+    "navGroups": {
+      "start": "Start here",
+      "guides": "Guides",
+      "developers": "Developers"
+    },
+    "nav": {
+      "overview": "Overview",
+      "gettingStarted": "Getting started",
+      "links": "Links",
+      "qrCodes": "QR codes",
+      "bioPages": "Bio pages",
+      "domains": "Custom domains",
+      "routing": "Smart routing",
+      "analytics": "Analytics",
+      "api": "REST API",
+      "webhooks": "Webhooks"
+    },
+    "overview": {
+      "metaTitle": "Documentation",
+      "eyebrow": "Short.ky docs",
+      "title": "Everything you need to run links at scale",
+      "description": "Step-by-step guides for the panel, plus the REST API and webhooks when you want to automate.",
+      "intro": "Pick a topic below or jump straight into the product. Each guide explains what to click in the panel and what happens at the edge when someone opens a link.",
+      "quickLinksTitle": "Jump in",
+      "quickLinkCreate": "Create your first link",
+      "quickLinkSettings": "Issue an API key in Settings",
+      "quickLinkApi": "Browse the REST API reference",
+      "cards": {
+        "getting-started": "Create an account, pick a domain and publish your first short link in minutes.",
+        "links": "Slugs, passwords, expiry, UTM tags, folders and everything on the link detail screen.",
+        "qr-codes": "Generate scannable codes from links or raw payloads, with brand-safe styling.",
+        "bio-pages": "Build a link-in-bio page with blocks, themes and optional lead capture.",
+        "domains": "Connect your own hostname, verify DNS and issue TLS certificates automatically.",
+        "routing": "Send visitors to different destinations by country, device, language or A/B variant.",
+        "analytics": "Read clicks, referrers, geography and devices — per link or across the workspace.",
+        "api": "Create and manage links, QR codes, bio pages and domains from your own backend.",
+        "webhooks": "Receive signed POST callbacks when links change or get clicked."
+      }
+    },
+    "gettingStarted": {
+      "metaTitle": "Getting started",
+      "title": "Getting started",
+      "description": "From a blank workspace to a live short link you can share.",
+      "steps": {
+        "account": {
+          "title": "Create your workspace",
+          "body": "Sign up with email or Google. Personal workspaces start on the free plan; upgrade anytime from Billing when you need custom domains or API access."
+        },
+        "domain": {
+          "title": "Choose where links live",
+          "body": "Every link belongs to a domain. Use the platform domain out of the box, or add your own under Domains once your plan includes custom hostnames."
+        },
+        "link": {
+          "title": "Create a link",
+          "body": "Open Links → New link, paste the long URL, pick the domain and optionally set a custom slug. Advanced options — password, expiry, routing rules — can be added now or later."
+        },
+        "share": {
+          "title": "Share and measure",
+          "body": "Copy the short URL or download a QR code. Clicks appear on the Dashboard within seconds; open a link’s Stats tab for full breakdowns."
+        }
+      },
+      "tip": {
+        "title": "Team workspaces",
+        "body": "Upgrade to a paid plan to create a team workspace. Members share links and domains but keep separate sign-ins; owners and admins manage billing and API keys."
+      },
+      "nextTitle": "What to read next",
+      "nextLinks": "Links — options and organisation",
+      "nextAnalytics": "Analytics — how clicks are counted",
+      "nextApi": "REST API — automate link creation"
+    },
+    "links": {
+      "metaTitle": "Links",
+      "title": "Links",
+      "description": "Short URLs are the core of Short.ky. This guide covers creation, options and day-to-day management.",
+      "createTitle": "Creating a link",
+      "createBody": "Each link maps a slug on a domain to a destination URL. The edge worker resolves the hostname + slug, applies routing rules, then redirects or shows an interstitial.",
+      "createSteps": {
+        "0": "Go to Links and click New link.",
+        "1": "Select the domain the slug should live on.",
+        "2": "Enter the destination URL — we normalise schemes and reject unsafe targets.",
+        "3": "Save. The short URL is ready to copy immediately."
+      },
+      "optionsTitle": "Link options",
+      "optionsBody": "Open any link from the table to edit these fields. Changes propagate to the edge within seconds.",
+      "table": {
+        "option": "Option",
+        "description": "What it does",
+        "rows": {
+          "slug": { "label": "Custom slug", "desc": "Replace the random code with a readable path like /launch." },
+          "password": { "label": "Password", "desc": "Visitors must enter a password before the redirect runs." },
+          "expiry": { "label": "Expiry", "desc": "Stop redirecting after a date; optionally send expired traffic elsewhere." },
+          "utm": { "label": "UTM parameters", "desc": "Append campaign tags to the destination on redirect." },
+          "tags": { "label": "Tags", "desc": "Label links for filtering in the list and API." },
+          "cloak": { "label": "Cloaking", "desc": "Show a preview page instead of an instant redirect — useful for social platforms." }
+        }
+      },
+      "organizeTitle": "Folders and archive",
+      "organizeBody": "Use folders to group campaign links. Archive links you no longer promote — they stop accepting clicks but stay in analytics history.",
+      "relatedTitle": "Related guides",
+      "relatedRouting": "Smart routing — country, device and A/B rules",
+      "relatedAnalytics": "Analytics — per-link stats"
+    },
+    "qrCodes": {
+      "metaTitle": "QR codes",
+      "title": "QR codes",
+      "description": "Turn any link or payload into a downloadable, brand-styled QR code.",
+      "createTitle": "Creating a QR code",
+      "createBody": "QR codes can point at a Short link (so you can change the destination later) or encode a raw URL, contact card or Wi‑Fi network.",
+      "createSteps": {
+        "0": "Open QR codes → New QR code.",
+        "1": "Choose the payload type and fill in the fields.",
+        "2": "Adjust colours, dot style and optional logo, then save."
+      },
+      "payloadTitle": "Payload types",
+      "payloadBody": "Link-backed codes inherit routing and analytics from the underlying short link.",
+      "table": {
+        "kind": "Type",
+        "use": "Best for",
+        "rows": {
+          "link": "Link",
+          "linkDesc": "Trackable codes tied to an existing short link.",
+          "url": "URL",
+          "urlDesc": "One-off codes that encode a fixed URL.",
+          "vcard": "Contact",
+          "vcardDesc": "Share name, phone and email when scanned.",
+          "wifi": "Wi‑Fi",
+          "wifiDesc": "Let guests join a network from a poster or menu."
+        }
+      },
+      "designTitle": "Design tips",
+      "designBody": "The designer warns when contrast is too low for reliable scanning.",
+      "designTips": {
+        "0": "Keep a quiet zone (margin) around the code — do not crop it flush to artwork.",
+        "1": "Prefer dark modules on a light background for maximum compatibility.",
+        "2": "Test on paper at the size you plan to print, not just on screen."
+      }
+    },
+    "bioPages": {
+      "metaTitle": "Bio pages",
+      "title": "Bio pages",
+      "description": "A hosted link-in-bio page on your domain or a Short.ky handle.",
+      "handleTitle": "Handles and URLs",
+      "handleBody": "Each bio page has a unique handle that becomes either yourdomain.com/@handle or handle.short.ky, depending on domain settings.",
+      "blocksTitle": "Blocks",
+      "blocksBody": "Stack blocks to build the page. Drag to reorder; toggle visibility without deleting content.",
+      "blocks": {
+        "0": "Links — buttons to any URL, including other Short links.",
+        "1": "Social icons — quick access to profiles.",
+        "2": "Text and headings — short bios or announcements.",
+        "3": "Media — images or embeds.",
+        "4": "Lead form — collect email with optional consent text."
+      },
+      "publishTitle": "Publishing",
+      "publishBody": "Draft changes stay private until you publish. The public page is cached at the edge for fast loads worldwide.",
+      "leadsTitle": "Lead capture",
+      "leadsBody": "When a lead form block is enabled, submissions appear under Bio → Leads. Export or connect via webhooks on eligible plans.",
+      "statsTitle": "Stats",
+      "statsBody": "Bio views are counted separately from link clicks. Open Stats on a bio page to see views over time and top outbound links."
+    },
+    "domains": {
+      "metaTitle": "Custom domains",
+      "title": "Custom domains",
+      "description": "Serve short links from your own hostname with automatic TLS.",
+      "steps": {
+        "add": {
+          "title": "Add the hostname",
+          "body": "Under Domains → New domain, enter a dedicated subdomain such as go.acme.com — avoid www."
+        },
+        "dns": {
+          "title": "Point DNS",
+          "body": "Create the CNAME record shown in the panel. If you use Cloudflare, connect the integration to verify in one click."
+        },
+        "verify": {
+          "title": "Verify and provision TLS",
+          "body": "Once DNS propagates, status moves to verified and a certificate is issued automatically."
+        },
+        "default": {
+          "title": "Set as default",
+          "body": "Mark one domain as default so new links pre-select it in the editor."
+        }
+      },
+      "rootTitle": "Root and 404 behaviour",
+      "rootBody": "Optionally send visitors who hit the domain root to a marketing page, and send unknown slugs to a custom 404 destination.",
+      "sslTitle": "Certificates",
+      "sslBody": "Certificates renew automatically. Keep DNS pointed at Short.ky — removing the CNAME will pause issuance and eventually break HTTPS."
+    },
+    "routing": {
+      "metaTitle": "Smart routing",
+      "title": "Smart routing",
+      "description": "One short link can send each visitor to a different destination based on context.",
+      "howTitle": "How rules work",
+      "howBody": "Rules are evaluated at the edge before redirect. The first matching rule wins; if none match, the main destination is used.",
+      "table": {
+        "rule": "Rule type",
+        "example": "Example",
+        "rows": {
+          "country": "Country",
+          "countryEx": "TR → Turkish pricing page",
+          "device": "Device",
+          "deviceEx": "iOS → App Store listing",
+          "language": "Language",
+          "languageEx": "de → German landing page",
+          "ab": "A/B variant",
+          "abEx": "Split 50/50 between two URLs for experiments"
+        }
+      },
+      "priorityTitle": "Priority",
+      "priorityBody": "Drag rules in the link editor to reorder them. Put the most specific rules first — e.g. country before a broad device rule.",
+      "exampleTitle": "API example",
+      "exampleBody": "When creating a link via the REST API, include a rules array alongside destination:",
+      "mobileTitle": "Mobile store links",
+      "mobileBody": "Use iosDestination and androidDestination for simple store routing without writing rules. Device-specific rules override these when both are set."
+    },
+    "analytics": {
+      "metaTitle": "Analytics",
+      "title": "Analytics",
+      "description": "Understand who clicked, from where and on what device.",
+      "dashboardTitle": "Workspace dashboard",
+      "dashboardBody": "The dashboard aggregates clicks and unique visitors across all links for the selected time range. Top links and recent activity help spot spikes quickly.",
+      "linkTitle": "Per-link stats",
+      "linkBody": "Every link has a Stats tab with the same breakdowns scoped to that slug. QR scans and bio views are reported separately.",
+      "table": {
+        "metric": "Metric",
+        "meaning": "Meaning",
+        "rows": {
+          "clicks": "Clicks",
+          "clicksDesc": "Total redirect events, including repeat visits.",
+          "visitors": "Visitors",
+          "visitorsDesc": "Unique browsers in the range, deduplicated per link.",
+          "referrer": "Referrer",
+          "referrerDesc": "Site or app that sent the visitor.",
+          "country": "Country",
+          "countryDesc": "Geo derived from IP — approximate, not PII.",
+          "device": "Device",
+          "deviceDesc": "Phone, tablet or desktop classification."
+        }
+      },
+      "rangesTitle": "Time ranges",
+      "rangesBody": "Switch between 24 hours and 12 months. Comparisons show the previous period so you can spot trends, not just totals.",
+      "exportTitle": "Export",
+      "exportBody": "On eligible plans, export raw events from Analytics for your own BI tools. API consumers can also pull aggregated stats from GET /links/{id}/stats."
+    },
+    "api": {
+      "metaTitle": "REST API",
+      "title": "REST API",
+      "description": "Programmatic access to links, QR codes, bio pages, domains and analytics.",
+      "authTitle": "Authentication",
+      "authBody": "Every request must include a workspace API key. Keys are created in Settings → API and shown in full exactly once.",
+      "authTable": {
+        "header": "Method",
+        "value": "Value",
+        "keyHeader": "Header (recommended)",
+        "bearerHeader": "Alternative",
+        "scope": "Scope",
+        "scopeValue": "One workspace — the key inherits plan limits and quotas."
+      },
+      "keysTitle": "Manage keys",
+      "keysBody": "Create named keys per environment. Revoke immediately if a key leaks — there is no undo.",
+      "keysLink": "Open Settings",
+      "baseTitle": "Base URL",
+      "baseBody": "All paths below are relative to:",
+      "exampleTitle": "Create a link",
+      "exampleBody": "POST /links with domainId and destination. Omit slug to auto-generate one.",
+      "errorsTitle": "Errors",
+      "errorsBody": "Errors return JSON with a stable code and human-readable message. Validation errors include field-level details.",
+      "errorsTable": {
+        "code": "Code",
+        "meaning": "Meaning",
+        "rows": {
+          "missing": "No API key header present.",
+          "invalid": "Key revoked, wrong or malformed.",
+          "plan": "Feature not included in current plan (e.g. API on Free).",
+          "rate": "Hourly limit exceeded — check x-ratelimit-* headers.",
+          "validation": "Body failed schema validation."
+        }
+      },
+      "referenceTitle": "OpenAPI",
+      "referenceBody": "Machine-readable spec:"
+    },
+    "webhooks": {
+      "metaTitle": "Webhooks",
+      "title": "Webhooks",
+      "description": "Push link and bio events to your backend the moment they happen.",
+      "setupTitle": "Add an endpoint",
+      "setupBody": "Register an HTTPS URL and choose which events to receive. Each endpoint gets its own signing secret.",
+      "settingsTitle": "Configuration",
+      "settingsBody": "Manage endpoints, pause delivery and rotate secrets from Settings → Webhooks.",
+      "settingsLink": "Open Settings",
+      "eventsTitle": "Event types",
+      "eventsBody": "Payloads are JSON POST requests. The event name is included in the body alongside the resource snapshot.",
+      "eventsTable": {
+        "event": "Event",
+        "when": "Fires when",
+        "rows": {
+          "link.created": "A link is created via panel or API.",
+          "link.updated": "Any link field changes.",
+          "link.deleted": "A link is permanently deleted.",
+          "link.clicked": "Someone completes a redirect (sampled on high volume).",
+          "biopage.viewed": "A public bio page is viewed.",
+          "domain.verified": "Custom domain DNS verification succeeds."
+        }
+      },
+      "signatureTitle": "Verify signatures",
+      "signatureBody": "Compare the x-short-signature header with HMAC-SHA256 of the raw request body using your signing secret. Reject mismatches.",
+      "deliveryTitle": "Delivery behaviour",
+      "deliveryBody": "Your endpoint should respond with 2xx within a few seconds.",
+      "deliveryTips": {
+        "0": "Return 200 quickly and process asynchronously if needed.",
+        "1": "Disable endpoints you are not using — paused endpoints stop retries.",
+        "2": "Store the signing secret in a vault; it cannot be read again from the panel."
+      }
+    }
   }
 }

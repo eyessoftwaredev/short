@@ -5,6 +5,7 @@ import {
   forwardQuery,
   isSafeDestination,
   normalizeDestination,
+  parentCookieDomain,
   rewriteHostname,
 } from "../url";
 
@@ -107,6 +108,20 @@ describe("rewriteHostname", () => {
 
   it("returns null when the hostnames are not valid", () => {
     expect(rewriteHostname("https://old.example.com/p", "nope", "new.example.com")).toBeNull();
+  });
+});
+
+describe("parentCookieDomain", () => {
+  it("shares app and apex hosts", () => {
+    expect(parentCookieDomain("app.short.ky")).toBe(".short.ky");
+    expect(parentCookieDomain("www.kisa.ly")).toBe(".kisa.ly");
+    expect(parentCookieDomain("kisa.ly")).toBe(".kisa.ly");
+  });
+
+  it("stays host-only on localhost and IPs", () => {
+    expect(parentCookieDomain("localhost")).toBeUndefined();
+    expect(parentCookieDomain("localhost:3200")).toBeUndefined();
+    expect(parentCookieDomain("127.0.0.1")).toBeUndefined();
   });
 });
 

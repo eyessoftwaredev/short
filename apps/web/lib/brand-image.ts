@@ -1,3 +1,4 @@
+import type { PlatformAssetKind } from "@short/db";
 import sharp from "sharp";
 
 const RASTER_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -7,6 +8,14 @@ const CLEAR_ALPHA = 16;
 type KnockoutResult = {
   bytes: Buffer;
   contentType: string;
+};
+
+type DeliverFormat = "avif" | "webp" | "png";
+
+type DeliverResult = {
+  bytes: Buffer;
+  contentType: string;
+  etag: string;
 };
 
 function isPlatePixel(data: Buffer, index: number, cr: number, cg: number, cb: number): boolean {
@@ -73,6 +82,32 @@ function hasTransparency(data: Buffer): boolean {
   return false;
 }
 
+function pickDeliverFormat(accept: string): DeliverFormat {
+  if (accept.includes("image/avif")) {
+    return "avif";
+  }
+  if (accept.includes("image/webp")) {
+    return "webp";
+  }
+  return "png";
+}
+
+function assetResize(kind: PlatformAssetKind): { width?: number; height?: number } {
+  switch (kind) {
+    case "logo":
+    case "logo_dark":
+    case "favicon":
+      return { width: 64, height: 64 };
+    case "wordmark":
+    case "wordmark_dark":
+      return { width: 176 };
+    case "og":
+      return { width: 1200 };
+    default:
+      return {};
+  }
+}
+
 /** Drops a flattened near-black or near-white plate so wordmarks stay transparent. */
 export async function knockoutBrandPlate(
   bytes: Buffer,
@@ -104,5 +139,42 @@ export async function knockoutBrandPlate(
     return { bytes: png, contentType: "image/png" };
   } catch {
     return { bytes, contentType };
+  }
+}
+
+export async function deliverBrandAsset(
+  bytes: Buffer,
+  kind: PlatformAssetKind,
+  accept: string,
+  updatedAt: Date,
+): Promise<DeliverResult> {
+  const format = pickDeliverFormat(accept);
+  const resize = assetResize(kind);
+  const etag = `"${kind}-${updatedAt.getTime()}-${format}-${resize.width ?? "auto"}x${resize.height ?? "auto"}"`;
+
+  try {
+    let pipeline = sharp(bytes);
+    if (resize.width || resize.height) {
+      pipeline = pipeline.resize({
+        width: resize.width,
+        height: resize.height,
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+    }
+
+    if (format === "avif") {
+      const avif = await pipeline.avif({ quality: 72, effort: 4 }).toBuffer();
+      return { bytes: avif, contentType: "image/avif", etag };
+    }
+    if (format === "webp") {
+      const webp = await pipeline.webp({ quality: 82, effort: 4 }).toBuffer();
+      return { bytes: webp, contentType: "image/webp", etag };
+    }
+
+    const png = await pipeline.png({ compressionLevel: 9 }).toBuffer();
+    return { bytes: png, contentType: "image/png", etag };
+  } catch {
+    return { bytes, contentType: "image/png", etag };
   }
 }

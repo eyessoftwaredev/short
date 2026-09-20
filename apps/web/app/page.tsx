@@ -3,38 +3,65 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { HomeLanding } from "@/components/landing/home-landing";
 import { getPlatformBrand } from "@/lib/brand";
+import { getBrandLockupSources } from "@/lib/brand-assets";
+import { BrandPreload } from "@/components/brand/brand-preload";
 import { siteUrl } from "@/lib/env";
-import { hostsAreSplit, isSiteSurface } from "@/lib/public-url";
-import { getSessionContext } from "@/lib/session";
+import { hostsAreSplit, isSiteSurface, panelUrl } from "@/lib/public-url";
+import { getLandingAuthState, getSessionContext } from "@/lib/session";
 import { verifyPendingPath } from "@/lib/verify-path";
-import "@/styles/kit/index.css";
+import "@/styles/kit/landing-index.css";
+
+function panelOrigin(): string {
+  return new URL(panelUrl()).origin;
+}
 
 export default async function HomePage() {
-  const [session, headerList] = await Promise.all([getSessionContext(), headers()]);
-  const siteSurface = isSiteSurface(headerList);
+  const headerList = await headers();
+  const isSite = isSiteSurface(headerList);
 
-  if (siteSurface) {
-    const [brand, t] = await Promise.all([getPlatformBrand(), getTranslations("landing")]);
+  if (isSite) {
+    const [signedIn, brand, t, brandSources] = await Promise.all([
+      getLandingAuthState(),
+      getPlatformBrand(),
+      getTranslations("landing"),
+      getBrandLockupSources(),
+    ]);
+
     return (
-      <HomeLanding
-        brand={brand}
-        t={t}
-        signedIn={Boolean(session?.user.emailVerified)}
-      />
+      <>
+        <BrandPreload sources={brandSources} />
+        <link rel="preconnect" href={panelOrigin()} />
+        <link rel="dns-prefetch" href={panelOrigin()} />
+        <HomeLanding brand={brand} t={t} signedIn={signedIn} brandSources={brandSources} />
+      </>
     );
   }
 
-  if (session) {
-    if (!session.user.emailVerified) {
-      redirect(verifyPendingPath());
-    }
-    redirect("/dashboard");
-  }
+  const session = await getSessionContext();
+  const signedIn = Boolean(session?.user.emailVerified);
 
   if (hostsAreSplit()) {
+    if (session) {
+      if (!session.user.emailVerified) {
+        redirect(verifyPendingPath());
+      }
+      redirect("/dashboard");
+    }
     redirect(siteUrl());
   }
 
-  const [brand, t] = await Promise.all([getPlatformBrand(), getTranslations("landing")]);
-  return <HomeLanding brand={brand} t={t} signedIn={false} />;
+  const [brand, t, brandSources] = await Promise.all([
+    getPlatformBrand(),
+    getTranslations("landing"),
+    getBrandLockupSources(),
+  ]);
+
+  return (
+    <>
+      <BrandPreload sources={brandSources} />
+      <link rel="preconnect" href={panelOrigin()} />
+      <link rel="dns-prefetch" href={panelOrigin()} />
+      <HomeLanding brand={brand} t={t} signedIn={signedIn} brandSources={brandSources} />
+    </>
+  );
 }

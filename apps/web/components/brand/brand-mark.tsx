@@ -1,60 +1,85 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { cn } from "@/lib/cx";
 
-type BrandMarkProps = {
+export type BrandLockupProps = {
   name: string;
+  logoSrc: string;
+  wordmarkSrc?: string;
+  hasWordmark?: boolean;
   /** Inverse rail uses the light-on-dark mark when one is uploaded. */
   invert?: boolean;
-  className?: string;
+  href?: string;
+  wordmarkLazy?: boolean;
 };
 
-export function BrandMark({ invert = false, className }: BrandMarkProps) {
-  const src = invert ? "/api/brand/logo_dark" : "/api/brand/logo";
-
+export function BrandMark({
+  logoSrc,
+  className,
+  priority = false,
+}: {
+  logoSrc: string;
+  className?: string;
+  priority?: boolean;
+}) {
   return (
     <span
       className={cn("relative flex h-8 w-8 shrink-0 items-center justify-center", className)}
       aria-hidden="true"
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- brand bytes are served from our API */}
-      <img src={src} alt="" className="max-h-full max-w-full object-contain" />
+      <img
+        src={logoSrc}
+        alt=""
+        width={32}
+        height={32}
+        decoding="sync"
+        fetchPriority={priority ? "high" : undefined}
+        className="max-h-full max-w-full object-contain"
+      />
     </span>
   );
 }
 
-function BrandWordmark({ name, invert = false }: { name: string; invert?: boolean }) {
-  const [useName, setUseName] = useState(false);
-  const src = invert ? "/api/brand/wordmark_dark" : "/api/brand/wordmark";
-
-  if (useName) {
+function BrandWordmark({
+  name,
+  wordmarkSrc,
+  hasWordmark = true,
+  lazy = false,
+}: {
+  name: string;
+  wordmarkSrc?: string;
+  hasWordmark?: boolean;
+  lazy?: boolean;
+}) {
+  if (!hasWordmark || !wordmarkSrc) {
     return <span className="truncate text-base font-semibold tracking-tight">{name}</span>;
   }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element -- brand bytes are served from our API
     <img
-      src={src}
+      src={wordmarkSrc}
       alt={name}
+      width={176}
+      height={24}
+      decoding="sync"
+      loading={lazy ? "lazy" : undefined}
       className="h-6 max-w-44 min-w-0 object-contain object-left"
-      onError={() => {
-        setUseName(true);
-      }}
     />
   );
 }
 
 export function BrandLockup({
   name,
+  logoSrc,
+  wordmarkSrc,
+  hasWordmark = true,
   invert = false,
   href = "/",
-}: {
-  name: string;
-  invert?: boolean;
-  href?: string;
-}) {
+  wordmarkLazy = false,
+}: BrandLockupProps) {
   return (
     <Link
       href={href}
@@ -63,8 +88,13 @@ export function BrandLockup({
         invert ? "text-on-inverse" : "text-ink",
       )}
     >
-      <BrandMark name={name} invert={invert} />
-      <BrandWordmark name={name} invert={invert} />
+      <BrandMark logoSrc={logoSrc} priority />
+      <BrandWordmark
+        name={name}
+        wordmarkSrc={wordmarkSrc}
+        hasWordmark={hasWordmark}
+        lazy={wordmarkLazy}
+      />
     </Link>
   );
 }

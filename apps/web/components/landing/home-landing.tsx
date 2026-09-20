@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Icon, type IconName } from "@/components/kit/icon";
 import { BrandLockup } from "@/components/brand/brand-mark";
 import { LocaleSwitcher } from "@/components/brand/locale-switcher";
+import { LandingAuthLinks } from "@/components/landing/landing-auth-links";
 import { ShortenForm } from "@/components/landing/shorten-form";
+import type { BrandLockupSources } from "@/lib/brand-assets";
 import type { PlatformBrand } from "@/lib/brand-fallback";
 import { panelUrl } from "@/lib/public-url";
 import type { getTranslations } from "next-intl/server";
@@ -13,9 +15,10 @@ type HomeLandingProps = {
   brand: PlatformBrand;
   t: LandingT;
   signedIn?: boolean;
+  brandSources: BrandLockupSources;
 };
 
-export function HomeLanding({ brand, t, signedIn = false }: HomeLandingProps) {
+export function HomeLanding({ brand, t, signedIn = false, brandSources }: HomeLandingProps) {
   const loginHref = panelUrl("/login");
   const registerHref = panelUrl("/register");
   const panelHref = panelUrl("/dashboard");
@@ -55,7 +58,12 @@ export function HomeLanding({ brand, t, signedIn = false }: HomeLandingProps) {
       <header className="sticky top-0 z-30 border-b border-border bg-bg">
         <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex min-w-0 flex-wrap items-center gap-6">
-            <BrandLockup name={brand.name} />
+            <BrandLockup
+              name={brand.name}
+              logoSrc={brandSources.logoSrc}
+              wordmarkSrc={brandSources.wordmarkSrc}
+              hasWordmark={brandSources.hasWordmark}
+            />
             <nav className="hidden items-center gap-1 md:flex" aria-label={brand.name}>
               <a className="kit-btn kit-btn--ghost kit-btn--sm" href="#features">
                 {t("navFeatures")}
@@ -73,20 +81,7 @@ export function HomeLanding({ brand, t, signedIn = false }: HomeLandingProps) {
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             {brand.localeSwitcherEnabled ? <LocaleSwitcher /> : null}
-            {signedIn ? (
-              <Link className="kit-btn kit-btn--primary" href={panelHref}>
-                {t("openPanel")}
-              </Link>
-            ) : (
-              <>
-                <Link className="kit-btn kit-btn--ghost" href={loginHref}>
-                  {t("ctaSecondary")}
-                </Link>
-                <Link className="kit-btn kit-btn--primary hidden sm:inline-flex" href={registerHref}>
-                  {t("ctaStart")}
-                </Link>
-              </>
-            )}
+            <LandingAuthLinks t={t} signedIn={signedIn} />
           </div>
         </div>
       </header>
@@ -100,7 +95,19 @@ export function HomeLanding({ brand, t, signedIn = false }: HomeLandingProps) {
             {t("titleLine2")}
           </h1>
           <p className="m-0 max-w-2xl text-base leading-relaxed text-fg-muted md:text-lg">{t("description")}</p>
-          <ShortenForm placeholder={t("shortenPlaceholder")} submit={t("shortenSubmit")} />
+          <ShortenForm
+            placeholder={t("shortenPlaceholder")}
+            submit={t("shortenSubmit")}
+            copy={t("shortenCopy")}
+            copied={t("shortenCopied")}
+            another={t("shortenAnother")}
+            claim={t("shortenClaim")}
+            claimHref={registerHref}
+            invalid={t("shortenInvalid")}
+            rateLimited={t("shortenRateLimited")}
+            quota={t("shortenQuota")}
+            failed={t("shortenFailed")}
+          />
           <p className="m-0 max-w-xl text-sm text-fg-subtle">{t("shortenHint")}</p>
         </section>
 
@@ -278,7 +285,13 @@ export function HomeLanding({ brand, t, signedIn = false }: HomeLandingProps) {
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-wrap items-start justify-between gap-8 px-6 py-10">
           <div className="flex min-w-0 flex-col gap-2">
-            <BrandLockup name={brand.name} />
+            <BrandLockup
+              name={brand.name}
+              logoSrc={brandSources.logoSrc}
+              wordmarkSrc={brandSources.wordmarkSrc}
+              hasWordmark={brandSources.hasWordmark}
+              wordmarkLazy
+            />
             <span className="text-sm text-fg-muted">{t("footerRights")}</span>
           </div>
           <div className="flex min-w-0 flex-col gap-2 text-sm">

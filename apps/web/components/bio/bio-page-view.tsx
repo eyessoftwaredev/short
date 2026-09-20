@@ -41,6 +41,8 @@ type BioPageViewProps = {
   page: BioPageData;
   /** The builder preview renders inert blocks; the public page renders real anchors. */
   interactive?: boolean;
+  /** Phone-frame preview in the builder: no viewport-fixed side ads, fill the scrollport. */
+  embedded?: boolean;
   showBranding?: boolean;
   branding?: { name: string; href: string };
   formEndpoint?: string;
@@ -144,6 +146,7 @@ function Banner({
 export function BioPageView({
   page,
   interactive = true,
+  embedded = false,
   showBranding = true,
   branding,
   formEndpoint,
@@ -181,23 +184,24 @@ export function BioPageView({
       : undefined;
 
   const hasSideAds =
-    page.adsEnabled && Boolean(page.adLeftImage || page.adRightImage);
+    !embedded && page.adsEnabled && Boolean(page.adLeftImage || page.adRightImage);
 
   return (
     <div
       className={cn(
         "relative w-full",
+        embedded && "min-h-full",
         hasSideAds && page.adLeftImage && "lg:pl-56",
         hasSideAds && page.adRightImage && "lg:pr-56",
       )}
       data-bio-page={page.id}
     >
-      {page.adsEnabled && page.adLeftImage ? (
+      {!embedded && page.adsEnabled && page.adLeftImage ? (
         <div className="fixed top-24 left-4 z-10 hidden w-44 lg:block">
           <Banner src={page.adLeftImage} href={page.adLeftHref ?? null} interactive={interactive} />
         </div>
       ) : null}
-      {page.adsEnabled && page.adRightImage ? (
+      {!embedded && page.adsEnabled && page.adRightImage ? (
         <div className="fixed top-24 right-4 z-10 hidden w-44 lg:block">
           <Banner src={page.adRightImage} href={page.adRightHref ?? null} interactive={interactive} />
         </div>
@@ -207,12 +211,13 @@ export function BioPageView({
         className={cn(
           `bio-theme-${page.theme}`,
           "flex w-full flex-col items-center bg-bio-bg px-5 py-10 text-bio-fg",
+          embedded && "min-h-full",
           className,
         )}
         style={rootStyle}
       >
         {page.adsEnabled && page.adMobileImage ? (
-          <div className="mb-4 w-full max-w-lg lg:hidden">
+          <div className={cn("mb-4 w-full max-w-lg", !embedded && "lg:hidden")}>
             <Banner src={page.adMobileImage} href={page.adMobileHref ?? null} interactive={interactive} />
           </div>
         ) : null}

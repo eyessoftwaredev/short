@@ -4,6 +4,7 @@ import { PanelShell } from "@/components/shell/panel-shell";
 import { Hero } from "@/components/ui";
 import { listLinks, shortUrl } from "@/lib/links";
 import { emptyQrForm } from "@/lib/qr-form";
+import { listQrTemplates } from "@/lib/qr-templates";
 import { requireWorkspace } from "@/lib/session";
 import { QrDesigner, type QrLinkOption } from "../qr-designer";
 
@@ -19,12 +20,15 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
   const raw = await searchParams;
   const preselect = Array.isArray(raw.linkId) ? raw.linkId[0] : raw.linkId;
 
-  const { items } = await listLinks(context.workspace.id, {
+  const [{ items }, templates] = await Promise.all([
+    listLinks(context.workspace.id, {
     status: "active",
     sort: "created_desc",
     page: 1,
     pageSize: 200,
-  });
+  }),
+    listQrTemplates(context.workspace.id),
+  ]);
 
   const options: QrLinkOption[] = items.map((link) => ({
     id: link.id,
@@ -50,6 +54,7 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
         defaultValues={emptyQrForm(selected?.id ?? "")}
         links={options}
         canUseLogo={context.plan.features.qrLogo}
+        templates={templates}
       />
     </PanelShell>
   );

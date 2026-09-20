@@ -29,6 +29,9 @@ export type PanelSession = {
   canCreateTeam: boolean;
   shortDomain: string;
   brandName: string;
+  brandLogoSrc: string;
+  brandWordmarkSrc?: string;
+  brandHasWordmark: boolean;
   localeSwitcherEnabled: boolean;
   accountRestored: boolean;
 };

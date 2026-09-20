@@ -5,7 +5,8 @@ import { recordAudit } from "@/lib/audit";
 import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota } from "@/lib/quota";
 import { createQrCode, deleteQrCode, updateQrCode } from "@/lib/qr-codes";
-import { toQrInput, type QrFormValues } from "@/lib/qr-form";
+import { toQrInput, toQrStyle, type QrFormValues } from "@/lib/qr-form";
+import { createQrTemplate, deleteQrTemplate } from "@/lib/qr-templates";
 import { ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { requireWorkspace } from "@/lib/session";
 
@@ -71,6 +72,43 @@ export async function updateQrCodeAction(
     revalidatePath("/qr");
     revalidatePath(`/qr/${id}`);
     return ok({ id: row.id, name: row.name });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export type SavedQrTemplate = { id: string; name: string };
+
+export async function saveQrTemplateAction(
+  name: string,
+  values: QrFormValues,
+): Promise<ActionResult<SavedQrTemplate>> {
+  try {
+    const context = await requireWorkspace();
+    const style = toQrStyle(values);
+
+    if (style.logoUrl) {
+      assertFeature(context.plan, "qrLogo");
+      await assertOwnedMedia(context.workspace.id, style.logoUrl);
+    }
+
+    const row = await createQrTemplate(context.workspace.id, context.user.id, { name, style });
+    revalidatePath("/qr");
+    return ok({ id: row.id, name: row.name });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export async function deleteQrTemplateAction(id: string): Promise<ActionResult<null>> {
+  try {
+    const context = await requireWorkspace();
+    const deleted = await deleteQrTemplate(context.workspace.id, id);
+    if (!deleted) {
+      return fail("not_found");
+    }
+    revalidatePath("/qr");
+    return ok(null);
   } catch (error) {
     return toActionError(error);
   }

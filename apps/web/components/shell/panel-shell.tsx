@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { BrandLockup } from "@/components/brand/brand-mark";
 import { usePanelSession } from "@/components/providers/session-provider";
@@ -10,7 +10,8 @@ import { cn } from "@/lib/cx";
 import { CreateTeamDialog } from "./create-team-dialog";
 import { AccountRestoredBanner } from "./account-restored-banner";
 import { ImpersonationBanner } from "./impersonation-banner";
-import { Sidebar } from "./sidebar";
+import { MobileTabBar } from "./mobile-tab-bar";
+import { MobileNavDrawer, Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
 type Crumb = { label: string; href?: string };
@@ -40,13 +41,13 @@ export function PanelShell({
   contentClassName,
 }: PanelShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const pathname = usePathname();
   const router = useRouter();
   const session = usePanelSession();
   const t = useTranslations("common");
 
-  // Read after mount rather than during render: the server has no idea what the
-  // user last chose, and guessing would hydrate a different sidebar width.
   useEffect(() => {
     try {
       setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
@@ -54,6 +55,10 @@ export function PanelShell({
       /* private mode — fall back to expanded */
     }
   }, []);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -88,9 +93,28 @@ export function PanelShell({
     }
   }, [router]);
 
+  const brand = (
+    <BrandLockup
+      name={session.brandName}
+      href="/dashboard"
+      logoSrc={session.brandLogoSrc}
+      wordmarkSrc={session.brandWordmarkSrc}
+      hasWordmark={session.brandHasWordmark}
+    />
+  );
+
+  const sidebarHandlers = {
+    brand,
+    onSwitchWorkspace: (id: string) => {
+      void switchWorkspace(id);
+    },
+    onCreateTeam: () => setCreateTeamOpen(true),
+    onSignOut: () => {
+      void signOut();
+    },
+  };
+
   return (
-    // `panel-root` scopes the chart tooltip and table chrome declared in
-    // globals.css to the product, leaving the /docs catalog on its own styles.
     <div className="panel-root flex min-h-screen bg-bg">
       <a
         href="#panel-content"
@@ -99,18 +123,13 @@ export function PanelShell({
         {t("skipToContent")}
       </a>
 
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={toggleCollapsed}
-        onSwitchWorkspace={(id) => {
-          void switchWorkspace(id);
-        }}
-        onCreateTeam={() => setCreateTeamOpen(true)}
-        onSignOut={() => {
-          void signOut();
-        }}
-        brand={<BrandLockup name={session.brandName} href="/dashboard" />}
+      <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} {...sidebarHandlers} />
+      <MobileNavDrawer
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        {...sidebarHandlers}
       />
+
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           crumbs={crumbs ?? [{ label: session.workspace.name }]}
@@ -118,22 +137,24 @@ export function PanelShell({
           actions={topbarActions}
           searchPlaceholder={searchPlaceholder}
           searchable={searchable}
+          onMenuClick={() => setMobileNavOpen(true)}
         />
-        {/*
-          `gap-6` is the page rhythm: every section on every screen is one
-          gap apart, so the eye never has to work out whether two blocks are
-          related from their spacing.
-        */}
         <main
           id="panel-content"
           tabIndex={-1}
-          className={cn("flex min-w-0 flex-1 flex-col gap-6 p-6", contentClassName)}
+          className={cn(
+            "flex min-w-0 flex-1 flex-col gap-4 p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:gap-6 lg:p-6 lg:pb-6",
+            contentClassName,
+          )}
         >
           <ImpersonationBanner />
           <AccountRestoredBanner />
           {children}
         </main>
       </div>
+
+      <MobileTabBar />
+
       <CreateTeamDialog
         open={createTeamOpen}
         onClose={() => setCreateTeamOpen(false)}

@@ -32,6 +32,27 @@ try {
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+/** Apex marketing origin may POST server actions while Host stays on the panel app. */
+function serverActionOrigins(): string[] {
+  const origins = new Set<string>(["http://localhost:3200", "http://127.0.0.1:3200"]);
+  for (const value of [process.env.SITE_URL, process.env.APP_URL, process.env.BETTER_AUTH_URL]) {
+    if (!value) {
+      continue;
+    }
+    try {
+      const url = new URL(value);
+      origins.add(url.origin);
+      const apex = new URL(url.origin);
+      apex.hostname = apex.hostname.replace(/^app\./i, "");
+      origins.add(apex.origin);
+      origins.add(`${apex.protocol}//www.${apex.hostname}`);
+    } catch {
+      // ignore malformed env
+    }
+  }
+  return [...origins];
+}
+
 const nextConfig: NextConfig = {
   // Coolify builds the container from infra/Dockerfile, which copies .next/standalone.
   output: "standalone",
@@ -50,6 +71,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "8mb",
+      allowedOrigins: serverActionOrigins(),
     },
   },
 };

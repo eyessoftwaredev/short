@@ -5,6 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, organization as organizationPlugin, twoFactor } from "better-auth/plugins";
 import { defaultAc, defaultStatements, userAc } from "better-auth/plugins/admin/access";
+import { cookieDomainFromEnv } from "./cookie-domain";
 import { sendEmail } from "./email";
 import { interpolateEmail, loadBrandEmailContext } from "./email-copy";
 import { invitationTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email-templates";
@@ -30,30 +31,49 @@ const env = () => serverEnv();
  * (`http://localhost:3000` even when the panel listens on 3200) and rejects the
  * browser Origin as untrusted.
  */
+function addOriginFamily(origins: Set<string>, value: string): void {
+  try {
+    const url = new URL(value);
+    origins.add(url.origin);
+    const apex = url.hostname.replace(/^(www|app)\./i, "");
+    if (apex === "localhost" || apex.endsWith(".localhost") || !apex.includes(".")) {
+      return;
+    }
+    origins.add(`${url.protocol}//${apex}`);
+    origins.add(`${url.protocol}//www.${apex}`);
+    origins.add(`${url.protocol}//app.${apex}`);
+  } catch {
+    // ignore malformed env; serverEnv() will fail the request that actually needs it
+  }
+}
+
 function trustedAuthOrigins(): string[] {
-  const origins = new Set<string>([
-    "http://localhost:3200",
-    "http://127.0.0.1:3200",
-    "https://app.short.ky",
-    "https://www.short.ky",
-    "https://short.ky",
-  ]);
-  for (const value of [process.env.APP_URL, process.env.BETTER_AUTH_URL]) {
-    if (!value) continue;
-    try {
-      origins.add(new URL(value).origin);
-    } catch {
-      // ignore malformed env; serverEnv() will fail the request that actually needs it
+  const origins = new Set<string>(["http://localhost:3200", "http://127.0.0.1:3200"]);
+  addOriginFamily(origins, "https://app.short.ky");
+  addOriginFamily(origins, "https://app.kisa.ly");
+  for (const value of [process.env.APP_URL, process.env.BETTER_AUTH_URL, process.env.SITE_URL]) {
+    if (value) {
+      addOriginFamily(origins, value);
     }
   }
   return [...origins];
 }
+
+const cookieDomain = cookieDomainFromEnv();
 
 export const auth = betterAuth({
   appName: "Short",
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: trustedAuthOrigins,
+  advanced: cookieDomain
+    ? {
+        crossSubDomainCookies: {
+          enabled: true,
+          domain: cookieDomain,
+        },
+      }
+    : undefined,
 
   database: drizzleAdapter(getDb(), { provider: "pg", schema }),
 
