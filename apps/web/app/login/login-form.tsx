@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Icon } from "@/components/kit/icon";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { isTwoFactorRedirect, twoFactorContinueHref } from "@/lib/two-factor";
+import { isTwoFactorRedirect, safeInternalPath, twoFactorContinueHref } from "@/lib/two-factor";
 import { verifyPendingPath } from "@/lib/verify-path";
 import { grantVerifyResend } from "../verify/actions";
 import { useTranslations } from "next-intl";
@@ -30,7 +30,7 @@ export function LoginForm() {
   const te = useTranslations("errors");
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/dashboard";
+  const next = safeInternalPath(params.get("next"));
   const returnedFrom = next !== "/dashboard" ? next : null;
   const deletionScheduled = params.get("notice") === "deletion-scheduled";
 
@@ -59,8 +59,8 @@ export function LoginForm() {
         window.location.assign(twoFactorContinueHref());
         return;
       }
-      router.push(next);
-      router.refresh();
+      // Full navigation so Set-Cookie is committed before middleware reads the session.
+      window.location.assign(next);
     } catch {
       setError(te("generic"));
     } finally {

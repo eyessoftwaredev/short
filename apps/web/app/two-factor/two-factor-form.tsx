@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Field, Input, Switch } from "@/components/ui";
@@ -12,7 +12,6 @@ import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
 export function TwoFactorForm() {
   const t = useTranslations("auth");
   const te = useTranslations("errors");
-  const router = useRouter();
   const params = useSearchParams();
   const next = safeInternalPath(params.get("next"));
 
@@ -37,8 +36,7 @@ export function TwoFactorForm() {
         return;
       }
 
-      router.push(next);
-      router.refresh();
+      window.location.assign(next);
     } catch {
       setError(te("generic"));
     } finally {
