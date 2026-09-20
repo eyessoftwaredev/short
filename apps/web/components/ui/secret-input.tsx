@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes } from "react";
 import { cn } from "@/lib/cx";
 import { Input } from "./field";
 
@@ -9,18 +9,22 @@ type SecretInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "au
   blockAutofill?: boolean;
 };
 
-export function SecretInput({
-  domName = "panel-secret",
-  blockAutofill = true,
-  className,
-  readOnly,
-  onFocus,
-  ...props
-}: SecretInputProps) {
+export const SecretInput = forwardRef<HTMLInputElement, SecretInputProps>(function SecretInput(
+  {
+    domName = "panel-secret",
+    blockAutofill = true,
+    className,
+    readOnly,
+    onFocus,
+    ...props
+  },
+  ref,
+) {
   const startsReadOnly = blockAutofill && readOnly !== false;
 
   return (
     <Input
+      ref={ref}
       type="password"
       name={domName}
       autoComplete="new-password"
@@ -38,4 +42,4 @@ export function SecretInput({
       {...props}
     />
   );
-}
+});

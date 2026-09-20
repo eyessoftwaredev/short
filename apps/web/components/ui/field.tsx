@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cx";
 
 type FieldProps = {
@@ -22,9 +22,10 @@ export function Field({ label, hint, error, children, className }: FieldProps) {
 
 type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
-export function Input({ className, ...props }: InputProps) {
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ className, ...props }, ref) {
   return (
     <input
+      ref={ref}
       className={cn("min-w-0", className)}
       // Password managers and mailbox extensions rewrite attributes on the
       // server markup before React hydrates. Without this, the tree mismatches.
@@ -32,7 +33,7 @@ export function Input({ className, ...props }: InputProps) {
       {...props}
     />
   );
-}
+});
 
 type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
 
