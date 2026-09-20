@@ -7,7 +7,7 @@ import { assertFeature, assertQuota } from "@/lib/quota";
 import { createQrCode, deleteQrCode, updateQrCode } from "@/lib/qr-codes";
 import { toQrInput, toQrStyle, type QrFormValues } from "@/lib/qr-form";
 import { createQrTemplate, deleteQrTemplate } from "@/lib/qr-templates";
-import { ok, toActionError, type ActionResult } from "@/lib/action-result";
+import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { requireWorkspace } from "@/lib/session";
 
 export type SavedQrCode = { id: string; name: string };
