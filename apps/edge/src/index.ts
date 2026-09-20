@@ -67,7 +67,8 @@ function isApexSiteRequest(pathname: string): boolean {
   return (
     isSitePath(pathname) ||
     pathname.startsWith("/_next/") ||
-    pathname.startsWith("/api/brand")
+    pathname.startsWith("/api/brand") ||
+    pathname.startsWith("/api/landing")
   );
 }
 

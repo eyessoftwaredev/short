@@ -5,6 +5,30 @@ import { domains, organization, type DomainRow } from "./schema";
 /** Owner of the shared short domain. Not a customer workspace, so it has no members. */
 export const PLATFORM_WORKSPACE_ID = "platform";
 
+/** Reserved slug — avoids colliding with a customer workspace named "platform". */
+const PLATFORM_ORGANIZATION_SLUG = "__platform__";
+
+async function ensurePlatformOrganization(db: Database): Promise<void> {
+  const [existing] = await db
+    .select({ id: organization.id })
+    .from(organization)
+    .where(eq(organization.id, PLATFORM_WORKSPACE_ID))
+    .limit(1);
+  if (existing) {
+    return;
+  }
+
+  await db
+    .insert(organization)
+    .values({
+      id: PLATFORM_WORKSPACE_ID,
+      name: "Platform",
+      slug: PLATFORM_ORGANIZATION_SLUG,
+      kind: "personal",
+    })
+    .onConflictDoNothing();
+}
+
 /**
  * `PLATFORM_SHORT_DOMAIN` may be `https://short.ky/` or `localhost:3200`. Keep the
  * port (local) and drop scheme/path. `normalizeHostInput` cannot be used here: it
@@ -37,13 +61,11 @@ export async function ensurePlatformDomain(
     existing.workspaceId === PLATFORM_WORKSPACE_ID &&
     existing.status === "active"
   ) {
+    await ensurePlatformOrganization(db);
     return existing;
   }
 
-  await db
-    .insert(organization)
-    .values({ id: PLATFORM_WORKSPACE_ID, name: "Platform", slug: PLATFORM_WORKSPACE_ID })
-    .onConflictDoNothing();
+  await ensurePlatformOrganization(db);
 
   const [row] = await db
     .insert(domains)

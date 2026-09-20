@@ -3,7 +3,7 @@
 import { Icon } from "@/components/kit/icon";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { shortenLandingUrl } from "./actions";
+import type { LandingShortenResult } from "@/lib/landing-shorten";
 
 type ShortenFormProps = {
   placeholder: string;
@@ -60,7 +60,12 @@ export function ShortenForm({
     setPending(true);
     setError(null);
     try {
-      const result = await shortenLandingUrl(value);
+      const response = await fetch("/api/landing/shorten", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: value }),
+      });
+      const result = (await response.json()) as LandingShortenResult;
       if (!result.ok) {
         setShortHref(null);
         setError(messageFor(result.error));
