@@ -69,6 +69,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
   experimental: {
+    // Apex marketing is proxied with x-forwarded-host; trust it for initURL + CSRF.
+    trustHostHeader: true,
     serverActions: {
       bodySizeLimit: "8mb",
       allowedOrigins: serverActionOrigins(),

@@ -131,6 +131,9 @@ const SITE_FORWARD_HEADERS = [
 function siteProxyHeaders(request: Request, host: string): Record<string, string> {
   const headers: Record<string, string> = {
     accept: request.headers.get("accept") ?? "text/html",
+    // Next keys RSC + Server Actions off Host; Traefik only routes by backend, so
+    // the apex hostname must survive the hop to app.short.ky.
+    host,
     "x-short-surface": "site",
     "x-forwarded-host": host,
     "x-forwarded-proto": "https",
@@ -163,6 +166,24 @@ async function proxySite(request: Request, env: EdgeEnv, url: URL): Promise<Resp
     });
 
     const headers = new Headers();
+    const originHost = new URL(env.ORIGIN_URL).hostname.toLowerCase();
+    if (upstream.status >= 300 && upstream.status < 400) {
+      const location = upstream.headers.get("location");
+      if (location) {
+        try {
+          const resolved = new URL(location, env.ORIGIN_URL);
+          if (resolved.hostname.toLowerCase() === originHost) {
+            resolved.hostname = url.hostname;
+            resolved.protocol = "https:";
+            headers.set("location", resolved.toString());
+          } else {
+            headers.set("location", location);
+          }
+        } catch {
+          headers.set("location", location);
+        }
+      }
+    }
     for (const name of PROXYABLE_HEADERS) {
       const value = upstream.headers.get(name);
       if (value) {
