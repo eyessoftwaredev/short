@@ -34,6 +34,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV APP_ROOT=/app
 
 # sharp needs libc++ for its prebuilt binaries on alpine; curl for Coolify/Traefik health probes.
 RUN apk add --no-cache libstdc++ curl \
