@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidHostname } from "../url";
+import { isPublicHttpUrl, isValidHostname } from "../url";
 import { destinationSchema } from "./link";
 
 export const hostnameSchema = z
@@ -33,7 +33,13 @@ export const WEBHOOK_EVENTS = [
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 export const webhookInputSchema = z.object({
-  url: z.string().trim().url().max(2048),
+  // The panel POSTs to this URL and stores the response body where the customer can
+  // read it, so anything reachable only from inside the network must be refused.
+  url: z
+    .string()
+    .trim()
+    .max(2048)
+    .refine(isPublicHttpUrl, { message: "Enter a public http(s) URL" }),
   events: z.array(z.enum(WEBHOOK_EVENTS)).min(1),
   enabled: z.boolean().default(true),
 });

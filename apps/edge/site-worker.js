@@ -15,7 +15,6 @@ const PASS = [
   "next-router-prefetch",
   "next-router-segment-prefetch",
   "next-url",
-  "x-forwarded-for",
 ];
 
 function first(path) {
@@ -23,7 +22,13 @@ function first(path) {
 }
 
 function isSite(path) {
-  return path === "/" || SITE.has(first(path)) || path.startsWith("/_next/") || path.startsWith("/api/brand");
+  return (
+    path === "/" ||
+    SITE.has(first(path)) ||
+    path.startsWith("/_next/") ||
+    path.startsWith("/api/brand") ||
+    path.startsWith("/api/landing")
+  );
 }
 
 export default {
@@ -45,7 +50,10 @@ export default {
     if (!(host === apex && isSite(path))) {
       return new Response("Not found", { status: 404 });
     }
-    const target = new URL(path + url.search, origin);
+    // Assigned rather than resolved: `new URL("//x", origin)` would leave the origin host.
+    const target = new URL(origin);
+    target.pathname = path;
+    target.search = url.search;
     const method = request.method;
     const hasBody = method !== "GET" && method !== "HEAD";
     try {
@@ -55,9 +63,11 @@ export default {
         "x-forwarded-host": host,
         "x-forwarded-proto": "https",
       };
+      // The visitor's own X-Forwarded-For is spoofable; only Cloudflare's view is sent.
       const clientIp = request.headers.get("cf-connecting-ip");
       if (clientIp) {
         fwd["x-forwarded-for"] = clientIp;
+        fwd["x-real-ip"] = clientIp;
       }
       for (const name of PASS) {
         const value = request.headers.get(name);
@@ -70,6 +80,7 @@ export default {
         headers: fwd,
         body: hasBody ? request.body : undefined,
         redirect: "manual",
+        signal: AbortSignal.timeout(8000),
         ...(hasBody ? { duplex: "half" } : {}),
       });
       const headers = new Headers();

@@ -15,6 +15,10 @@ loadEnv({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.
  */
 async function main(): Promise<void> {
   const database = process.env.CLICKHOUSE_DATABASE ?? "short";
+  // Identifiers cannot be bound as parameters, and this one is spliced into DDL.
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(database)) {
+    throw new Error(`Invalid CLICKHOUSE_DATABASE name: ${database}`);
+  }
   const connection = {
     url: process.env.CLICKHOUSE_URL ?? "http://localhost:8123",
     username: process.env.CLICKHOUSE_USER ?? "default",

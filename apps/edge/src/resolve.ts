@@ -89,10 +89,23 @@ async function backfill(
 ): Promise<void> {
   const ttl = kvTtlSeconds(env);
   const writes: Promise<unknown>[] = [];
+  const miss: NegativeKvRecord = { v: KV_SCHEMA_VERSION, miss: true };
+
+  // An unknown hostname would otherwise cost a panel round trip on every request. The
+  // panel's own write on domain creation replaces this marker.
+  if (!lookup.domain) {
+    if (!domainWasCached) {
+      writes.push(
+        env.LINKS.put(domainKey(hostname), JSON.stringify(miss), { expirationTtl: NEGATIVE_TTL_SECONDS }),
+      );
+    }
+    await Promise.allSettled(writes);
+    return;
+  }
 
   // KV allows one write per second per key; re-writing an already cached domain record
   // on every miss burns that budget and gets the hot key throttled.
-  if (lookup.domain && !domainWasCached) {
+  if (!domainWasCached) {
     writes.push(env.LINKS.put(domainKey(hostname), JSON.stringify(lookup.domain), { expirationTtl: ttl }));
   }
 
@@ -103,7 +116,6 @@ async function backfill(
       env.LINKS.put(biopageKey(hostname, slug), JSON.stringify(lookup.biopage), { expirationTtl: ttl }),
     );
   } else if (slug !== "") {
-    const miss: NegativeKvRecord = { v: KV_SCHEMA_VERSION, miss: true };
     writes.push(
       env.LINKS.put(linkKey(hostname, slug), JSON.stringify(miss), {
         expirationTtl: NEGATIVE_TTL_SECONDS,
@@ -138,27 +150,25 @@ export async function resolveTarget(
   }
 
   const lookupSlug = slug === "" ? null : slug;
-  const [domain, cached, biopage] = await Promise.all([
-    readKv<DomainKvRecord>(env, domainKey(hostname)),
+  const [cachedDomain, cached, biopage] = await Promise.all([
+    readKv<unknown>(env, domainKey(hostname)),
     lookupSlug === null ? Promise.resolve(null) : readKv<unknown>(env, linkKey(hostname, lookupSlug)),
     lookupSlug === null
       ? Promise.resolve(null)
       : readKv<BiopageKvRecord>(env, biopageKey(hostname, lookupSlug)),
   ]);
 
-  // A cached link miss is not a bio miss — the two keys are independent.
-  // Still ask origin: a 404 written before the bio was published must not hide it.
+  // The origin already said this hostname is not a customer domain.
+  if (isMiss(cachedDomain)) {
+    return empty;
+  }
+  const domain = cachedDomain as DomainKvRecord | null;
+
+  // The origin already said neither a link nor a bio exists here. Publishing a bio or
+  // creating a link writes its own KV key, which the reads above see immediately, and
+  // the marker only lives for a minute; asking the panel again on every hit would turn
+  // a hot 404 (a stale QR code, a scanner) into one Postgres query per request.
   if (domain && isMiss(cached) && !biopage) {
-    const lookup = await lookupOrigin(env, hostname, slug);
-    if (lookup?.biopage) {
-      return {
-        domain: lookup.domain ?? domain,
-        link: null,
-        biopage: lookup.biopage,
-        fromOrigin: true,
-        backfill: () => backfill(env, lookup, hostname, slug, true),
-      };
-    }
     return { domain, link: null, biopage: null, fromOrigin: false, backfill: async () => {} };
   }
 

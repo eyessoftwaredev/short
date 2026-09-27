@@ -1,6 +1,7 @@
 import { hashGatePassword, KV_SCHEMA_VERSION } from "@short/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import worker from "../index";
+import { gateAttemptBucket } from "../password";
 import {
   biopageRecord,
   domainRecord,
@@ -305,7 +306,8 @@ describe("biopages", () => {
     });
 
     const fetchMock = vi.fn(
-      async () => new Response("<html>bio</html>", { headers: { "content-type": "text/html" } }),
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        new Response("<html>bio</html>", { headers: { "content-type": "text/html" } }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -316,6 +318,7 @@ describe("biopages", () => {
     const [url, init = {}] = fetchMock.mock.calls[0] ?? [];
     expect(String(url)).toContain("/acme");
     const headers = init.headers as Record<string, string>;
+    expect(headers["x-short-edge-token"]).toBeUndefined();
     expect(headers["x-forwarded-host"]).toBe("go.test");
     expect(headers["x-short-surface"]).toBe("bio");
     expect(headers["x-short-host"]).toBe("go.test");
@@ -326,7 +329,7 @@ describe("biopages", () => {
     expect(queue.sent[0]?.ip).toBe("203.0.113.10");
   });
 
-  it("resolves a published bio after a cached link miss", async () => {
+  it("honours a cached miss and finds a bio once the marker lapses", async () => {
     const kv = fakeKv({
       ...domainSeed,
       [keys.linkKey("go.test", "acme")]: { v: KV_SCHEMA_VERSION, miss: true },
@@ -334,7 +337,7 @@ describe("biopages", () => {
     const queue = fakeQueue();
     const ctx = fakeCtx();
     const env = makeEnv(kv, queue);
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/api/internal/resolve")) {
         return Response.json({
@@ -347,9 +350,18 @@ describe("biopages", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
+    // A hot 404 must not cost a panel round trip per request.
+    const cachedMiss = await worker.fetch(edgeRequest("https://go.test/acme"), env, ctx);
+    expect(cachedMiss.headers.get("location")).toBe("https://short.test/404");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // The marker has a 60s TTL; once it is gone the origin is asked again.
+    kv.store.delete(keys.linkKey("go.test", "acme"));
     const response = await worker.fetch(edgeRequest("https://go.test/acme"), env, ctx);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("bio");
+    await ctx.settled();
+    expect(kv.puts).toContain(keys.biopageKey("go.test", "acme"));
   });
 
   it("still proxies a bio when the link key is a cached miss", async () => {
@@ -535,7 +547,8 @@ describe("apex site vs panel", () => {
   it("proxies /_next assets on the apex instead of bouncing them to the panel", async () => {
     const { env, ctx } = setup({});
     const fetchMock = vi.fn(
-      async () => new Response("/* css */", { headers: { "content-type": "text/css" } }),
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        new Response("/* css */", { headers: { "content-type": "text/css" } }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -578,5 +591,200 @@ describe("protocol details", () => {
     );
     expect(response.status).toBe(405);
     expect(response.headers.get("allow")).toBe("GET, HEAD, POST");
+  });
+});
+
+describe("hardening", () => {
+  it("never forwards a visitor-supplied X-Forwarded-For to the panel", async () => {
+    const { env, ctx } = setup({});
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        new Response("<html>landing</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await worker.fetch(
+      edgeRequest("https://test/", { headers: { "x-forwarded-for": "6.6.6.6, 203.0.113.10" } }),
+      env,
+      ctx,
+    );
+
+    const [, init = {}] = fetchMock.mock.calls[0] ?? [];
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-forwarded-for"]).toBe("203.0.113.10");
+    expect(headers["x-real-ip"]).toBe("203.0.113.10");
+  });
+
+  it("keeps a doubled leading slash on the panel host", async () => {
+    const { env, ctx } = setup({});
+    const response = await worker.fetch(edgeRequest("https://go.test//admin/users"), env, ctx);
+
+    expect(response.status).toBe(302);
+    expect(new URL(response.headers.get("location") ?? "").hostname).toBe("app.test");
+  });
+
+  it("proxies a doubled-slash site path to the panel host, not a bare hostname", async () => {
+    const { env, ctx } = setup({});
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) => new Response("ok"),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await worker.fetch(edgeRequest("https://test//pricing"), env, ctx);
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(new URL(String(url)).hostname).toBe("app.test");
+  });
+
+  it("stops redirecting an expired link that has no expiry destination", async () => {
+    const { env, ctx, queue } = setup({
+      [keys.domainKey("go.test")]: domainRecord({ notFoundDestination: "https://example.com/gone" }),
+      [keys.linkKey("go.test", "promo")]: linkRecord({ expiresAt: Date.now() - 60_000 }),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+
+    expect(response.headers.get("location")).toBe("https://example.com/gone");
+    await ctx.settled();
+    expect(queue.sent).toHaveLength(0);
+  });
+
+  it("serves the password gate uncacheable, unframeable and script-free", async () => {
+    const passwordHash = await hashGatePassword("open-sesame");
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord({
+        passwordHash,
+        title: '"><script>alert(1)</script>',
+      }),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
+    expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    const html = await response.text();
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("buckets IPv6 gate attempts by /64", () => {
+    expect(gateAttemptBucket("203.0.113.10")).toBe("203.0.113.10");
+    expect(gateAttemptBucket("2001:db8:1:2:aaaa::1")).toBe("2001:db8:1:2::/64");
+    expect(gateAttemptBucket("2001:0db8:0001:0002:ffff:ffff:ffff:ffff")).toBe("2001:db8:1:2::/64");
+    expect(gateAttemptBucket("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(gateAttemptBucket("::1")).toBe("0:0:0:0::/64");
+  });
+
+  it("locks out an IPv6 attacker rotating addresses inside one /64", async () => {
+    const passwordHash = await hashGatePassword("open-sesame");
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord({ passwordHash }),
+    });
+
+    let last: Response | null = null;
+    for (let i = 0; i < 11; i += 1) {
+      last = await worker.fetch(
+        edgeRequest("https://go.test/promo", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            "cf-connecting-ip": `2001:db8:1:2::${(i + 1).toString(16)}`,
+          },
+          body: "password=nope",
+        }),
+        env,
+        ctx,
+      );
+    }
+    expect(last?.status).toBe(429);
+  });
+
+  it("negatively caches a hostname the panel does not know", async () => {
+    const { env, ctx, kv } = setup({});
+    const fetchMock = vi.fn(async () => Response.json({ link: null, domain: null, biopage: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await worker.fetch(edgeRequest("https://unknown.test/a"), env, ctx);
+    await ctx.settled();
+    expect(kv.puts).toContain(keys.domainKey("unknown.test"));
+
+    const second = await worker.fetch(edgeRequest("https://unknown.test/b"), env, ctx);
+    expect(second.headers.get("location")).toBe("https://short.test/404");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves an FQDN-style trailing-dot hostname against the same records", async () => {
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord(),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test./promo"), env, ctx);
+    expect(response.headers.get("location")).toBe("https://example.com/landing");
+  });
+
+  it("does not count HEAD requests as clicks", async () => {
+    const { env, ctx, queue } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord(),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test/promo", { method: "HEAD" }), env, ctx);
+    expect(response.status).toBe(302);
+    await ctx.settled();
+    expect(queue.sent).toHaveLength(0);
+  });
+
+  it("answers 502 without a view when the bio origin is down", async () => {
+    const { env, ctx, queue } = setup({
+      ...domainSeed,
+      [keys.biopageKey("go.test", "acme")]: biopageRecord(),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("origin down");
+      }),
+    );
+
+    const response = await worker.fetch(edgeRequest("https://go.test/acme"), env, ctx);
+    expect(response.status).toBe(502);
+    await ctx.settled();
+    expect(queue.sent).toHaveLength(0);
+  });
+
+  it("marks a password-protected bio as private once unlocked", async () => {
+    const passwordHash = await hashGatePassword("open-sesame");
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.biopageKey("go.test", "acme")]: biopageRecord({ passwordHash }),
+    });
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        new Response("<html>bio</html>", { headers: { "content-type": "text/html" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const accepted = await worker.fetch(
+      edgeRequest("https://go.test/acme", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "password=open-sesame",
+      }),
+      env,
+      ctx,
+    );
+    const cookie = (accepted.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+    const page = await worker.fetch(edgeRequest("https://go.test/acme", { headers: { cookie } }), env, ctx);
+    expect(page.status).toBe(200);
+    expect(page.headers.get("cache-control")).toBe("private, no-store");
+    // The origin only renders a protected page for requests carrying the edge token.
+    const [, init = {}] = fetchMock.mock.calls[0] ?? [];
+    expect((init.headers as Record<string, string>)["x-short-edge-token"]).toBe("internal-token");
   });
 });

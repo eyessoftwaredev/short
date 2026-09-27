@@ -197,3 +197,48 @@ describe("failed batch", () => {
     expect(JSON.parse(archive[0]?.body ?? "{}")).toMatchObject({ workspace_id: "ws_1" });
   });
 });
+
+describe("malformed messages", () => {
+  it("acks and archives a malformed message without holding the good ones hostage", async () => {
+    const fetchMock = okFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const good = message(event({ linkId: "good" }));
+    const bad = message({ nonsense: true } as unknown as TrackedEvent);
+    const group = batch([good, bad]);
+    const scope = ctx();
+    await consumer.queue(group.batch, env, scope.ctx);
+
+    expect(bad.acked).toBe(true);
+    expect(group.ackedAll).toBe(true);
+    const [, init = {}] = fetchMock.mock.calls[0] ?? [];
+    const lines = String(init.body).split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({ link_id: "good" });
+    expect(archive).toHaveLength(1);
+    expect(archive[0]?.key).toMatch(/^malformed\//);
+    expect(archive[0]?.metadata).toMatchObject({ customMetadata: { reason: "malformed event" } });
+  });
+
+  it("sends exhausted messages towards the DLQ when the archive is unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("down", { status: 503 })),
+    );
+    const brokenArchive: IngestEnv = {
+      ...env,
+      FAILED_EVENTS: {
+        async put() {
+          throw new Error("r2 down");
+        },
+      } as unknown as R2Bucket,
+    };
+
+    const exhausted = message(event(), 3);
+    const scope = ctx();
+    await consumer.queue(batch([exhausted]).batch, brokenArchive, scope.ctx);
+
+    expect(exhausted.acked).toBe(false);
+    expect(exhausted.retried).toBe(0);
+  });
+});

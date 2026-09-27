@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { linkInputSchema } from "../schemas";
-import { abVariantSchema, targetRuleSchema } from "../targeting";
-import { normalizeDestination } from "../url";
+import { linkInputSchema, webhookInputSchema } from "../schemas";
+import { abVariantSchema, scheduleConditionSchema, targetRuleSchema } from "../targeting";
+import { isPublicHttpUrl, normalizeDestination } from "../url";
 import { parseUserAgent } from "../ua";
 
 const DANGEROUS = [
@@ -89,5 +89,59 @@ describe("parseUserAgent", () => {
     const parsed = parseUserAgent(hostile);
     expect(Date.now() - started).toBeLessThan(50);
     expect(parsed.device).toBe("desktop");
+  });
+});
+
+describe("webhook URL SSRF guard", () => {
+  it.each([
+    "http://localhost:8123/",
+    "http://127.0.0.1/",
+    "http://2130706433/",
+    "http://0x7f000001/",
+    "http://10.0.0.5/hook",
+    "http://172.20.1.1/",
+    "http://192.168.1.1/",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://100.64.0.1/",
+    "http://0.0.0.0/",
+    "http://[::1]/",
+    "http://[::ffff:127.0.0.1]/",
+    "http://[fd00::1]/",
+    "http://[fe80::1]/",
+    "http://clickhouse:8123/",
+    "http://postgres.internal/",
+    "http://printer.local/",
+    "https://user:pass@hooks.acme.com/",
+    "ftp://hooks.acme.com/",
+    "javascript:alert(1)",
+  ])("rejects %s", (url) => {
+    expect(isPublicHttpUrl(url)).toBe(false);
+    expect(webhookInputSchema.safeParse({ url, events: ["link.created"] }).success).toBe(false);
+  });
+
+  it.each(["https://hooks.acme.com/short", "http://93.184.216.34:8080/hook", "https://[2001:db8::1]/"])(
+    "accepts %s",
+    (url) => {
+      expect(isPublicHttpUrl(url)).toBe(true);
+      expect(webhookInputSchema.safeParse({ url, events: ["link.created"] }).success).toBe(true);
+    },
+  );
+});
+
+describe("targeting schema limits", () => {
+  const schedule = { type: "schedule", from: "09:00", to: "17:00", days: [1, 2, 3] } as const;
+
+  it("rejects an unknown time zone instead of storing a rule that never matches", () => {
+    expect(scheduleConditionSchema.safeParse({ ...schedule, timezone: "Europe/Istanbul" }).success).toBe(true);
+    expect(scheduleConditionSchema.safeParse({ ...schedule, timezone: "Mars/Olympus" }).success).toBe(false);
+  });
+
+  it("caps rule and variant ids", () => {
+    const long = "x".repeat(65);
+    expect(
+      targetRuleSchema.safeParse({ id: long, priority: 0, conditions: [condition], destination: "https://a.co" })
+        .success,
+    ).toBe(false);
+    expect(abVariantSchema.safeParse({ id: long, destination: "https://a.co", weight: 50 }).success).toBe(false);
   });
 });

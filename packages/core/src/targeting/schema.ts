@@ -42,10 +42,21 @@ export const referrerConditionSchema = z.object({
   value: z.string().max(512).optional(),
 });
 
+function isKnownTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** `from`/`to` are HH:mm in `timezone`; `days` uses 0=Sunday..6=Saturday. */
 export const scheduleConditionSchema = z.object({
   type: z.literal("schedule"),
-  timezone: z.string().min(1).max(64),
+  // The edge treats an unknown zone as "never matches", so a typo would silently
+  // disable the rule; reject it on write instead.
+  timezone: z.string().min(1).max(64).refine(isKnownTimeZone, { message: "Unknown time zone" }),
   from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
@@ -62,7 +73,8 @@ export const conditionSchema = z.union([
 export type Condition = z.infer<typeof conditionSchema>;
 
 export const targetRuleSchema = z.object({
-  id: z.string().min(1),
+  // Travels into every click event as `rule_id`.
+  id: z.string().min(1).max(64),
   priority: z.number().int().min(0).max(999),
   /** All conditions must match (AND). Use separate rules for OR semantics. */
   conditions: z.array(conditionSchema).min(1).max(20),
@@ -72,7 +84,7 @@ export const targetRuleSchema = z.object({
 export type TargetRule = z.infer<typeof targetRuleSchema>;
 
 export const abVariantSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(64),
   destination: safeDestinationSchema,
   weight: z.number().int().min(0).max(100),
 });

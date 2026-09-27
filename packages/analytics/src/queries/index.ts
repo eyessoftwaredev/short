@@ -47,6 +47,11 @@ export type BreakdownDimension = keyof typeof BREAKDOWN_DIMENSIONS;
 
 type Filters = { where: string; params: QueryParams };
 
+/** `LIMIT {limit:UInt32}` rejects NaN, negatives and fractions with a server error. */
+function clampLimit(limit: number, max = 1000): number {
+  return Number.isFinite(limit) ? Math.min(max, Math.max(1, Math.floor(limit))) : 10;
+}
+
 function buildFilters(scope: StatsScope): Filters {
   const clauses = ["workspace_id = {workspaceId:String}", "ts >= {from:DateTime64(3)}", "ts < {to:DateTime64(3)}"];
   const params: QueryParams = {
@@ -249,7 +254,11 @@ export async function getBreakdown(
   dimension: BreakdownDimension,
   limit = 10,
 ): Promise<BreakdownRow[]> {
-  const column = BREAKDOWN_DIMENSIONS[dimension];
+  // `dimension` often arrives straight from a query string; an inherited key such as
+  // `constructor` would otherwise pass the truthiness check and be spliced into SQL.
+  const column = Object.hasOwn(BREAKDOWN_DIMENSIONS, dimension)
+    ? BREAKDOWN_DIMENSIONS[dimension]
+    : undefined;
   if (!column) {
     throw new Error(`Unsupported breakdown dimension: ${dimension}`);
   }
@@ -262,7 +271,7 @@ export async function getBreakdown(
      GROUP BY key
      ORDER BY clicks DESC
      LIMIT {limit:UInt32}`,
-    { ...params, limit },
+    { ...params, limit: clampLimit(limit) },
   );
 
   const total = rows.reduce((sum, row) => sum + Number(row.clicks), 0);
@@ -298,7 +307,7 @@ export async function getTopLinks(scope: StatsScope, limit = 10): Promise<TopLin
      GROUP BY link_id
      ORDER BY clicks DESC
      LIMIT {limit:UInt32}`,
-    { ...params, limit },
+    { ...params, limit: clampLimit(limit) },
   );
 
   return rows.map((row) => ({
@@ -348,7 +357,7 @@ export async function getRecentEvents(scope: StatsScope, limit = 25): Promise<Re
      WHERE ${where}
      ORDER BY ts DESC
      LIMIT {limit:UInt32}`,
-    { ...params, limit },
+    { ...params, limit: clampLimit(limit) },
   );
 
   return rows.map((row) => ({

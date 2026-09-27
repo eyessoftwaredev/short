@@ -1,4 +1,4 @@
-import { toJsonEachRow, type TrackedEvent } from "@short/core";
+import { EVENT_TYPES, toJsonEachRow, type TrackedEvent } from "@short/core";
 
 export type IngestEnv = {
   /** Base URL of the ClickHouse HTTP interface, e.g. https://clickhouse.internal:8123 */
@@ -14,6 +14,29 @@ export type IngestEnv = {
 };
 
 const INSERT_QUERY = "INSERT INTO events FORMAT JSONEachRow";
+
+/** Matches `max_retries` in wrangler.jsonc; on this attempt a failure is final. */
+const MAX_ATTEMPTS = 3;
+
+/**
+ * JSONEachRow rejects the whole insert on one bad row, so a single malformed message
+ * (a producer from an older deploy, a manual queue send) would otherwise hold every
+ * good event in its batch hostage until all of them are archived.
+ */
+function isTrackedEvent(value: unknown): value is TrackedEvent {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const event = value as Partial<Record<keyof TrackedEvent, unknown>>;
+  return (
+    typeof event.eventId === "string" &&
+    event.eventId !== "" &&
+    typeof event.ts === "string" &&
+    !Number.isNaN(Date.parse(event.ts)) &&
+    typeof event.workspaceId === "string" &&
+    (EVENT_TYPES as readonly unknown[]).includes(event.type)
+  );
+}
 
 async function insertBatch(env: IngestEnv, events: TrackedEvent[]): Promise<void> {
   const url = new URL(env.CLICKHOUSE_URL);
@@ -45,13 +68,19 @@ async function insertBatch(env: IngestEnv, events: TrackedEvent[]): Promise<void
  * Last resort for a batch that has exhausted its retries. Writing the raw payload to R2
  * keeps the events replayable instead of silently dropping them.
  */
-async function archiveFailure(env: IngestEnv, events: TrackedEvent[], reason: string): Promise<void> {
+async function archiveFailure(
+  env: IngestEnv,
+  ndjson: string,
+  count: number,
+  reason: string,
+  prefix = "failed",
+): Promise<void> {
   if (!env.FAILED_EVENTS) {
     return;
   }
-  const key = `failed/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.ndjson`;
-  await env.FAILED_EVENTS.put(key, toJsonEachRow(events), {
-    customMetadata: { reason: reason.slice(0, 900), count: String(events.length) },
+  const key = `${prefix}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.ndjson`;
+  await env.FAILED_EVENTS.put(key, ndjson, {
+    customMetadata: { reason: reason.slice(0, 900), count: String(count) },
   });
 }
 
@@ -94,7 +123,31 @@ export default {
       return;
     }
 
-    const events = batch.messages.map((message) => message.body);
+    const valid = batch.messages.filter((message) => isTrackedEvent(message.body));
+    const malformed = batch.messages.filter((message) => !isTrackedEvent(message.body));
+    if (malformed.length > 0) {
+      console.error(`dropping ${malformed.length} malformed event message(s)`);
+      try {
+        // Kept verbatim: these bodies cannot be mapped onto ClickHouse columns.
+        await archiveFailure(
+          env,
+          malformed.map((message) => JSON.stringify(message.body) ?? "null").join("\n"),
+          malformed.length,
+          "malformed event",
+          "malformed",
+        );
+      } catch (error) {
+        console.error("archiving malformed events failed", error instanceof Error ? error.message : error);
+      }
+      for (const message of malformed) {
+        message.ack();
+      }
+    }
+    if (valid.length === 0) {
+      return;
+    }
+
+    const events = valid.map((message) => message.body);
 
     try {
       await insertBatch(env, events);
@@ -107,20 +160,33 @@ export default {
 
       // Messages already at the retry ceiling would be dropped by the queue, so archive
       // them here; everything else goes back for another attempt with backoff.
-      const exhausted = batch.messages.filter((message) => message.attempts >= 3);
+      const exhausted = valid.filter((message) => message.attempts >= MAX_ATTEMPTS);
       if (exhausted.length > 0) {
-        await archiveFailure(
-          env,
-          exhausted.map((message) => message.body),
-          reason,
-        );
-        for (const message of exhausted) {
-          message.ack();
+        try {
+          await archiveFailure(
+            env,
+            toJsonEachRow(exhausted.map((message) => message.body)),
+            exhausted.length,
+            reason,
+          );
+          for (const message of exhausted) {
+            message.ack();
+          }
+        } catch (archiveError) {
+          // Without the archive the only copy left is the queue's: one more retry pushes
+          // these past `max_retries` and into the dead-letter queue instead of losing them.
+          console.error(
+            "archiving failed batch failed",
+            archiveError instanceof Error ? archiveError.message : archiveError,
+          );
+          for (const message of exhausted) {
+            message.retry();
+          }
         }
       }
 
-      for (const message of batch.messages) {
-        if (message.attempts < 3) {
+      for (const message of valid) {
+        if (message.attempts < MAX_ATTEMPTS) {
           message.retry({ delaySeconds: Math.min(60, 2 ** message.attempts * 5) });
         }
       }

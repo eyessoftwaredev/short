@@ -74,3 +74,23 @@ export function timingSafeEqual(a: string, b: string): boolean {
   }
   return diff === 0;
 }
+
+/**
+ * Attempt-limit bucket for a client address. An IPv6 host typically controls a whole
+ * /64, so keying on the full address would hand it 2^64 fresh budgets.
+ */
+export function gateAttemptBucket(ip: string): string {
+  if (!ip.includes(":")) {
+    return ip;
+  }
+  const [head = "", tail = ""] = ip.toLowerCase().split("::");
+  const left = head === "" ? [] : head.split(":");
+  const right = tail === "" ? [] : tail.split(":");
+  const groups = ip.includes("::")
+    ? [...left, ...Array<string>(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right]
+    : left;
+  return `${groups
+    .slice(0, 4)
+    .map((group) => group.replace(/^0+(?=.)/, ""))
+    .join(":")}::/64`;
+}

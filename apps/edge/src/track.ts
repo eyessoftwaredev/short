@@ -116,3 +116,19 @@ export async function enqueue(env: EdgeEnv, event: TrackedEvent): Promise<void> 
     console.error("queue send failed", error);
   }
 }
+
+/**
+ * Builds and enqueues in one step for `waitUntil`. A failure while building the event
+ * (the visitor hash, say) is logged here instead of surfacing as a rejected promise.
+ */
+export async function track(
+  env: EdgeEnv,
+  ctx: TrackContext,
+  options: Parameters<typeof buildEvent>[2],
+): Promise<void> {
+  try {
+    await enqueue(env, await buildEvent(env, ctx, options));
+  } catch (error) {
+    console.error("event build failed", error);
+  }
+}

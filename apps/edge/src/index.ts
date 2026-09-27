@@ -14,9 +14,15 @@ import {
 } from "@short/core";
 import type { EdgeEnv } from "./env";
 import { cloakHtml, passwordGateHtml } from "./html";
-import { gateCookieName, gateCookieValue, readCookie, verifyGateCookie } from "./password";
+import {
+  gateAttemptBucket,
+  gateCookieName,
+  gateCookieValue,
+  readCookie,
+  verifyGateCookie,
+} from "./password";
 import { resolveTarget } from "./resolve";
-import { buildEvent, enqueue, type TrackContext } from "./track";
+import { track, type TrackContext } from "./track";
 
 /** Paths the worker answers itself instead of treating as a slug. */
 const PASSTHROUGH_PREFIXES = ["/.well-known/", "/cdn-cgi/"];
@@ -126,8 +132,18 @@ const SITE_FORWARD_HEADERS = [
   "next-router-prefetch",
   "next-router-segment-prefetch",
   "next-url",
-  "x-forwarded-for",
 ] as const;
+
+/**
+ * Rebuilds an origin URL from a visitor path. `new URL("//x/login", origin)` would treat
+ * a doubled leading slash as a protocol-relative URL and leave the origin's host.
+ */
+function originUrl(env: EdgeEnv, pathname: string, search: string): URL {
+  const target = new URL(env.ORIGIN_URL);
+  target.pathname = pathname;
+  target.search = search;
+  return target;
+}
 
 function siteProxyHeaders(request: Request, host: string): Record<string, string> {
   const headers: Record<string, string> = {
@@ -139,9 +155,13 @@ function siteProxyHeaders(request: Request, host: string): Record<string, string
     "x-forwarded-host": host,
     "x-forwarded-proto": "https",
   };
+  // Only Cloudflare's own view of the client is forwarded. The visitor's inbound
+  // `X-Forwarded-For` is attacker-supplied, and the panel keys rate limits and audit
+  // entries off its first hop.
   const clientIp = request.headers.get("cf-connecting-ip");
   if (clientIp) {
     headers["x-forwarded-for"] = clientIp;
+    headers["x-real-ip"] = clientIp;
   }
   for (const name of SITE_FORWARD_HEADERS) {
     const value = request.headers.get(name);
@@ -153,7 +173,7 @@ function siteProxyHeaders(request: Request, host: string): Record<string, string
 }
 
 async function proxySite(request: Request, env: EdgeEnv, url: URL): Promise<Response> {
-  const target = new URL(url.pathname + url.search, env.ORIGIN_URL);
+  const target = originUrl(env, url.pathname, url.search);
   const method = request.method;
   const hasBody = method !== "GET" && method !== "HEAD";
   try {
@@ -274,7 +294,16 @@ type GateTarget = { id: string; passwordHash: string | null; title: string | nul
 function gateChallenge(target: GateTarget, error: boolean, status = 401): Response {
   return new Response(passwordGateHtml({ title: target.title ?? "Protected link", error }), {
     status,
-    headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "x-robots-tag": "noindex",
+      "cache-control": "no-store, max-age=0",
+      // The page is static markup plus inline CSS; nothing else may load, and it must
+      // not be framed where a lookalike overlay could harvest the password.
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+    },
   });
 }
 
@@ -284,7 +313,7 @@ function gateChallenge(target: GateTarget, error: boolean, status = 401): Respon
  * worker 100k PBKDF2 rounds — into a trickle without needing a Durable Object.
  */
 async function gateAttemptsExceeded(env: EdgeEnv, linkId: string, ip: string): Promise<boolean> {
-  const key = `gate-attempts:${linkId}:${ip}`;
+  const key = `gate-attempts:${linkId}:${gateAttemptBucket(ip)}`;
   try {
     const current = Number.parseInt((await env.LINKS.get(key)) ?? "0", 10);
     if (Number.isFinite(current) && current >= GATE_MAX_ATTEMPTS) {
@@ -351,24 +380,42 @@ async function handlePasswordGate(
 }
 
 /** Biopages are rendered by the Next.js app; the worker only proxies and tracks the view. */
-async function proxyBiopage(env: EdgeEnv, request: Request, handle: string): Promise<Response> {
+async function proxyBiopage(
+  env: EdgeEnv,
+  request: Request,
+  handle: string,
+  gated: boolean,
+): Promise<Response> {
   // The panel serves biopages from its own `/{handle}` route with ISR, so the worker
   // proxies straight to it instead of duplicating the renderer at the edge.
   const incomingHost = new URL(request.url).hostname;
   const target = new URL(`/${encodeURIComponent(handle)}`, env.ORIGIN_URL);
-  const upstream = await fetch(target.toString(), {
-    headers: {
-      "accept-language": request.headers.get("accept-language") ?? "",
-      "user-agent": request.headers.get("user-agent") ?? "",
-      // Traefik overwrites X-Forwarded-Host to the panel hostname. These two
-      // survive that hop so the origin still looks the handle up on the public host.
-      "x-short-surface": "bio",
-      "x-short-host": incomingHost,
-      "x-forwarded-host": incomingHost,
-      "x-forwarded-proto": "https",
-    },
-    signal: AbortSignal.timeout(8000),
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(target.toString(), {
+      headers: {
+        "accept-language": request.headers.get("accept-language") ?? "",
+        "user-agent": request.headers.get("user-agent") ?? "",
+        // Traefik overwrites X-Forwarded-Host to the panel hostname. These two
+        // survive that hop so the origin still looks the handle up on the public host.
+        "x-short-surface": "bio",
+        "x-short-host": incomingHost,
+        "x-forwarded-host": incomingHost,
+        "x-forwarded-proto": "https",
+        // The panel renders a password-protected page only for requests proving they
+        // came through this gate. Sent only when the gate actually ran, so a stale KV
+        // record that predates a new password fails closed at the origin.
+        ...(gated ? { "x-short-edge-token": env.INTERNAL_TOKEN } : {}),
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    // A slow or unreachable panel must surface as a gateway error, not a worker exception.
+    return new Response("Bad gateway", {
+      status: 502,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
 
   // Rebuilt from an allowlist rather than copied: the response is served on a customer's
   // own hostname, so anything the origin sets — `Set-Cookie` above all — must not travel.
@@ -379,7 +426,9 @@ async function proxyBiopage(env: EdgeEnv, request: Request, handle: string): Pro
       headers.set(name, value);
     }
   }
-  headers.set("cache-control", "public, max-age=0, s-maxage=60");
+  // A password-protected page was only rendered because this visitor holds the gate
+  // cookie; a shared cache must never hand it to someone who does not.
+  headers.set("cache-control", gated ? "private, no-store" : "public, max-age=0, s-maxage=60");
 
   return new Response(upstream.body, { status: upstream.status, headers });
 }
@@ -391,7 +440,9 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
-    const hostname = url.hostname.toLowerCase();
+    // KV is keyed by hostname, so `Go.Test` and the FQDN form `go.test.` must land on
+    // the same records as `go.test` instead of each seeding their own cache entries.
+    const hostname = url.hostname.toLowerCase().replace(/\.+$/, "");
     const pathname = url.pathname;
 
     // The route pattern can cover the panel's own hostname; serving it as a slug would
@@ -419,7 +470,7 @@ export default {
     }
 
     if (isPlatformPath(pathname)) {
-      return redirect(new URL(pathname + url.search, env.ORIGIN_URL).toString(), true);
+      return redirect(originUrl(env, pathname, url.search).toString(), true);
     }
 
     if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "POST") {
@@ -439,7 +490,7 @@ export default {
         return new Response("Not found", { status: 404 });
       }
 
-      return fetch(new URL(pathname + url.search, env.ORIGIN_URL).toString(), {
+      return fetch(originUrl(env, pathname, url.search).toString(), {
         method: request.method,
         headers: {
           accept: request.headers.get("accept") ?? "*/*",
@@ -482,7 +533,17 @@ export default {
       if (bioGate) {
         return bioGate;
       }
-      const response = await proxyBiopage(env, request, target.biopage.handle);
+      const response = await proxyBiopage(
+        env,
+        request,
+        target.biopage.handle,
+        Boolean(target.biopage.passwordHash),
+      );
+      // Only a page that actually rendered counts as a view, and link checkers issuing
+      // HEAD requests are not visitors.
+      if (!response.ok || request.method === "HEAD") {
+        return response;
+      }
       const ua = parseUserAgent(request.headers.get("user-agent"));
       const language = parseAcceptLanguage(request.headers.get("accept-language"));
       const trackCtx: TrackContext = {
@@ -495,13 +556,13 @@ export default {
         url,
       };
       ctx.waitUntil(
-        buildEvent(env, trackCtx, {
+        track(env, trackCtx, {
           type: "bio_view",
           link: null,
           workspaceId: target.domain.workspaceId,
           biopageId: target.biopage.id,
           resolution: { destination: url.toString(), source: "default", ruleId: null, variantId: null },
-        }).then((event) => enqueue(env, event)),
+        }),
       );
       return response;
     }
@@ -533,6 +594,12 @@ export default {
       visitor,
     );
 
+    // Without an explicit expiry destination an expired link is gone. Falling back to
+    // the live destination would make the expiry date purely cosmetic.
+    if (resolution.source === "expired" && !link.expiredDestination) {
+      return notFound(env, target.domain.notFoundDestination);
+    }
+
     resolution = applyDeepLink(link, resolution, ua.os);
 
     const inbound = new URLSearchParams(url.search);
@@ -553,14 +620,14 @@ export default {
 
     const eventType: EventType = qrCodeId ? "qr_scan" : "click";
     const trackCtx: TrackContext = { request, cf: request.cf, ua, language, hostname, slug, url };
-    if (!link.overQuota) {
+    if (!link.overQuota && request.method !== "HEAD") {
       ctx.waitUntil(
-        buildEvent(env, trackCtx, {
+        track(env, trackCtx, {
           type: eventType,
           link,
           qrId: qrCodeId ?? "",
           resolution: { ...resolution, destination },
-        }).then((event) => enqueue(env, event)),
+        }),
       );
     }
 

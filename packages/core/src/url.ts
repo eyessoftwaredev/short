@@ -25,6 +25,59 @@ export function isSafeDestination(raw: string): boolean {
   return url.protocol === "http:" || url.protocol === "https:";
 }
 
+function isPrivateIpv4(host: string): boolean {
+  const octets = host.split(".").map((part) => Number.parseInt(part, 10));
+  const [a = 0, b = 0, c = 0] = octets;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && c === 0) ||
+    (a === 198 && (b === 18 || b === 19))
+  );
+}
+
+function isPrivateIpv6(host: string): boolean {
+  // `::`, `::1`, IPv4-mapped/compatible (`::ffff:7f00:1`), unique-local and link-local.
+  return host.startsWith("::") || /^f[cd]/.test(host) || /^fe[89ab]/.test(host);
+}
+
+/**
+ * For URLs the server fetches on a customer's behalf (webhooks). On top of the scheme
+ * allowlist it rejects embedded credentials, `localhost`, single-label and internal-only
+ * names, and literal loopback/private/link-local addresses, so a webhook cannot be aimed
+ * at the panel's own network. The URL parser canonicalises decimal/hex/octal IPv4 forms
+ * first, so `http://2130706433/` is caught as `127.0.0.1`.
+ *
+ * A public name can still resolve to a private address; the dispatcher has to re-check
+ * the resolved IP. This only closes the direct cases at write time.
+ */
+export function isPublicHttpUrl(raw: string): boolean {
+  if (!isSafeDestination(raw)) {
+    return false;
+  }
+  const url = new URL(raw);
+  if (url.username !== "" || url.password !== "") {
+    return false;
+  }
+  const host = url.hostname.toLowerCase().replace(/\.+$/, "");
+  if (host.startsWith("[")) {
+    return !isPrivateIpv6(host.slice(1, -1));
+  }
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+    return !isPrivateIpv4(host);
+  }
+  if (!host.includes(".")) {
+    return false;
+  }
+  return !/(?:^|\.)(?:localhost|local|internal|localdomain|home\.arpa)$/.test(host);
+}
+
 /**
  * Adds a scheme when the user typed a bare host, so `acme.com/x` becomes a valid URL.
  * Control characters are stripped first: `new URL()` silently tolerates an embedded
