@@ -1,6 +1,7 @@
 import type { TrackedEvent } from "@short/core";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
+import { hasBearerSecret } from "@/lib/api-auth";
 import { serverEnv } from "@/lib/env";
 import { firePixels } from "@/lib/pixels";
 import { dispatchWebhook, getRelaySubscribers } from "@/lib/webhooks";
@@ -18,8 +19,7 @@ export const dynamic = "force-dynamic";
  * with no subscription are dropped without touching the database.
  */
 export async function POST(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (token === "" || token !== serverEnv().INTERNAL_TOKEN) {
+  if (!hasBearerSecret(request.headers, serverEnv().INTERNAL_TOKEN)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

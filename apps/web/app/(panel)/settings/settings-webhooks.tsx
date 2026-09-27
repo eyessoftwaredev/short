@@ -70,7 +70,7 @@ export function SettingsWebhooks({
           <>
             <span className="font-mono text-sm font-medium">POST https://api.acme.com/hooks</span>
             <span className="text-sm text-fg-muted">link.created · link.clicked</span>
-            <span className="font-mono text-sm text-fg-muted">{SIGNATURE_HEADER}: sha256=…</span>
+            <span className="font-mono text-sm text-fg-muted">{SIGNATURE_HEADER}: t=…,v1=…</span>
           </>
         }
       />

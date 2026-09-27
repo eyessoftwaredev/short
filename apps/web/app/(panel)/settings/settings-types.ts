@@ -46,7 +46,11 @@ export type WebhookView = {
 };
 
 /** Matches the shape every server action in this folder resolves to. */
-export type ActionOutcome = { ok: boolean; error?: string };
+export type ActionOutcome = {
+  ok: boolean;
+  error?: string;
+  fieldErrors?: Record<string, string[]>;
+};
 
 export type RunAction = (action: () => Promise<ActionOutcome>, message?: string) => void;
 

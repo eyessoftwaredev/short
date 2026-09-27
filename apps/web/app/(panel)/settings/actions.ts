@@ -26,15 +26,32 @@ import { auth } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { assertFeature, assertOwnerQuota, assertQuota } from "@/lib/quota";
 import { getSessionContext, requireSession, requireWorkspace, requireWorkspaceRole } from "@/lib/session";
+import { purgeWorkspaceEdgeRecords } from "@/lib/domains";
 import { createWorkspace, getPersonalWorkspaceId } from "@/lib/workspace";
 import {
+  assertPublicWebhookUrl,
   generateWebhookSecret,
   invalidateRelaySubscribers,
   replayWebhookDelivery,
+  sealWebhookSecret,
   testWebhook,
+  WebhookUrlError,
 } from "@/lib/webhooks";
 
 const WORKSPACE_ROLES = ["owner", "admin", "member"] as const;
+
+/** Surfaces the SSRF guard as a form error instead of a generic failure. */
+async function isPublicWebhookUrl(raw: string): Promise<boolean> {
+  try {
+    await assertPublicWebhookUrl(raw);
+    return true;
+  } catch (error) {
+    if (error instanceof WebhookUrlError) {
+      return false;
+    }
+    throw error;
+  }
+}
 
 export async function updateProfileAction(name: string): Promise<ActionResult<null>> {
   try {
@@ -112,6 +129,10 @@ export async function inviteMemberAction(
     }
     if (context.workspace.kind !== "team") {
       return fail("invite_personal");
+    }
+    // Admins can invite admins and members; only an owner can hand out ownership.
+    if (parsed.data.role === "owner" && context.role !== "owner") {
+      return fail("invalid_role");
     }
 
     await assertQuota(context.workspace.id, context.plan, "members");
@@ -194,7 +215,10 @@ export async function updateMemberRoleAction(
       }
     }
 
-    await db.update(member).set({ role: parsed.data }).where(eq(member.id, memberId));
+    await db
+      .update(member)
+      .set({ role: parsed.data })
+      .where(and(eq(member.id, memberId), eq(member.organizationId, context.workspace.id)));
 
     await recordAudit({
       workspaceId: context.workspace.id,
@@ -230,8 +254,14 @@ export async function removeMemberAction(memberId: string): Promise<ActionResult
     if (target.role === "owner") {
       return fail("owner_remove");
     }
+    // Admins manage members; removing a fellow admin is an owner decision.
+    if (target.role === "admin" && context.role !== "owner" && !context.isSuperadmin) {
+      return fail("invalid_role");
+    }
 
-    await db.delete(member).where(eq(member.id, memberId));
+    await db
+      .delete(member)
+      .where(and(eq(member.id, memberId), eq(member.organizationId, context.workspace.id)));
 
     await recordAudit({
       workspaceId: context.workspace.id,
@@ -329,6 +359,9 @@ export async function createWebhookAction(
     if (!parsed.success) {
       return fromZodError(parsed.error);
     }
+    if (!(await isPublicWebhookUrl(parsed.data.url))) {
+      return fail("validation", { url: ["webhookUrlPrivate"] });
+    }
 
     const secret = generateWebhookSecret();
     const [created] = await getDb()
@@ -338,7 +371,8 @@ export async function createWebhookAction(
         url: parsed.data.url,
         events: parsed.data.events,
         enabled: parsed.data.enabled,
-        secret,
+        // Stored sealed; the plaintext is returned to the caller exactly once below.
+        secret: sealWebhookSecret(secret),
       })
       .returning({ id: webhooks.id });
 
@@ -420,6 +454,10 @@ export async function testWebhookAction(webhookId: string): Promise<ActionResult
     if (!row) {
       return fail("webhook_missing");
     }
+    // Rows saved before the create-time check (or re-pointed DNS) are re-checked here.
+    if (!(await isPublicWebhookUrl(row.url))) {
+      return fail("validation", { url: ["webhookUrlPrivate"] });
+    }
     await testWebhook(row);
     revalidatePath("/settings");
     return ok(null);
@@ -432,12 +470,15 @@ export async function replayWebhookAction(webhookId: string): Promise<ActionResu
   try {
     const context = await requireWorkspaceRole("admin");
     const [row] = await getDb()
-      .select({ id: webhooks.id })
+      .select({ id: webhooks.id, url: webhooks.url })
       .from(webhooks)
       .where(and(eq(webhooks.id, webhookId), eq(webhooks.workspaceId, context.workspace.id)))
       .limit(1);
     if (!row) {
       return fail("webhook_missing");
+    }
+    if (!(await isPublicWebhookUrl(row.url))) {
+      return fail("validation", { url: ["webhookUrlPrivate"] });
     }
     await replayWebhookDelivery(webhookId);
     revalidatePath("/settings");
@@ -544,7 +585,12 @@ export async function deleteTeamAction(): Promise<ActionResult<{ workspaceId: st
     const workspaceId = context.workspace.id;
     const personalId = await getPersonalWorkspaceId(context.user.id);
 
+    // The organization cascade only reaches Postgres. Cloudflare hostnames and KV records
+    // would keep serving the team's links, and API keys have no FK to the workspace.
+    await purgeWorkspaceEdgeRecords(workspaceId);
+    await getDb().delete(apikey).where(eq(apikey.referenceId, workspaceId));
     await getDb().delete(organization).where(eq(organization.id, workspaceId));
+    await invalidateRelaySubscribers();
 
     if (personalId) {
       await auth.api.setActiveOrganization({

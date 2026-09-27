@@ -7,8 +7,12 @@ export function isTwoFactorRedirect(data: unknown): boolean {
   );
 }
 
+/**
+ * Same-origin path only. Browsers read `\` as `/` and drop tabs/newlines, so `/\evil.com`
+ * or `/\t/evil.com` would otherwise navigate off-site.
+ */
 export function safeInternalPath(raw: string | null | undefined, fallback = "/dashboard"): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(raw)) {
     return fallback;
   }
   return raw;

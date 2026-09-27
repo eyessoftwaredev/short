@@ -16,7 +16,11 @@ export const linkFormSchema = z.object({
   comments: z.string().trim().max(2048),
   folderId: z.string(),
   tagsText: z.string().trim().max(512),
-  /** `datetime-local` value, i.e. `YYYY-MM-DDTHH:mm`, interpreted in the browser's zone. */
+  /**
+   * In the browser this is the `datetime-local` value (`YYYY-MM-DDTHH:mm`, local time).
+   * The editor converts it with `dateTimeLocalToIso` before submitting, because the server
+   * action would otherwise parse it in the server's zone, not the user's.
+   */
   expiresAt: z.string().trim(),
   expiredDestination: z.string().trim(),
   password: z.string().trim(),
@@ -80,7 +84,28 @@ function passwordValue(value: string): string | null | undefined {
   return value === "-" ? null : value;
 }
 
-export function toLinkInput(values: LinkFormValues): LinkInput {
+function sameMinute(a: Date, b: Date): boolean {
+  return Math.floor(a.getTime() / 60_000) === Math.floor(b.getTime() / 60_000);
+}
+
+export type ToLinkInputOptions = {
+  /**
+   * The link's stored expiry when editing. The core schema only accepts future expiries,
+   * which would block every edit of an already-expired link; an unchanged past expiry
+   * (the form keeps minute precision) is carried over instead of re-validated.
+   */
+  currentExpiresAt?: Date | null;
+};
+
+export function toLinkInput(values: LinkFormValues, options: ToLinkInputOptions = {}): LinkInput {
+  const expiresAt = values.expiresAt === "" ? null : new Date(values.expiresAt);
+  const keepPastExpiry =
+    expiresAt != null &&
+    options.currentExpiresAt != null &&
+    !Number.isNaN(expiresAt.getTime()) &&
+    expiresAt.getTime() <= Date.now() &&
+    sameMinute(expiresAt, options.currentExpiresAt);
+
   const utm = {
     utm_source: orUndefined(values.utmSource),
     utm_medium: orUndefined(values.utmMedium),
@@ -90,7 +115,7 @@ export function toLinkInput(values: LinkFormValues): LinkInput {
   };
   const hasUtm = Object.values(utm).some((entry) => entry != null);
 
-  return linkInputSchema.parse({
+  const input = linkInputSchema.parse({
     domainId: values.domainId,
     slug: orUndefined(values.slug),
     destination: values.destination,
@@ -103,7 +128,7 @@ export function toLinkInput(values: LinkFormValues): LinkInput {
       .split(",")
       .map((tag) => tag.trim())
       .filter((tag) => tag !== ""),
-    expiresAt: values.expiresAt === "" ? null : new Date(values.expiresAt),
+    expiresAt: keepPastExpiry ? null : expiresAt,
     expiredDestination: values.expiredDestination === "" ? null : values.expiredDestination,
     password: passwordValue(values.password),
     iosDestination: values.iosDestination === "" ? null : values.iosDestination,
@@ -116,13 +141,37 @@ export function toLinkInput(values: LinkFormValues): LinkInput {
     rules: values.rules,
     abVariants: values.abVariants,
   });
+  return keepPastExpiry ? { ...input, expiresAt: options.currentExpiresAt ?? null } : input;
 }
 
-/** Renders a stored timestamp back into the `datetime-local` format. */
+/**
+ * Renders a timestamp into the `datetime-local` format using the zone of the runtime it
+ * runs in — call it in the browser, not in a server component.
+ */
 export function toDateTimeLocal(date: Date | null): string {
-  if (!date) {
+  if (!date || Number.isNaN(date.getTime())) {
     return "";
   }
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+const DATE_TIME_LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+
+/** Server → form: an absolute ISO timestamp becomes the browser-local input value. */
+export function isoToDateTimeLocal(value: string): string {
+  if (value === "" || DATE_TIME_LOCAL.test(value)) {
+    return value;
+  }
+  return toDateTimeLocal(new Date(value));
+}
+
+/** Form → server: the browser-local input value becomes an absolute ISO timestamp. */
+export function dateTimeLocalToIso(value: string): string {
+  if (value === "") {
+    return "";
+  }
+  const date = new Date(value);
+  // Leave junk untouched so the server-side schema reports it as a field error.
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }

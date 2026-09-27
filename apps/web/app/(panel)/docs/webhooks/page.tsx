@@ -15,15 +15,22 @@ export default async function WebhooksGuidePage() {
 
   const verifyExample = `const crypto = require("crypto");
 
-function verify(rawBody, signature, secret) {
-  const digest = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody, "utf8")
-    .digest("hex");
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(digest)
+// header: the x-short-signature value, "t=<unix seconds>,v1=<hex>"
+function verify(rawBody, header, secret, toleranceSeconds = 300) {
+  const parts = Object.fromEntries(
+    header.split(",").map((part) => part.split("=", 2))
   );
+  const timestamp = Number(parts.t);
+  if (!parts.v1 || !Number.isFinite(timestamp)) return false;
+  if (Math.abs(Date.now() / 1000 - timestamp) > toleranceSeconds) return false;
+
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(\`\${parts.t}.\${rawBody}\`, "utf8")
+    .digest("hex");
+  const a = Buffer.from(parts.v1, "hex");
+  const b = Buffer.from(expected, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }`;
 
   return (

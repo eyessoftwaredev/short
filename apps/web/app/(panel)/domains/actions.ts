@@ -16,8 +16,10 @@ import { probeDomainDns, type DnsProbe } from "@/lib/dns-probe";
 import {
   addDomain,
   cnameTarget,
+  DomainHasBiopagesError,
   getDomain,
   hostnameExists,
+  isPlatformOwnedHostname,
   refreshDomain,
   removeDomain,
   updateDomainSettings,
@@ -40,7 +42,7 @@ export async function addDomainAction(hostname: string): Promise<ActionResult<Ad
 
     await assertQuota(context.workspace.id, context.plan, "customDomains");
 
-    if (await hostnameExists(parsed.data, context.workspace.id)) {
+    if (isPlatformOwnedHostname(parsed.data) || (await hostnameExists(parsed.data, context.workspace.id))) {
       return fail("domain_taken");
     }
 
@@ -159,6 +161,9 @@ export async function removeDomainAction(id: string): Promise<ActionResult<null>
     revalidatePath(`/domains/${id}`);
     return ok(null);
   } catch (error) {
+    if (error instanceof DomainHasBiopagesError) {
+      return fail("domain_has_biopages", { count: [String(error.biopageCount)] });
+    }
     return toActionError(error);
   }
 }

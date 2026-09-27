@@ -127,8 +127,14 @@ export function SettingsMembers({
               className="shrink-0"
               disabled={pending || seatsFull || inviteEmail.trim() === ""}
               onClick={() => {
-                run(() => inviteMemberAction(inviteEmail, inviteRole), t("inviteSent"));
-                setInviteEmail("");
+                const email = inviteEmail;
+                run(async () => {
+                  const result = await inviteMemberAction(email, inviteRole);
+                  if (result.ok) {
+                    setInviteEmail("");
+                  }
+                  return result;
+                }, t("inviteSent"));
               }}
             >
               <Icon name="envelope" className="text-sm" aria-hidden="true" />
@@ -166,7 +172,9 @@ export function SettingsMembers({
           <TableBody>
             {members.map((row) => {
               const isSelf = row.userId === currentUserId;
-              const removable = canManage && row.role !== "owner" && !isSelf;
+              // Mirrors removeMemberAction: admins remove members, owners also remove admins.
+              const removable =
+                canManage && row.role !== "owner" && !isSelf && (isOwner || row.role === "member");
               const roleCopy = isRoleId(row.role) ? ROLE_COPY[row.role] : null;
 
               return (

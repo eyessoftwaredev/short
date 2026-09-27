@@ -123,13 +123,20 @@ export function SettingsView({
     },
   ];
 
+  function outcomeMessage(result: ActionOutcome): string {
+    if (result.fieldErrors?.url?.length) {
+      return t("webhookUrlPrivate");
+    }
+    return actionMessage(result.error);
+  }
+
   function run(action: () => Promise<ActionOutcome>, message?: string): void {
     setError(null);
     setNotice(null);
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
-        setError(actionMessage(result.error));
+        setError(outcomeMessage(result));
         return;
       }
       if (message) {
@@ -174,7 +181,7 @@ export function SettingsView({
         enabled: true,
       });
       if (!result.ok) {
-        setError(actionMessage(result.error));
+        setError(outcomeMessage(result));
         return;
       }
       setIssuedSecret(result.data.secret);
@@ -184,7 +191,7 @@ export function SettingsView({
   }
 
   function submitTeam(): void {
-    if (newTeamName.trim().length < 2) {
+    if (pending || newTeamName.trim().length < 2) {
       return;
     }
     run(async () => {

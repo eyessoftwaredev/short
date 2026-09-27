@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getDb, organization } from "@short/db";
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion";
 import { syncClickUsage } from "@/lib/billing";
+import { hasBearerSecret } from "@/lib/api-auth";
 import { serverEnv } from "@/lib/env";
 import { resyncWorkspaceLinks } from "@/lib/links";
 import { currentPeriod } from "@/lib/quota";
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   const env = serverEnv();
   const expected = env.CRON_SECRET ?? env.INTERNAL_TOKEN;
 
-  if (request.headers.get("authorization") !== `Bearer ${expected}`) {
+  if (!hasBearerSecret(request.headers, expected)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

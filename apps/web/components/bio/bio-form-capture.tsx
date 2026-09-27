@@ -75,7 +75,9 @@ export function BioFormCapture({
         setStatus("saving");
         void fetch(endpoint, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          // The page is served on the bio hostname and posts to the panel origin;
+          // `text/plain` keeps it a CORS-simple request with no preflight.
+          headers: { "content-type": "text/plain;charset=UTF-8" },
           body: JSON.stringify({ biopageId, blockId, email }),
         })
           .then(async (response) => {

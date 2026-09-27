@@ -152,6 +152,9 @@ export async function updateQrCode(
   id: string,
   input: QrInput,
 ): Promise<QrCodeRow> {
+  if (!UUID.test(id)) {
+    throw new Error("QR code not found");
+  }
   if (input.payloadKind === "link" && input.linkId) {
     await assertLinkInWorkspace(workspaceId, input.linkId);
   }
@@ -175,10 +178,16 @@ export async function updateQrCode(
   return row;
 }
 
-export async function deleteQrCode(workspaceId: string, id: string): Promise<void> {
-  await getDb()
+/** Returns false when no such code exists in this workspace. */
+export async function deleteQrCode(workspaceId: string, id: string): Promise<boolean> {
+  if (!UUID.test(id)) {
+    return false;
+  }
+  const deleted = await getDb()
     .delete(qrCodes)
-    .where(and(eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.id, id)));
+    .where(and(eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.id, id)))
+    .returning({ id: qrCodes.id });
+  return deleted.length > 0;
 }
 
 /**

@@ -48,10 +48,10 @@ export async function rateLimit(
 
   try {
     const windowKey = redisKey(`rl:${key}:${Math.floor(Date.now() / 1000 / windowSeconds)}`);
-    const count = await redis.incr(windowKey);
-    if (count === 1) {
-      await redis.expire(windowKey, windowSeconds);
-    }
+    // INCR and EXPIRE in one round trip so a crash in between cannot leave a counter
+    // without a TTL.
+    const results = await redis.multi().incr(windowKey).expire(windowKey, windowSeconds).exec();
+    const count = Number(results?.[0]?.[1] ?? 0);
     return { allowed: count <= limit, remaining: Math.max(0, limit - count), resetAt };
   } catch (error) {
     console.error("rateLimit failed, allowing request", error);

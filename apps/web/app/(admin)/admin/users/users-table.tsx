@@ -84,7 +84,7 @@ export function UsersTable({ rows, currentUserId }: { rows: AdminUserView[]; cur
       },
     ];
 
-    if (row.id !== currentUserId && !row.banned) {
+    if (row.id !== currentUserId && !row.banned && row.role !== "superadmin") {
       items.push({
         id: "impersonate",
         label: t("impersonate"),

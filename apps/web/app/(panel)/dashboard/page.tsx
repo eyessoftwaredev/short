@@ -30,6 +30,7 @@ import { getWorkspaceUsage } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 import { readDraftDestination } from "@/lib/draft-link";
 import {
+  clampRangeToRetention,
   countryName,
   deltaPercent,
   formatDelta,
@@ -61,7 +62,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const context = await requireWorkspace();
   const raw = await searchParams;
   const locale = await getLocale();
-  const range = resolveRange(raw.range, raw.from, raw.to, locale);
+  // Same retention clamp as /analytics, so the dashboard never shows data the plan hides.
+  const range = clampRangeToRetention(
+    resolveRange(raw.range, raw.from, raw.to, locale),
+    context.plan.limits.retentionDays,
+  );
 
   const scope = { workspaceId: context.workspace.id, from: range.from, to: range.to };
 
@@ -195,7 +200,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         meta={
           series.length > 0 ? (
             <span className="numeric font-mono">
-              {t("peak", { value: formatNumber(peakClicks), granularity: range.granularity })}
+              {t("peak", {
+                value: formatNumber(peakClicks),
+                granularity: range.granularity === "hour" ? ts("hour") : ts("day"),
+              })}
             </span>
           ) : null
         }
@@ -313,8 +321,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             />
           ) : (
             <ol className="m-0 flex list-none flex-col gap-3.5 rounded-default border border-border bg-bg p-5">
-              {recent.map((event) => (
-                <li key={`${event.ts}-${event.destination}`} className="flex min-w-0 gap-3">
+              {recent.map((event, index) => (
+                <li key={`${event.ts}-${event.destination}-${index}`} className="flex min-w-0 gap-3">
                   <span
                     className="mt-1.5 size-2 shrink-0 rounded-pill bg-accent"
                     aria-hidden="true"

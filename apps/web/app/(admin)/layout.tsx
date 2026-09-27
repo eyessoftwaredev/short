@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     getBrandLockupSources(),
   ]);
 
-  if (!context.isSuperadmin) {
+  if (!context.isSuperadmin || context.impersonatedBy) {
     redirect("/dashboard?error=forbidden");
   }
 

@@ -12,6 +12,26 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
     },
   };
 
+  const pageParameters = [
+    { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+    {
+      name: "pageSize",
+      in: "query",
+      schema: { type: "integer", minimum: 1, maximum: 100, default: 100 },
+    },
+  ];
+
+  // Ranges are clamped to the plan's history retention.
+  const rangeParameters = [
+    {
+      name: "range",
+      in: "query",
+      schema: { type: "string", enum: ["24h", "7d", "30d", "90d", "12m", "all", "custom"] },
+    },
+    { name: "from", in: "query", description: "`custom` only, YYYY-MM-DD", schema: { type: "string", format: "date" } },
+    { name: "to", in: "query", description: "`custom` only, YYYY-MM-DD", schema: { type: "string", format: "date" } },
+  ];
+
   const linkResponse = {
     description: "A single link",
     content: {
@@ -30,10 +50,10 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
       title: "Short API",
       version: "1.0.0",
       description:
-        "Account-scoped REST API. Authenticate with `x-api-key`. Rate limits follow the account plan and are reported in the `x-ratelimit-*` response headers.",
+        "Account-scoped REST API. Authenticate with `x-api-key: short_...` or `authorization: Bearer short_...`. Rate limits follow the account plan and are reported in the `x-ratelimit-*` response headers.",
     },
     servers: [{ url: serverUrl }],
-    security: [{ ApiKeyAuth: [] }],
+    security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
     tags: [
       { name: "Links" },
       { name: "Analytics" },
@@ -130,11 +150,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
           summary: "Click summary and breakdowns for a link",
           parameters: [
             { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
-            {
-              name: "range",
-              in: "query",
-              schema: { type: "string", enum: ["24h", "7d", "30d", "90d", "12m"] },
-            },
+            ...rangeParameters,
           ],
           responses: { "200": { description: "Stats" }, default: errorResponse },
         },
@@ -144,11 +160,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
           tags: ["Analytics"],
           summary: "Account-wide click summary and time series",
           parameters: [
-            {
-              name: "range",
-              in: "query",
-              schema: { type: "string", enum: ["24h", "7d", "30d", "90d", "12m"] },
-            },
+            ...rangeParameters,
           ],
           responses: { "200": { description: "Stats" }, default: errorResponse },
         },
@@ -169,6 +181,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
         get: {
           tags: ["QR codes"],
           summary: "List QR codes",
+          parameters: pageParameters,
           responses: { "200": { description: "QR codes" }, default: errorResponse },
         },
         post: {
@@ -188,6 +201,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
         get: {
           tags: ["Bio pages"],
           summary: "List bio pages",
+          parameters: pageParameters,
           responses: { "200": { description: "Bio pages" }, default: errorResponse },
         },
         post: {
@@ -207,6 +221,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
     components: {
       securitySchemes: {
         ApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" },
+        BearerAuth: { type: "http", scheme: "bearer" },
       },
       schemas: {
         Error: {

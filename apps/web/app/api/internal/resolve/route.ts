@@ -7,6 +7,7 @@ import {
   healEpochSchedule,
   toKvRecord as toBiopageKvRecord,
 } from "@/lib/biopages";
+import { hasBearerSecret } from "@/lib/api-auth";
 import { serverEnv } from "@/lib/env";
 import { toKvRecord } from "@/lib/links";
 import { workspaceOverClickQuota } from "@/lib/quota";
@@ -19,8 +20,7 @@ export const dynamic = "force-dynamic";
  * response back into KV, so only the first visitor after a deploy or eviction pays for it.
  */
 export async function POST(request: NextRequest) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (token === "" || token !== serverEnv().INTERNAL_TOKEN) {
+  if (!hasBearerSecret(request.headers, serverEnv().INTERNAL_TOKEN)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -67,7 +67,10 @@ export async function POST(request: NextRequest) {
     .limit(1);
 
   if (link) {
-    const record = toKvRecord(link, domain.hostname);
+    // Same as the domain record: stamp the requested host (it may be an apex/www alias
+    // of the platform domain), because the worker discards a record whose hostname does
+    // not match the key it is about to cache it under.
+    const record = toKvRecord(link, hostname);
     record.overQuota = await workspaceOverClickQuota(link.workspaceId);
     return NextResponse.json({
       link: record,

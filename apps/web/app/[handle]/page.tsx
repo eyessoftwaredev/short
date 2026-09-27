@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -36,6 +37,19 @@ function isPanelHost(hostname: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * The password gate runs in the redirect worker, which then proxies here. Anyone can
+ * reach this origin directly (and set `x-short-host`), so a protected page is rendered
+ * only for requests that carry the worker's internal token.
+ */
+async function requestFromEdge(): Promise<boolean> {
+  const token = (await headers()).get("x-short-edge-token") ?? "";
+  const expected = serverEnv().INTERNAL_TOKEN;
+  const left = Buffer.from(token);
+  const right = Buffer.from(expected);
+  return token !== "" && left.length === right.length && timingSafeEqual(left, right);
 }
 
 async function load(handle: string) {
@@ -130,7 +144,7 @@ export default async function BiopagePage({ params }: { params: Params }) {
   const { handle } = await params;
   const page = await load(handle);
 
-  if (!page) {
+  if (!page || (page.passwordHash && !(await requestFromEdge()))) {
     notFound();
   }
 

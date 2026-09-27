@@ -26,7 +26,7 @@ export default async function ApiDocsPage() {
   const tags = (spec.tags as { name: string }[] | undefined) ?? [];
 
   const curlExample = `curl ${apiBase}/links \\
-  -H "Authorization: Bearer short_live_…" \\
+  -H "Authorization: Bearer short_…" \\
   -H "Content-Type: application/json" \\
   -d '{
     "domainId": "YOUR_DOMAIN_UUID",
@@ -60,8 +60,8 @@ export default async function ApiDocsPage() {
         <DocsTable
           headers={[t("authTable.header"), t("authTable.value")]}
           rows={[
-            [t("authTable.keyHeader"), "x-api-key: short_live_…"],
-            [t("authTable.bearerHeader"), "Authorization: Bearer short_live_…"],
+            [t("authTable.keyHeader"), "x-api-key: short_…"],
+            [t("authTable.bearerHeader"), "Authorization: Bearer short_…"],
             [t("authTable.scope"), t("authTable.scopeValue")],
           ]}
         />

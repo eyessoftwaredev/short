@@ -10,6 +10,7 @@ import {
 } from "@short/core";
 import { biopages, domains, eq, getDb } from "@short/db";
 import { NextResponse, type NextRequest } from "next/server";
+import { clientIp } from "@/lib/abuse";
 import { serverEnv, visitorSalt } from "@/lib/env";
 import { cacheGet, cacheSet, rateLimit } from "@/lib/redis";
 
@@ -35,6 +36,8 @@ type Payload = {
 };
 
 type PageMeta = { workspaceId: string; handle: string; hostname: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Cached because a popular bio page would otherwise issue one Postgres lookup per
@@ -77,11 +80,7 @@ export function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-real-ip") ??
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "";
+  const ip = clientIp(request.headers) ?? "";
 
   const limit = await rateLimit(`bio-track:${ip}`, 120, 60);
   if (!limit.allowed) {
@@ -95,10 +94,11 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 400, headers: CORS_HEADERS });
   }
 
-  const type = payload.type as EventType;
-  const biopageId = typeof payload.biopageId === "string" ? payload.biopageId : "";
+  const type = payload?.type as EventType;
+  const biopageId = typeof payload?.biopageId === "string" ? payload.biopageId : "";
 
-  if (!ALLOWED_TYPES.includes(type) || biopageId === "") {
+  // Postgres rejects a malformed uuid with an exception, so it is filtered here.
+  if (!ALLOWED_TYPES.includes(type) || !UUID.test(biopageId)) {
     return new NextResponse(null, { status: 400, headers: CORS_HEADERS });
   }
 
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         }),
         ip,
         biopageId,
-        blockId: typeof payload.blockId === "string" ? payload.blockId : "",
+        blockId: typeof payload.blockId === "string" ? payload.blockId.slice(0, 256) : "",
       },
     ]);
   } catch (error) {

@@ -1,4 +1,4 @@
-import type { QrStyle } from "@short/core";
+import { isPublicHttpUrl, type QrStyle } from "@short/core";
 import { getMediaById, mediaToDataUri, parseMediaId } from "./media";
 import { buildQrSvg } from "./qr-svg";
 
@@ -20,7 +20,9 @@ async function fetchRemoteLogo(url: string): Promise<string | null> {
     return null;
   }
 
-  if (parsed.protocol !== "https:") {
+  // Legacy remote logos are fetched server-side: refuse loopback, private, link-local
+  // and internal-only hosts so a stored logo URL cannot probe the panel's network.
+  if (parsed.protocol !== "https:" || !isPublicHttpUrl(parsed.toString())) {
     return null;
   }
 
@@ -32,6 +34,10 @@ async function fetchRemoteLogo(url: string): Promise<string | null> {
 
     const type = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
     if (!ALLOWED_LOGO_TYPES.includes(type)) {
+      return null;
+    }
+    // Refuse oversized bodies before buffering them.
+    if (Number(response.headers.get("content-length") ?? 0) > MAX_LOGO_BYTES) {
       return null;
     }
 

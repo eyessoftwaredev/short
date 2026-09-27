@@ -71,7 +71,7 @@ export function DomainSetup({
   function beginCloudflare(): void {
     setError(null);
     if (cloudflareAccount) {
-      startTransition(() => void applyCloudflare());
+      startTransition(async () => { await applyCloudflare(); });
       return;
     }
     startOauth();
@@ -107,7 +107,7 @@ export function DomainSetup({
         return;
       }
       router.refresh();
-      startTransition(() => void applyCloudflare());
+      startTransition(async () => { await applyCloudflare(); });
     }
 
     window.addEventListener("message", onMessage);
@@ -170,16 +170,15 @@ export function DomainSetup({
       router.replace(`/domains/${domain.id}`);
       return;
     }
-    startTransition(() => {
-      void (async () => {
-        await applyCloudflare();
-        router.replace(`/domains/${domain.id}`);
-      })();
+    startTransition(async () => {
+      await applyCloudflare();
+      router.replace(`/domains/${domain.id}`);
     });
   }, [oauthReturn, domain.id, router, t]);
 
   useEffect(() => {
-    if (domain.status === "active" || domain.status === "suspended") {
+    // Both actions are admin-only; polling them as a member only logs failures.
+    if (!canManage || domain.status === "active" || domain.status === "suspended") {
       return undefined;
     }
     let cancelled = false;
@@ -203,7 +202,7 @@ export function DomainSetup({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [domain.id, domain.status]);
+  }, [canManage, domain.id, domain.status]);
 
   const validation = health?.validation ?? domain.validationRecords;
   const waitingError = health?.status === "error";
@@ -236,7 +235,7 @@ export function DomainSetup({
           <button
             type="button"
             className="text-sm text-fg-muted"
-            onClick={() => startTransition(() => void disconnectCloudflare())}
+            onClick={() => startTransition(async () => { await disconnectCloudflare(); })}
           >
             {t("cfConnected", { name: cloudflareAccount.accountName })}
           </button>
@@ -281,10 +280,10 @@ export function DomainSetup({
         )}
         {canManage ? (
           <div className="flex flex-wrap gap-2">
-            <Button size="lg" disabled={pending} onClick={() => startTransition(() => void refresh())}>
+            <Button size="lg" disabled={pending} onClick={() => startTransition(async () => { await refresh(); })}>
               {t("recordsAdded")}
             </Button>
-            <Button variant="danger" disabled={pending} onClick={() => startTransition(() => void remove())}>
+            <Button variant="danger" disabled={pending} onClick={() => startTransition(async () => { await remove(); })}>
               <Icon name="trash" className="text-base" />
               {t("remove")}
             </Button>

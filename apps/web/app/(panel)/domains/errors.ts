@@ -27,6 +27,9 @@ export function domainActionError(
   if (error === "cf_not_connected") {
     return t("cfNotConnected");
   }
+  if (error === "domain_has_biopages") {
+    return t("removeHasBiopages", { count: Number(fieldErrors?.count?.[0] ?? 1) });
+  }
   if (error === "cf_dns_failed") {
     return t("cfDnsFailed", { message: fieldErrors?.detail?.[0] ?? "" });
   }

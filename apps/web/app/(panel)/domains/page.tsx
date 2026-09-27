@@ -41,7 +41,7 @@ export default async function DomainsPage({ searchParams }: { searchParams: Sear
     if (reason) {
       next.set("reason", reason);
     }
-    redirect(`/domains/${oauthDomainId}?${next.toString()}`);
+    redirect(`/domains/${encodeURIComponent(oauthDomainId)}?${next.toString()}`);
   }
 
   const domains = await listDomains(context.workspace.id);

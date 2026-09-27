@@ -248,7 +248,7 @@
     "no_billing_account": "Henüz fatura hesabı yok. Önce bir abonelik başlat.",
     "self_ban": "Kendi hesabını yasaklayamazsın.",
     "already_impersonating": "Zaten bu kullanıcı olarak oturum açmışsın.",
-    "self_demote": "Kendi platform dresini kaldıramazsın.",
+    "self_demote": "Kendi platform erişimini kaldıramazsın.",
     "email_taken": "Bu e-posta başka bir hesapta kayıtlı.",
     "plan_missing": "Bu plan henüz katalogda yok. Planları seed edip tekrar dene.",
     "infinity_hidden": "Infinity yalnızca yönetim içindir ve herkese açık fiyatlarda listelenemez.",
@@ -271,7 +271,14 @@
     "handle_premium": "3–5 karakterlik handle için Pro veya üzeri gerekir.",
     "wrong_password": "Parola doğru değil.",
     "last_owned_teams": "Hesabı kapatmadan önce yalnızca senin sahip olduğun takımları sil veya devret.",
-    "self_deactivated": "Bu hesap kapatıldı ve geri açılamaz."
+    "self_deactivated": "Bu hesap kapatıldı ve geri açılamaz.",
+    "folder_exists": "Bu isimde bir klasör zaten var.",
+    "rewrite_unsafe": "Yeni alan adı güvenli değil olarak işaretlenmiş, kullanılamaz.",
+    "email_invalid": "Geçerli bir e-posta adresi girin.",
+    "webhook_missing": "Bu webhook artık mevcut değil.",
+    "media_missing": "Bu dosya artık medya kitaplığınızda yok.",
+    "domain_missing": "Bu alan adı artık mevcut değil.",
+    "not_found": "Aradığınız öğe artık mevcut değil."
   },
   "auth": {
     "signIn": "Giriş yap",
@@ -556,11 +563,11 @@
     "footerCookies": "Çerezler"
   },
   "legal": {
-    "termsTitle": "Terms of Service",
-    "privacyTitle": "Privacy Policy",
-    "cookiesTitle": "Cookie Policy",
-    "updated": "Last updated",
-    "backHome": "Back to home",
+    "termsTitle": "Hizmet Şartları",
+    "privacyTitle": "Gizlilik Politikası",
+    "cookiesTitle": "Çerez Politikası",
+    "updated": "Son güncelleme",
+    "backHome": "Ana sayfaya dön",
     "bannerTitle": "Bu sitedeki çerezler",
     "bannerBody": "Ürünü çalıştırmak için zorunlu çerezler kullanırız. Analitik ve pazarlama çerezleri sen seçene kadar kapalı kalır.",
     "acceptAll": "Tümünü kabul et",
@@ -890,7 +897,7 @@
     "hooksPaywallTitle": "Olayları kendi sistemine gönder",
     "hooksPaywallBody": "Bir link oluşturulduğu, düzenlendiği veya tıklandığı anda imzalı bir POST al — yoklama gerekmez.",
     "verifyingDeliveries": "Teslimatı doğrulama",
-    "verifyingBody": "Her istek ham gövde üzerinden HMAC-SHA256 ile imzalanır. Kendi özetini aşağıdaki başlıkla karşılaştır, uymayanı reddet.",
+    "verifyingBody": "Her istek zaman damgası, bir nokta ve ham gövde üzerinden HMAC-SHA256 ile imzalanır. Aşağıdaki başlıktaki t değeriyle özeti yeniden hesapla, v1 ile karşılaştır ve uymayanı reddet.",
     "addEndpoint": "Uç nokta ekle",
     "endpointUrl": "Uç nokta URL’si",
     "endpointUrlHint": "HTTPS üzerinden POST kabul etmeli ve birkaç saniye içinde yanıt vermeli.",
@@ -931,6 +938,7 @@
     "secretAck": "Bu değeri güvenli bir yere kaydettim",
     "apiKeyUsage": "Authorization: Bearer başlığı olarak {url} adresine gönder.",
     "signingSecretUsage": "x-short-signature başlığını yeniden hesaplamak ve uymayan teslimatları reddetmek için kullan.",
+    "webhookUrlPrivate": "Herkese açık bir http(s) adresi gir. Localhost, özel ve dahili ağ adreslerine izin verilmez.",
     "confirm": "Onayla"
   },
   "panel": {
@@ -1497,7 +1505,7 @@
     "heroDesc": "Bir alt domain bağla, her yeni link onu kullanabilsin. Sertifikalar kendiliğinden çıkar ve yenilenir.",
     "customCount": "{used} / {limit} özel domain",
     "connect": "Domain bağla",
-    "domain": "Domain",
+    "domain": "Alan adı",
     "domainHint": "link.acme.com veya go.acme.com gibi ayrılmış bir alt domain kullan.",
     "add": "Domain ekle",
     "addAnother": "Başka domain ekle",
@@ -1526,7 +1534,7 @@
     "pending": "Bekliyor",
     "open": "Aç",
     "saved": "Kaydedildi",
-    "hostname": "Hostname",
+    "hostname": "Alan adı",
     "status": "Durum",
     "ssl": "SSL",
     "links": "Linkler",
@@ -1538,7 +1546,8 @@
     "settings": "Ayarlar",
     "settingsNamed": "{host} ayarları",
     "remove": "Kaldır",
-    "removeConfirm": "{host} kaldırılsın mı? Üzerindeki linkler çözülmeyi durdurur.",
+    "removeConfirm": "{host} kaldırılsın mı? Üzerindeki kısa linkler silinir ve çalışmayı durdurur.",
+    "removeHasBiopages": "Bu alan adında {count} bio sayfası var. Önce onları başka bir alan adına taşı veya sil.",
     "dnsSetup": "DNS kurulumu · {host}",
     "dnsHint": "Bu kayıtları DNS sağlayıcında ekle veya Cloudflare’ın yazmasına izin ver. Genel DNS eşleşince sertifika çıkar.",
     "dnsRefreshHint": "Genel DNS ve sertifikayı otomatik izliyoruz.",
@@ -1724,9 +1733,9 @@
     "collapse": "Daralt",
     "expand": "Genişlet",
     "noBlocks": "Henüz blok yok. Başlamak için bir link düğmesi ekle.",
-    "handle": "Handle",
+    "handle": "Kullanıcı adı",
     "handleHint": "Sayfan {url} adresinde yayınlanır. 3–5 karakter için Pro gerekir.",
-    "domain": "Domain",
+    "domain": "Alan adı",
     "domainHint": "Özel domainler önce doğrulanmalıdır.",
     "displayName": "Görünen ad",
     "avatarUrl": "Avatar",
@@ -2065,12 +2074,30 @@
         "option": "Seçenek",
         "description": "Ne işe yarar",
         "rows": {
-          "slug": { "label": "Özel slug", "desc": "Rastgele kodu /launch gibi okunabilir bir yolla değiştirin." },
-          "password": { "label": "Şifre", "desc": "Yönlendirmeden önce ziyaretçi şifre girer." },
-          "expiry": { "label": "Süre sonu", "desc": "Tarihten sonra yönlendirme durur; isteğe bağlı alternatif hedef." },
-          "utm": { "label": "UTM parametreleri", "desc": "Yönlendirmede hedef URL'ye kampanya etiketleri ekler." },
-          "tags": { "label": "Etiketler", "desc": "Listede ve API'de filtrelemek için etiketleyin." },
-          "cloak": { "label": "Cloaking", "desc": "Anında yönlendirme yerine önizleme sayfası — sosyal platformlar için." }
+          "slug": {
+            "label": "Özel slug",
+            "desc": "Rastgele kodu /launch gibi okunabilir bir yolla değiştirin."
+          },
+          "password": {
+            "label": "Şifre",
+            "desc": "Yönlendirmeden önce ziyaretçi şifre girer."
+          },
+          "expiry": {
+            "label": "Süre sonu",
+            "desc": "Tarihten sonra yönlendirme durur; isteğe bağlı alternatif hedef."
+          },
+          "utm": {
+            "label": "UTM parametreleri",
+            "desc": "Yönlendirmede hedef URL'ye kampanya etiketleri ekler."
+          },
+          "tags": {
+            "label": "Etiketler",
+            "desc": "Listede ve API'de filtrelemek için etiketleyin."
+          },
+          "cloak": {
+            "label": "Cloaking",
+            "desc": "Anında yönlendirme yerine önizleme sayfası — sosyal platformlar için."
+          }
         }
       },
       "organizeTitle": "Klasörler ve arşiv",
@@ -2280,7 +2307,7 @@
         }
       },
       "signatureTitle": "İmzayı doğrulayın",
-      "signatureBody": "x-short-signature header'ını imza secret'ınızla ham gövdenin HMAC-SHA256 özetiyle karşılaştırın. Uyuşmayanları reddedin.",
+      "signatureBody": "Her teslimat x-short-signature: t=zaman damgası,v1=imza başlığıyla gelir. İmza secret'ınla zaman damgası, bir nokta ve ham istek gövdesi (t.body) üzerinden HMAC-SHA256 hesapla, hex özeti v1 ile sabit zamanlı karşılaştır. Uyuşmayanları ve birkaç dakikadan eski zaman damgalarını reddet.",
       "deliveryTitle": "Teslimat davranışı",
       "deliveryBody": "Endpoint birkaç saniye içinde 2xx dönmeli.",
       "deliveryTips": {

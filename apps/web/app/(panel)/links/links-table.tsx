@@ -30,6 +30,7 @@ import {
   type DropdownItem,
   type FilterOption,
 } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { cn } from "@/lib/cx";
 import { archiveLinkAction, deleteLinkAction } from "./actions";
 
@@ -82,6 +83,8 @@ type LinksTableProps = {
   pageSize: number;
   search: string;
   status: StatusFilter;
+  /** A folder chip is active; an empty page is then "no matches", not "no links yet". */
+  folderFiltered?: boolean;
   canDelete: boolean;
 };
 
@@ -92,6 +95,7 @@ export function LinksTable({
   pageSize,
   search,
   status,
+  folderFiltered = false,
   canDelete,
 }: LinksTableProps) {
   const t = useTranslations("links");
@@ -104,6 +108,8 @@ export function LinksTable({
   const [pending, startTransition] = useTransition();
   const [searchDraft, setSearchDraft] = useState(search);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const actionMessage = useActionMessage();
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dateFormat = useMemo(
@@ -157,6 +163,7 @@ export function LinksTable({
           label: t("openDestination"),
           icon: <Icon name="external-link" className="text-sm" />,
           href: row.destination,
+          external: true,
         },
         {
           id: "archive",
@@ -171,12 +178,18 @@ export function LinksTable({
             // Marking the row busy gives the click an immediate acknowledgement;
             // the table-wide pending state alone reads as the page freezing.
             setBusyRowId(row.id);
+            setActionError(null);
             startTransition(async () => {
               try {
-                await archiveLinkAction(row.id, !row.archived);
+                const result = await archiveLinkAction(row.id, !row.archived);
+                if (!result.ok) {
+                  setActionError(actionMessage(result.error));
+                  return;
+                }
                 router.refresh();
               } catch (error) {
                 console.error("failed to archive link", error);
+                setActionError(actionMessage("generic"));
               } finally {
                 setBusyRowId(null);
               }
@@ -196,12 +209,18 @@ export function LinksTable({
               return;
             }
             setBusyRowId(row.id);
+            setActionError(null);
             startTransition(async () => {
               try {
-                await deleteLinkAction(row.id);
+                const result = await deleteLinkAction(row.id);
+                if (!result.ok) {
+                  setActionError(actionMessage(result.error));
+                  return;
+                }
                 router.refresh();
               } catch (error) {
                 console.error("failed to delete link", error);
+                setActionError(actionMessage("generic"));
               } finally {
                 setBusyRowId(null);
               }
@@ -212,7 +231,7 @@ export function LinksTable({
 
       return items;
     },
-    [canDelete, router, t, tc, ts],
+    [actionMessage, canDelete, router, t, tc, ts],
   );
 
   const columns = useMemo(
@@ -359,7 +378,8 @@ export function LinksTable({
     manualFiltering: true,
   });
 
-  const filtered = search !== "" || status !== "all";
+  // Past the last page counts as filtered too, so "Clear filters" gets the user back.
+  const filtered = search !== "" || status !== "all" || folderFiltered || page > 1;
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -381,6 +401,12 @@ export function LinksTable({
         }
       />
 
+      {actionError ? (
+        <p role="alert" className="m-0 text-sm text-danger">
+          {actionError}
+        </p>
+      ) : null}
+
       {rows.length === 0 ? (
         filtered ? (
           <EmptyState
@@ -391,7 +417,7 @@ export function LinksTable({
               <Button
                 onClick={() => {
                   setSearchDraft("");
-                  navigate({ search: null, status: null });
+                  navigate({ search: null, status: null, folderId: null });
                 }}
               >
                 {t("clearFilters")}

@@ -4,6 +4,7 @@ import type { PlanKey } from "@short/core";
 import { recordAudit } from "@/lib/audit";
 import {
   auditWorkspaceForUser,
+  getSubscription,
   planForStripePrice,
   upsertSubscription,
   userForCustomer,
@@ -43,6 +44,13 @@ async function resolveUserId(
   return null;
 }
 
+/**
+ * Statuses that keep paid limits. `past_due` is Stripe's dunning window; an unfinished
+ * checkout (`incomplete`), exhausted retries (`unpaid`/`incomplete_expired`), `paused`
+ * and `canceled` all fall back to free.
+ */
+const ENTITLED_STATUSES = new Set<Stripe.Subscription.Status>(["active", "trialing", "past_due"]);
+
 async function applySubscription(subscription: Stripe.Subscription): Promise<void> {
   const stripeCustomerId = customerId(subscription.customer);
   if (!stripeCustomerId) {
@@ -51,18 +59,34 @@ async function applySubscription(subscription: Stripe.Subscription): Promise<voi
 
   const userId = await resolveUserId(subscription, stripeCustomerId);
   if (!userId) {
+    console.warn("stripe webhook: no user for subscription", subscription.id);
+    return;
+  }
+
+  const current = await getSubscription(userId);
+  const entitled = ENTITLED_STATUSES.has(subscription.status);
+
+  // An older subscription ending (e.g. after the user re-subscribed) must not downgrade
+  // the account that has since moved to a newer one.
+  if (
+    !entitled &&
+    current?.stripeSubscriptionId &&
+    current.stripeSubscriptionId !== subscription.id
+  ) {
     return;
   }
 
   const item = subscription.items.data[0];
   const priceId = item?.price.id ?? null;
   const mapped = priceId ? await planForStripePrice(priceId) : null;
+  if (entitled && !mapped) {
+    console.error("stripe webhook: price not mapped to a plan", subscription.id, priceId);
+  }
 
-  // A cancelled or unpaid subscription drops the account back to free rather than
-  // leaving paid limits in place.
   const status = toSubscriptionStatus(subscription.status);
-  const downgraded = status === "canceled";
-  const planKey: PlanKey = downgraded ? "free" : (mapped?.key ?? "free");
+  const planKey: PlanKey = entitled
+    ? (mapped?.key ?? (current?.planKey as PlanKey | undefined) ?? "free")
+    : "free";
 
   await upsertSubscription({
     userId,
@@ -110,7 +134,7 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        if (typeof session.subscription === "string") {
+        if (session.mode === "subscription" && typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           if (!subscription.metadata.userId && session.client_reference_id) {
             subscription.metadata.userId = session.client_reference_id;
@@ -122,7 +146,11 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
-        await applySubscription(event.data.object);
+        // Stripe does not guarantee delivery order, so the payload may be stale. The
+        // current object is re-read and applied instead, which also makes replays
+        // idempotent.
+        const latest = await stripe.subscriptions.retrieve(event.data.object.id);
+        await applySubscription(latest);
         break;
       }
       case "invoice.payment_failed": {

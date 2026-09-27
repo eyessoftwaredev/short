@@ -37,7 +37,8 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
     setError(null);
 
     try {
-      const result = await authClient.signUp.email({ name, email, password });
+      // Without a callback the verification link lands on the marketing home page.
+      const result = await authClient.signUp.email({ name, email, password, callbackURL: "/dashboard" });
       if (result.error) {
         setError(result.error.message ?? t("signUpFailed"));
         return;

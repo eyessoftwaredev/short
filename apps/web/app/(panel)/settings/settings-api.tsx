@@ -64,7 +64,7 @@ export function SettingsApi({
         actionLabel={t("comparePlans")}
         preview={
           <>
-            <span className="font-mono text-sm font-medium">short_live_••••••••••••</span>
+            <span className="font-mono text-sm font-medium">short_••••••••••••</span>
             <span className="text-sm text-fg-muted">POST /api/v1/links</span>
             <span className="text-sm text-fg-muted">GET /api/v1/links/:id/stats</span>
             <span className="text-sm text-fg-muted">{t("apiPreviewRate")}</span>
@@ -116,7 +116,7 @@ export function SettingsApi({
         {revealHelp ? (
           <pre className="m-0 min-w-0 overflow-x-auto rounded-default border border-border bg-surface-subtle px-3.5 py-3 font-mono text-xs leading-relaxed text-fg-muted">
             {`curl ${apiBaseUrl}/links \\
-  -H "Authorization: Bearer short_live_…" \\
+  -H "Authorization: Bearer short_…" \\
   -H "Content-Type: application/json" \\
   -d '{"url":"https://acme.com/pricing","slug":"pricing"}'`}
           </pre>

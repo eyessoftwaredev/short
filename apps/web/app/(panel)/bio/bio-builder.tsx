@@ -437,7 +437,16 @@ export function BioBuilder({
       router.push(`/bio/${result.data.id}/edit`);
       return;
     }
-    reset(formValues);
+    // The gate password is write-only: clear it and reflect whether one is now stored,
+    // otherwise the next save would re-hash it and "remove" would stay ticked.
+    reset({
+      ...formValues,
+      password: "",
+      removePassword: false,
+      hasPassword: formValues.removePassword
+        ? false
+        : formValues.hasPassword || formValues.password.trim() !== "",
+    });
     router.refresh();
   });
 
@@ -1026,7 +1035,7 @@ export function BioBuilder({
         actions={
           <>
             {mode === "edit" ? (
-              <Button size="sm" onClick={() => reset(defaultValues)} disabled={isSubmitting}>
+              <Button size="sm" onClick={() => reset()} disabled={isSubmitting}>
                 {t("discard")}
               </Button>
             ) : null}

@@ -75,13 +75,23 @@ export function PanelShell({
   const switchWorkspace = useCallback(
     async (workspaceId: string): Promise<void> => {
       try {
-        await authClient.organization.setActive({ organizationId: workspaceId });
+        const result = await authClient.organization.setActive({ organizationId: workspaceId });
+        if (result.error) {
+          console.error("failed to switch workspace", result.error);
+          return;
+        }
+        // Detail pages (/links/<id>, /qr/<id>/...) belong to the previous workspace and
+        // would 404 after the switch, so fall back to the section's list.
+        const section = pathname.split("/")[1];
+        if (section && pathname.split("/").length > 2 && section !== "settings" && section !== "docs") {
+          router.push(`/${section}`);
+        }
         router.refresh();
       } catch (error) {
         console.error("failed to switch workspace", error);
       }
     },
-    [router],
+    [pathname, router],
   );
 
   const signOut = useCallback(async (): Promise<void> => {

@@ -35,7 +35,7 @@ export async function flagLinkAction(
       .update(links)
       .set({
         abuseFlaggedAt: now,
-        abuseReason: reason.trim() === "" ? "Abuse report" : reason.trim(),
+        abuseReason: reason.trim() === "" ? "Abuse report" : reason.trim().slice(0, 240),
         disabledAt: now,
         updatedAt: now,
       })
@@ -51,7 +51,7 @@ export async function flagLinkAction(
       action: "admin.link.flagged",
       targetType: "link",
       targetId: linkId,
-      metadata: { reason },
+      metadata: { reason: reason.slice(0, 240) },
     });
 
     revalidatePath("/admin/links");

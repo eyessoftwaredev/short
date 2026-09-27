@@ -226,6 +226,34 @@ async function resolveHostname(domainId: string | null): Promise<string> {
   return normalizePlatformHostname(row?.hostname ?? platformHostname()).split(":")[0] ?? platformHostname();
 }
 
+/**
+ * A bio page lives on the shared platform host (`null`) or on one of the workspace's own
+ * domains. `undefined` means the id points at another workspace's domain or nothing.
+ */
+export async function resolveBiopageDomainId(
+  workspaceId: string,
+  domainId: string | null,
+): Promise<string | null | undefined> {
+  if (!domainId) {
+    return null;
+  }
+  if (!UUID.test(domainId)) {
+    return undefined;
+  }
+  const [row] = await getDb()
+    .select({ id: domains.id, workspaceId: domains.workspaceId, isPlatform: domains.isPlatform })
+    .from(domains)
+    .where(eq(domains.id, domainId))
+    .limit(1);
+  if (!row) {
+    return undefined;
+  }
+  if (row.isPlatform) {
+    return null;
+  }
+  return row.workspaceId === workspaceId ? row.id : undefined;
+}
+
 export function bioUrl(hostname: string, handle: string): string {
   return `https://${hostname}/${handle}`;
 }
@@ -381,6 +409,18 @@ async function replaceBlocks(biopageId: string, blocks: BioBlock[]): Promise<voi
   );
 }
 
+/**
+ * Every writer goes through here, so a page can never land on another workspace's
+ * domain. Platform-hosted pages are always stored with a NULL domain.
+ */
+async function storedDomainId(workspaceId: string, domainId: string | null): Promise<string | null> {
+  const resolved = await resolveBiopageDomainId(workspaceId, domainId);
+  if (resolved === undefined) {
+    throw new Error("Domain not found");
+  }
+  return resolved;
+}
+
 export async function createBiopage(
   workspaceId: string,
   input: BiopageInput,
@@ -390,7 +430,7 @@ export async function createBiopage(
     .insert(biopages)
     .values({
       workspaceId,
-      domainId: input.domainId,
+      domainId: await storedDomainId(workspaceId, input.domainId),
       handle: input.handle,
       displayName: input.displayName,
       bio: input.bio,
@@ -433,7 +473,7 @@ export async function updateBiopage(
   const [row] = await db
     .update(biopages)
     .set({
-      domainId: input.domainId,
+      domainId: await storedDomainId(workspaceId, input.domainId),
       handle: input.handle,
       displayName: input.displayName,
       bio: input.bio,
@@ -515,12 +555,28 @@ export async function handleTaken(
 ): Promise<boolean> {
   const db = getDb();
   const rows = await db
-    .select({ id: biopages.id, domainId: biopages.domainId })
+    .select({ id: biopages.id, domainId: biopages.domainId, isPlatform: domains.isPlatform })
     .from(biopages)
+    .leftJoin(domains, eq(biopages.domainId, domains.id))
     .where(eq(biopages.handle, handle.toLowerCase()))
     .limit(20);
 
-  return rows.some((row) => row.domainId === domainId && row.id !== exceptId);
+  // Platform pages are stored as NULL, but older rows may carry the platform domain's id;
+  // both serve on the same public host, so they share one handle namespace.
+  let wanted = domainId;
+  if (domainId && UUID.test(domainId)) {
+    const [target] = await db
+      .select({ isPlatform: domains.isPlatform })
+      .from(domains)
+      .where(eq(domains.id, domainId))
+      .limit(1);
+    if (target?.isPlatform) {
+      wanted = null;
+    }
+  }
+  return rows.some(
+    (row) => (row.domainId && !row.isPlatform ? row.domainId : null) === wanted && row.id !== exceptId,
+  );
 }
 
 export async function getLiveBiopageById(id: string): Promise<BiopageWithBlocks | null> {

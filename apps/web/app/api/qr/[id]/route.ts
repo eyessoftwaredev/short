@@ -7,6 +7,8 @@ import { getSessionContext } from "@/lib/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const CONTENT_TYPES: Record<QrExportFormat, string> = {
   svg: "image/svg+xml",
   png: "image/png",
@@ -24,11 +26,15 @@ function safeFileName(name: string): string {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const context = await getSessionContext();
-  if (!context?.workspace) {
+  if (!context?.workspace || !context.user.emailVerified) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
+  // Postgres throws on a malformed uuid; treat it as the miss it is.
+  if (!UUID.test(id)) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
   const record = await getQrCode(context.workspace.id, id);
   if (!record) {
     return NextResponse.json({ error: "not found" }, { status: 404 });

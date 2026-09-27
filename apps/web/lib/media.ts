@@ -88,6 +88,52 @@ export function mediaToDataUri(row: Pick<WorkspaceMediaRow, "contentType" | "byt
   return `data:${row.contentType};base64,${row.bytes.toString("base64")}`;
 }
 
+type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
+
+/**
+ * Content type from the file's own bytes. The browser-supplied `File.type` is only a
+ * hint derived from the extension, so a renamed HTML or script file must not pass as an
+ * image.
+ */
+export function sniffImageType(bytes: Uint8Array): AllowedImageType | null {
+  const startsWith = (signature: number[], offset = 0) =>
+    signature.every((byte, index) => bytes[offset + index] === byte);
+
+  if (startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+    return "image/png";
+  }
+  if (startsWith([0xff, 0xd8, 0xff])) {
+    return "image/jpeg";
+  }
+  // "RIFF" <size> "WEBP"
+  if (startsWith([0x52, 0x49, 0x46, 0x46]) && startsWith([0x57, 0x45, 0x42, 0x50], 8)) {
+    return "image/webp";
+  }
+
+  const head = new TextDecoder("utf-8", { fatal: false })
+    .decode(bytes.subarray(0, 1024))
+    .trimStart();
+  // XML prolog, doctype and comments may precede the root element.
+  const withoutProlog = head
+    .replace(/^<\?xml[\s\S]*?\?>\s*/i, "")
+    .replace(/^(?:<!--[\s\S]*?-->\s*|<!DOCTYPE[^>]*>\s*)*/i, "");
+  if (/^<svg[\s>]/i.test(withoutProlog)) {
+    return "image/svg+xml";
+  }
+  return null;
+}
+
+/**
+ * Headers for serving user uploads from the panel origin. The CSP sandbox stops an SVG
+ * (or anything mislabelled) from running script or loading resources when it is opened
+ * directly; `<img>` embedding is unaffected.
+ */
+export const MEDIA_RESPONSE_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+  "cross-origin-resource-policy": "cross-origin",
+} as const;
+
 function sanitizeFilename(name: string): string {
   const base = name.trim().slice(0, 200);
   return base.replace(/[^\w.\-() ]+/g, "_") || "upload";
@@ -103,7 +149,7 @@ export async function uploadWorkspaceMedia(input: {
   if (file.size === 0) {
     throw new Error("media_missing");
   }
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type as AllowedImageType)) {
     throw new Error("media_type");
   }
   if (file.size > MAX_MEDIA_BYTES) {
@@ -111,12 +157,17 @@ export async function uploadWorkspaceMedia(input: {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
+  // The stored type comes from the bytes, never from the client's claim.
+  const contentType = sniffImageType(bytes);
+  if (!contentType) {
+    throw new Error("media_type");
+  }
   const [row] = await getDb()
     .insert(workspaceMedia)
     .values({
       workspaceId,
       kind: "image",
-      contentType: file.type,
+      contentType,
       bytes,
       filename: sanitizeFilename(file.name),
       byteSize: file.size,

@@ -29,7 +29,12 @@ import {
 } from "@/components/ui";
 import { ImageUpload } from "@/components/media/image-upload";
 import { useActionMessage } from "@/lib/action-message";
-import { linkFormSchema, type LinkFormValues } from "@/lib/link-form";
+import {
+  dateTimeLocalToIso,
+  isoToDateTimeLocal,
+  linkFormSchema,
+  type LinkFormValues,
+} from "@/lib/link-form";
 import { createLinkAction, updateLinkAction, type SavedLink } from "./actions";
 import { RuleBuilder } from "./rule-builder";
 
@@ -37,6 +42,55 @@ export type DomainOption = { id: string; hostname: string };
 export type FolderOption = { id: string; name: string };
 
 type TabId = "basics" | "targeting" | "campaign" | "advanced";
+
+/** Server field paths (from `linkInputSchema`) that are named differently in the form. */
+const SERVER_FIELD_ALIASES: Record<string, keyof LinkFormValues> = {
+  tags: "tagsText",
+  "utm.utm_source": "utmSource",
+  "utm.utm_medium": "utmMedium",
+  "utm.utm_campaign": "utmCampaign",
+  "utm.utm_term": "utmTerm",
+  "utm.utm_content": "utmContent",
+};
+
+/** Which tab holds a field, so a server-side error can bring it into view. */
+const FIELD_TABS: Partial<Record<keyof LinkFormValues, TabId>> = {
+  rules: "targeting",
+  abVariants: "targeting",
+  iosDestination: "targeting",
+  androidDestination: "targeting",
+  utmSource: "campaign",
+  utmMedium: "campaign",
+  utmCampaign: "campaign",
+  utmTerm: "campaign",
+  utmContent: "campaign",
+  expiresAt: "advanced",
+  expiredDestination: "advanced",
+  password: "advanced",
+  comments: "advanced",
+};
+
+/** Fields that render their own inline error; anything else is listed in the banner. */
+const INLINE_ERROR_FIELDS = new Set<keyof LinkFormValues>([
+  "destination",
+  "domainId",
+  "slug",
+  "tagsText",
+  "iosDestination",
+  "androidDestination",
+  "expiresAt",
+  "expiredDestination",
+  "password",
+]);
+
+function formFieldFor(path: string): keyof LinkFormValues | null {
+  const alias = SERVER_FIELD_ALIASES[path] ?? SERVER_FIELD_ALIASES[path.split(".")[0] ?? ""];
+  if (alias) {
+    return alias;
+  }
+  const top = path.split(".")[0] ?? "";
+  return top in linkFormSchema.shape ? (top as keyof LinkFormValues) : null;
+}
 
 function fieldError(
   message: string | undefined,
@@ -98,16 +152,23 @@ export function LinkForm({
     { id: "advanced", label: t("tabAdvanced") },
   ];
 
+  // The edit page sends the expiry as ISO; the input needs it in the viewer's zone.
+  const initialValues = useMemo(
+    () => ({ ...defaultValues, expiresAt: isoToDateTimeLocal(defaultValues.expiresAt) }),
+    [defaultValues],
+  );
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    setError,
     reset,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<LinkFormValues>({
     resolver: zodResolver(linkFormSchema),
-    defaultValues,
+    defaultValues: initialValues,
   });
 
   const passwordField = register("password");
@@ -123,14 +184,39 @@ export function LinkForm({
 
   const onSubmit = handleSubmit(async (formValues) => {
     setFormError(null);
+    setSaved(null);
+    // Sent as an absolute timestamp so the server does not re-read it in its own zone.
+    const payload = { ...formValues, expiresAt: dateTimeLocalToIso(formValues.expiresAt) };
     try {
       const result =
         mode === "create"
-          ? await createLinkAction(formValues)
-          : await updateLinkAction(linkId ?? "", formValues);
+          ? await createLinkAction(payload)
+          : await updateLinkAction(linkId ?? "", payload);
 
       if (!result.ok) {
-        setFormError(actionMessage(result.error));
+        // Server-side schema errors land on the matching input instead of only a
+        // "fix the highlighted fields" banner with nothing highlighted.
+        const unmatched: string[] = [];
+        let firstTab: TabId | null = null;
+        for (const [path, messages] of Object.entries(result.fieldErrors ?? {})) {
+          const field = formFieldFor(path);
+          const message = messages[0] ?? "";
+          if (field) {
+            setError(field, { type: "server", message });
+            firstTab ??= FIELD_TABS[field] ?? "basics";
+          }
+          if (!field || !INLINE_ERROR_FIELDS.has(field)) {
+            unmatched.push(message);
+          }
+        }
+        if (firstTab) {
+          setTab(firstTab);
+        }
+        setFormError(
+          unmatched.length > 0
+            ? `${actionMessage(result.error)}: ${unmatched.join(", ")}`
+            : actionMessage(result.error),
+        );
         return;
       }
 
@@ -186,7 +272,7 @@ export function LinkForm({
               </Select>
             </Field>
 
-            <Field label={t("shortLink")} error={errors.slug?.message} hint={t("slugHint")}>
+            <Field label={t("shortLink")} error={fieldError(errors.slug?.message, t)} hint={t("slugHint")}>
               <Input placeholder={t("slugPlaceholder")} {...register("slug")} />
             </Field>
           </Grid>
@@ -237,7 +323,7 @@ export function LinkForm({
                 onChange={(url) => setValue("image", url, { shouldDirty: true })}
               />
             </Field>
-            <Field label={t("tags")} hint={t("tagsHint")}>
+            <Field label={t("tags")} hint={t("tagsHint")} error={errors.tagsText?.message}>
               <Input placeholder={t("tagsPlaceholder")} {...register("tagsText")} />
             </Field>
           </Grid>
@@ -284,10 +370,10 @@ export function LinkForm({
 
           <Section title={t("deepLinks")} description={t("deepLinksDesc")}>
             <Grid columns={2}>
-              <Field label={t("iosDestination")}>
+              <Field label={t("iosDestination")} error={errors.iosDestination?.message}>
                 <Input placeholder={t("deepLinkPlaceholder")} {...register("iosDestination")} />
               </Field>
-              <Field label={t("androidDestination")}>
+              <Field label={t("androidDestination")} error={errors.androidDestination?.message}>
                 <Input placeholder={t("deepLinkPlaceholder")} {...register("androidDestination")} />
               </Field>
             </Grid>
@@ -416,7 +502,7 @@ export function LinkForm({
             <Field label={t("expiresAt")} error={errors.expiresAt?.message}>
               <Input type="datetime-local" autoComplete="off" {...register("expiresAt")} />
             </Field>
-            <Field label={t("expiredDestination")}>
+            <Field label={t("expiredDestination")} error={errors.expiredDestination?.message}>
               <Input
                 placeholder={t("expiredPlaceholder")}
                 autoComplete="off"
@@ -427,6 +513,7 @@ export function LinkForm({
 
           <Field
             label={t("password")}
+            error={errors.password?.message}
             hint={
               !canProtect
                 ? t("passwordPaywall")
@@ -503,7 +590,7 @@ export function LinkForm({
         message={mode === "create" ? t("readyToCreate") : tc("unsavedChanges")}
         actions={
           <>
-            <Button size="sm" onClick={() => reset(defaultValues)} disabled={isSubmitting}>
+            <Button size="sm" onClick={() => reset(initialValues)} disabled={isSubmitting}>
               {t("discard")}
             </Button>
             <Button size="sm" variant="primary" type="submit" disabled={isSubmitting}>

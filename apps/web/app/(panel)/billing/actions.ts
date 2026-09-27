@@ -11,6 +11,9 @@ import { getStripe, stripeEnabled } from "@/lib/stripe";
 
 type Interval = "month" | "year";
 
+/** Subscription states Stripe still bills for; these must never get a second Checkout. */
+const LIVE_SUBSCRIPTION_STATUSES = new Set<string>(["active", "trialing", "past_due"]);
+
 /**
  * Creates a Checkout session for an upgrade. The subscription row is not touched here:
  * the `checkout.session.completed` webhook is the single writer, so a closed tab or a
@@ -47,6 +50,24 @@ export async function startCheckoutAction(
     const stripe = await getStripe();
     const subscription = await getSubscription(context.user.id);
     const appUrl = serverEnv().APP_URL.replace(/\/$/, "");
+
+    // A second Checkout would open a second, parallel subscription and bill twice. Plan
+    // changes on a live subscription go through the Customer Portal, which prorates.
+    // The local row can lag (or carry an admin-assigned plan), so Stripe is asked directly.
+    const live =
+      subscription?.stripeCustomerId && subscription.stripeSubscriptionId
+        ? await stripe.subscriptions
+            .retrieve(subscription.stripeSubscriptionId)
+            .then((row) => LIVE_SUBSCRIPTION_STATUSES.has(row.status))
+            .catch(() => false)
+        : false;
+    if (live && subscription?.stripeCustomerId) {
+      const portal = await stripe.billingPortal.sessions.create({
+        customer: subscription.stripeCustomerId,
+        return_url: `${appUrl}/billing`,
+      });
+      return ok({ url: portal.url });
+    }
 
     let customerId = subscription?.stripeCustomerId ?? null;
     if (!customerId) {

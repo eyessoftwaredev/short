@@ -31,7 +31,7 @@ export async function banUserAction(
     }
 
     await auth.api.banUser({
-      body: { userId, banReason: reason.trim() === "" ? "Policy violation" : reason.trim() },
+      body: { userId, banReason: reason.trim() === "" ? "Policy violation" : reason.trim().slice(0, 240) },
       headers: await forwardedHeaders(),
     });
 
@@ -41,7 +41,7 @@ export async function banUserAction(
       action: "admin.user.banned",
       targetType: "user",
       targetId: userId,
-      metadata: { reason },
+      metadata: { reason: reason.slice(0, 240) },
     });
 
     refreshUser(userId);
@@ -90,6 +90,20 @@ export async function impersonateUserAction(userId: string): Promise<ActionResul
     const context = await requireSuperadmin();
     if (userId === context.user.id) {
       return fail("already_impersonating");
+    }
+
+    // Support mode is for customer accounts. Another superadmin's session would let one
+    // admin act under a colleague's name; a banned account cannot hold a session at all.
+    const [target] = await getDb()
+      .select({ role: user.role, banned: user.banned })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    if (!target) {
+      return fail("member_missing");
+    }
+    if (target.role === SUPERADMIN_ROLE || target.banned) {
+      return fail("generic");
     }
 
     await recordAudit({

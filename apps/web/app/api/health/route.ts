@@ -13,9 +13,9 @@ export async function GET() {
     await getSql()`SELECT 1`;
     return NextResponse.json({ status: "ok", uptime: Math.round(process.uptime()) });
   } catch (error) {
-    return NextResponse.json(
-      { status: "down", error: error instanceof Error ? error.message : "unknown" },
-      { status: 503 },
-    );
+    // Public endpoint: driver errors carry hostnames and credentials hints, so they stay
+    // in the server log.
+    console.error("health check failed", error);
+    return NextResponse.json({ status: "down" }, { status: 503 });
   }
 }

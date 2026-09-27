@@ -2,7 +2,6 @@
 
 import { Icon } from "@/components/kit/icon";
 
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { usePanelSession } from "@/components/providers/session-provider";
@@ -16,7 +15,6 @@ import { authClient } from "@/lib/auth-client";
 export function ImpersonationBanner() {
   const session = usePanelSession();
   const t = useTranslations("panel");
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   if (!session.impersonatedBy) {
@@ -26,9 +24,17 @@ export function ImpersonationBanner() {
   function stop(): void {
     startTransition(async () => {
       try {
-        await authClient.admin.stopImpersonating();
-        router.push("/admin/users");
-        router.refresh();
+        const result = await authClient.admin.stopImpersonating();
+        if (result.error) {
+          // The admin session is gone (expired or revoked): drop the support session
+          // rather than leave the operator stuck inside the customer's account.
+          console.error("failed to stop impersonating", result.error);
+          await authClient.signOut();
+          window.location.assign("/login");
+          return;
+        }
+        // Full navigation so the restored admin cookie is the one the next request sends.
+        window.location.assign("/admin/users");
       } catch (error) {
         console.error("failed to stop impersonating", error);
       }

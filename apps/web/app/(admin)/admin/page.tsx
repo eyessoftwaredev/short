@@ -22,6 +22,7 @@ import { isPaidPublicPlan } from "@short/core";
 import { getPlanDistribution, getPlatformCounts } from "@/lib/admin";
 import { loadPlatformSeries, loadPlatformTotals } from "@/lib/analytics";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { requireSuperadmin } from "@/lib/session";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("admin.overview");
@@ -29,6 +30,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminOverviewPage() {
+  // The layout gates too, but pages and layouts render independently — never rely on it alone.
+  await requireSuperadmin();
   const to = new Date();
   const from = new Date(to.getTime() - 29 * 24 * 60 * 60 * 1000);
   const t = await getTranslations("admin.overview");

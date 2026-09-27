@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { auditLogs, getDb } from "@short/db";
+import { clientIp } from "@/lib/abuse";
 
 export type AuditEntry = {
   workspaceId: string | null;
@@ -18,11 +19,7 @@ export type AuditEntry = {
 export async function recordAudit(entry: AuditEntry): Promise<void> {
   try {
     const headerList = await headers();
-    const ip =
-      headerList.get("cf-connecting-ip") ??
-      headerList.get("x-real-ip") ??
-      headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      null;
+    const ip = clientIp(headerList);
 
     await getDb()
       .insert(auditLogs)

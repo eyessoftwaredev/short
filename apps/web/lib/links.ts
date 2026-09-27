@@ -14,10 +14,12 @@ import {
   domains,
   ensurePlatformDomain,
   eq,
+  folders,
   getDb,
   ilike,
   isNotNull,
   isNull,
+  isUniqueViolation,
   links,
   lt,
   or,
@@ -80,39 +82,51 @@ async function requireDomain(workspaceId: string, domainId: string): Promise<Dom
   return domain;
 }
 
+/** A folder id from the client must belong to this workspace, not just exist. */
+async function requireFolder(workspaceId: string, folderId: string | null | undefined): Promise<string | null> {
+  if (!folderId) {
+    return null;
+  }
+  const [folder] = await getDb()
+    .select({ id: folders.id })
+    .from(folders)
+    .where(and(eq(folders.id, folderId), eq(folders.workspaceId, workspaceId)))
+    .limit(1);
+  if (!folder) {
+    throw new Error("Folder not found");
+  }
+  return folder.id;
+}
+
 /** Retries on the unique (domain_id, slug) index rather than pre-checking, so two
  *  concurrent creates can never hand out the same slug. */
 const SLUG_ATTEMPTS = 6;
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { code?: string }).code === "23505"
-  );
-}
 
 export type CreateLinkParams = {
   workspaceId: string;
   /** Null when the link was created by an API key rather than a signed-in user. */
   creatorId: string | null;
   input: LinkInput;
+  /** Skips the per-link KV write; the caller must push `toKvRecord` itself (bulk imports). */
+  deferKv?: boolean;
 };
 
 export async function createLink({
   workspaceId,
   creatorId,
   input,
+  deferKv = false,
 }: CreateLinkParams): Promise<LinkWithDomain> {
   const db = getDb();
   const domain = await requireDomain(workspaceId, input.domainId);
+  const folderId = await requireFolder(workspaceId, input.folderId);
   const passwordHash = input.password ? await hashGatePassword(input.password) : null;
 
   const values = {
     workspaceId,
     creatorId,
     domainId: domain.id,
-    folderId: input.folderId ?? null,
+    folderId,
     destination: input.destination,
     title: input.title ?? null,
     description: input.description ?? null,
@@ -145,7 +159,9 @@ export async function createLink({
         throw new Error("Link insert returned no row");
       }
 
-      await putLinkRecord(toKvRecord(created, domain.hostname));
+      if (!deferKv) {
+        await putLinkRecord(toKvRecord(created, domain.hostname));
+      }
       return { ...created, hostname: domain.hostname };
     } catch (error) {
       // A caller-supplied slug that collides is a user error, not something to retry.
@@ -179,6 +195,7 @@ export async function updateLink({
   }
 
   const domain = await requireDomain(workspaceId, input.domainId);
+  const folderId = await requireFolder(workspaceId, input.folderId);
 
   // A null password clears the gate; an empty/undefined one leaves the existing hash.
   const passwordHash =
@@ -194,7 +211,7 @@ export async function updateLink({
       .set({
         domainId: domain.id,
         slug: input.slug ?? existing.slug,
-        folderId: input.folderId ?? null,
+        folderId,
         destination: input.destination,
         title: input.title ?? null,
         description: input.description ?? null,
@@ -236,10 +253,11 @@ export async function updateLink({
   }
 }
 
-export async function deleteLink(workspaceId: string, linkId: string): Promise<void> {
+/** Returns false when no such link exists in this workspace. */
+export async function deleteLink(workspaceId: string, linkId: string): Promise<boolean> {
   const existing = await getLink(workspaceId, linkId);
   if (!existing) {
-    return;
+    return false;
   }
 
   await getDb()
@@ -247,16 +265,17 @@ export async function deleteLink(workspaceId: string, linkId: string): Promise<v
     .where(and(eq(links.id, linkId), eq(links.workspaceId, workspaceId)));
 
   await deleteLinkRecord(existing.hostname, existing.slug);
+  return true;
 }
 
 export async function setLinkArchived(
   workspaceId: string,
   linkId: string,
   archived: boolean,
-): Promise<void> {
+): Promise<boolean> {
   const existing = await getLink(workspaceId, linkId);
   if (!existing) {
-    return;
+    return false;
   }
 
   const [updated] = await getDb()
@@ -265,15 +284,23 @@ export async function setLinkArchived(
     .where(and(eq(links.id, linkId), eq(links.workspaceId, workspaceId)))
     .returning();
 
-  if (updated) {
-    await putLinkRecord(toKvRecord(updated, existing.hostname));
+  if (!updated) {
+    return false;
   }
+  await putLinkRecord(toKvRecord(updated, existing.hostname));
+  return true;
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getLink(
   workspaceId: string,
   linkId: string,
 ): Promise<LinkWithDomain | null> {
+  // A malformed id (e.g. a hand-edited URL) is "not found", not a Postgres cast error.
+  if (!UUID_PATTERN.test(linkId)) {
+    return null;
+  }
   const [row] = await getDb()
     .select({ link: links, hostname: domains.hostname })
     .from(links)
@@ -297,7 +324,8 @@ export async function listLinks(
   const filters = [eq(links.workspaceId, workspaceId)];
 
   if (query.search) {
-    const pattern = `%${query.search}%`;
+    // `%` and `_` typed by the user are literals, not ILIKE wildcards.
+    const pattern = `%${query.search.replace(/[\\%_]/g, "\\$&")}%`;
     const searchFilter = or(
       ilike(links.slug, pattern),
       ilike(links.destination, pattern),

@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises";
+import { BlockList, isIP } from "node:net";
 import type { WebhookEvent } from "@short/core";
 import {
   and,
@@ -9,6 +11,7 @@ import {
   type WebhookRow,
 } from "@short/db";
 import { cacheDelete, cacheGet, cacheSet } from "./redis";
+import { decryptSecret, encryptSecret } from "./secret";
 
 export type WebhookWithStats = WebhookRow & {
   lastDeliveryAt: Date | null;
@@ -18,10 +21,116 @@ export type WebhookWithStats = WebhookRow & {
 
 const MAX_ATTEMPTS = 3;
 const TIMEOUT_MS = 8000;
+/** Endpoint error bodies are stored and shown in settings; keep them short. */
+const MAX_ERROR_LENGTH = 1000;
+
+/**
+ * Loopback, RFC 1918, link-local (incl. cloud metadata at 169.254.169.254), CGNAT,
+ * multicast/reserved and their IPv6 equivalents. IPv4-mapped IPv6 addresses are matched
+ * against the IPv4 ranges by `BlockList` itself.
+ */
+const PRIVATE_RANGES = (() => {
+  const list = new BlockList();
+  for (const [network, prefix] of [
+    ["0.0.0.0", 8],
+    ["10.0.0.0", 8],
+    ["100.64.0.0", 10],
+    ["127.0.0.0", 8],
+    ["169.254.0.0", 16],
+    ["172.16.0.0", 12],
+    ["192.0.0.0", 24],
+    ["192.0.2.0", 24],
+    ["192.168.0.0", 16],
+    ["198.18.0.0", 15],
+    ["198.51.100.0", 24],
+    ["203.0.113.0", 24],
+    ["224.0.0.0", 4],
+    ["240.0.0.0", 4],
+  ] as const) {
+    list.addSubnet(network, prefix, "ipv4");
+  }
+  for (const [network, prefix] of [
+    ["::", 128],
+    ["::1", 128],
+    ["64:ff9b::", 96],
+    ["100::", 64],
+    ["2001:db8::", 32],
+    ["fc00::", 7],
+    ["fe80::", 10],
+    ["ff00::", 8],
+  ] as const) {
+    list.addSubnet(network, prefix, "ipv6");
+  }
+  return list;
+})();
+
+export class WebhookUrlError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookUrlError";
+  }
+}
+
+function isPrivateAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 0) {
+    return true;
+  }
+  return PRIVATE_RANGES.check(address, family === 4 ? "ipv4" : "ipv6");
+}
+
+/**
+ * SSRF guard for customer-supplied endpoints: http(s) only, and every address the host
+ * resolves to must be public. Call it when an endpoint is saved and again before each
+ * delivery, since DNS can change after the URL was accepted.
+ */
+export async function assertPublicWebhookUrl(raw: string): Promise<URL> {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new WebhookUrlError("Webhook URL is not valid");
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new WebhookUrlError("Webhook URL must use http or https");
+  }
+  if (url.username || url.password) {
+    throw new WebhookUrlError("Webhook URL must not contain credentials");
+  }
+
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  const addresses = isIP(host)
+    ? [host]
+    : await lookup(host, { all: true, verbatim: true })
+        .then((rows) => rows.map((row) => row.address))
+        .catch(() => {
+          throw new WebhookUrlError("Webhook host does not resolve");
+        });
+
+  if (addresses.length === 0 || addresses.some(isPrivateAddress)) {
+    throw new WebhookUrlError("Webhook URL must point to a public address");
+  }
+  return url;
+}
 
 export function generateWebhookSecret(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   return `whsec_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+const PLAINTEXT_SECRET_PREFIX = "whsec_";
+
+/**
+ * Signing secrets are encrypted at rest with `SECRET_ENCRYPTION_KEY`. Persist the value
+ * returned here, and hand the caller the plaintext from `generateWebhookSecret` once.
+ */
+export function sealWebhookSecret(plain: string): string {
+  return encryptSecret(plain);
+}
+
+/** Rows written before encryption hold the plaintext `whsec_…` value and keep working. */
+export function openWebhookSecret(stored: string): string {
+  return stored.startsWith(PLAINTEXT_SECRET_PREFIX) ? stored : decryptSecret(stored);
 }
 
 async function sign(secret: string, timestamp: number, body: string): Promise<string> {
@@ -88,13 +197,16 @@ async function deliver(
     const timestamp = Math.floor(Date.now() / 1000);
 
     try {
+      await assertPublicWebhookUrl(target.url);
       const response = await fetch(target.url, {
         method: "POST",
+        // A redirect could bounce the request to an internal address after the check.
+        redirect: "manual",
         headers: {
           "content-type": "application/json",
           "user-agent": "Short-Webhooks/1",
           "x-short-event": event,
-          "x-short-signature": await sign(target.secret, timestamp, body),
+          "x-short-signature": await sign(openWebhookSecret(target.secret), timestamp, body),
         },
         body,
         signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -105,7 +217,9 @@ async function deliver(
         event,
         payload,
         responseStatus: response.status,
-        error: response.ok ? null : await response.text().catch(() => "non-2xx response"),
+        error: response.ok
+          ? null
+          : (await response.text().catch(() => "non-2xx response")).slice(0, MAX_ERROR_LENGTH),
         attempt,
         deliveredAt: response.ok ? new Date() : null,
       });
@@ -113,8 +227,9 @@ async function deliver(
       if (response.ok) {
         return;
       }
-      // 4xx means the endpoint rejected the payload; retrying will not help.
-      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+      // 3xx (not followed) and 4xx mean the endpoint rejected the payload; retrying
+      // will not help.
+      if (response.status < 500 && response.status !== 429) {
         return;
       }
     } catch (error) {
@@ -123,9 +238,12 @@ async function deliver(
         event,
         payload,
         responseStatus: null,
-        error: error instanceof Error ? error.message : "Request failed",
+        error: error instanceof Error ? error.message.slice(0, MAX_ERROR_LENGTH) : "Request failed",
         attempt,
       });
+      if (error instanceof WebhookUrlError) {
+        return;
+      }
     }
 
     if (attempt < MAX_ATTEMPTS) {

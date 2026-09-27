@@ -1,3 +1,4 @@
+import { getPlan } from "@short/core";
 import {
   and,
   apikey,
@@ -5,13 +6,15 @@ import {
   desc,
   eq,
   getDb,
-  gte,
   invitation,
   member,
   organization,
-  sql,
+  plans,
+  subscriptions,
   user,
 } from "@short/db";
+import { getOwnerUsage } from "./quota";
+import { getWorkspaceOwnerId } from "./workspace";
 
 export type TeamMember = {
   id: string;
@@ -122,20 +125,43 @@ export async function userExistsByEmail(email: string): Promise<boolean> {
   return Boolean(row);
 }
 
-/** True when a still-open invite was sent to this inbox — that click already proved ownership. */
-export async function hasPendingInviteForEmail(email: string): Promise<boolean> {
-  const [row] = await getDb()
-    .select({ id: invitation.id })
+/**
+ * Seats are reserved when an invite is sent (pending invites count toward `members`).
+ * Re-checked when the invite is accepted so a plan downgrade after sending cannot push
+ * the team past its seat limit. Owner usage already includes this pending invite.
+ */
+export async function inviteSeatAvailable(invitationId: string): Promise<boolean> {
+  const db = getDb();
+  const [invite] = await db
+    .select({ organizationId: invitation.organizationId })
     .from(invitation)
-    .where(
-      and(
-        sql`lower(${invitation.email}) = ${email.trim().toLowerCase()}`,
-        eq(invitation.status, "pending"),
-        gte(invitation.expiresAt, new Date()),
-      ),
-    )
+    .where(eq(invitation.id, invitationId))
     .limit(1);
-  return Boolean(row);
+  if (!invite) {
+    return false;
+  }
+  const ownerId = await getWorkspaceOwnerId(invite.organizationId);
+  if (!ownerId) {
+    return false;
+  }
+
+  const [owner] = await db
+    .select({ role: user.role, planKey: subscriptions.planKey, limits: plans.limits })
+    .from(user)
+    .leftJoin(subscriptions, eq(subscriptions.userId, user.id))
+    .leftJoin(plans, eq(subscriptions.planKey, plans.key))
+    .where(eq(user.id, ownerId))
+    .limit(1);
+  if (owner?.role === "superadmin") {
+    return true;
+  }
+
+  const limit = { ...getPlan(owner?.planKey).limits, ...(owner?.limits ?? {}) }.members;
+  if (limit === -1) {
+    return true;
+  }
+  const usage = await getOwnerUsage(ownerId);
+  return usage.members <= limit;
 }
 
 /** Safe to show on the public /invite/[id] page — no inviter identity beyond the workspace name. */

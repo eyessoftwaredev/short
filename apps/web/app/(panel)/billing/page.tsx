@@ -112,7 +112,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
   // number live for someone deciding whether to upgrade.
   const [clicks, account, billingConfigured] = await Promise.all([
     loadMonthlyClicks(context.workspace.id, currentPeriod(), usage.clicksThisMonth),
-    getBillingAccount(subscription?.stripeCustomerId ?? null),
+    // Invoices carry the billing owner's address and payment details, so team members
+    // who cannot manage billing never load them.
+    getBillingAccount(
+      context.isBillingOwner || context.isSuperadmin ? (subscription?.stripeCustomerId ?? null) : null,
+    ),
     stripeEnabled(),
   ]);
 

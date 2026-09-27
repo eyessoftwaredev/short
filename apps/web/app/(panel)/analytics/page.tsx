@@ -65,7 +65,19 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     eventType,
   };
 
-  const exportHref = `/api/analytics/export?range=${range.key}${includeBots ? "&includeBots=1" : ""}${eventType ? `&type=${eventType}` : ""}`;
+  // Custom ranges carry their dates, otherwise the export silently falls back to 30 days.
+  const exportParams = new URLSearchParams({ range: range.key });
+  if (range.key === "custom") {
+    exportParams.set("from", range.fromDate);
+    exportParams.set("to", range.toDate);
+  }
+  if (includeBots) {
+    exportParams.set("includeBots", "1");
+  }
+  if (eventType) {
+    exportParams.set("type", eventType);
+  }
+  const exportHref = `/api/analytics/export?${exportParams.toString()}`;
 
   const [summary, series, breakdowns, topLinks, recent, t, tc, ts, tn] = await Promise.all([
     loadSummary(scope),

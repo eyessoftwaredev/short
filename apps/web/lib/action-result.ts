@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
 export type ActionResult<T = undefined> =
@@ -34,6 +35,9 @@ export class QuotaError extends Error {
 }
 
 export function toActionError(error: unknown): ActionResult<never> {
+  // redirect()/notFound() from guards like requireSession throw control-flow errors;
+  // swallowing them here would turn "go to /login" into a generic failure.
+  unstable_rethrow(error);
   if (error instanceof QuotaError) {
     if (error.resource === "teams") {
       return fail("quota_teams");

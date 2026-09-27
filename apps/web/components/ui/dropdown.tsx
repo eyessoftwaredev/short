@@ -19,6 +19,8 @@ export type DropdownItem = {
   icon?: ReactNode;
   onSelect?: () => void;
   href?: string;
+  /** Opens `href` in a new tab without handing the panel over as `window.opener`. */
+  external?: boolean;
   danger?: boolean;
   disabled?: boolean;
   /** Draws a divider above this item. */
@@ -191,6 +193,8 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
               {item.href && !item.disabled ? (
                 <a
                   href={item.href}
+                  target={item.external ? "_blank" : undefined}
+                  rel={item.external ? "noopener noreferrer" : undefined}
                   role="menuitem"
                   tabIndex={-1}
                   className={itemClass}

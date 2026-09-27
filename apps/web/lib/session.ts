@@ -113,12 +113,23 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
 
   const db = getDb();
   const userId = session.user.id;
+  const impersonatedBy = session.session.impersonatedBy ?? null;
+
+  // Bans normally revoke sessions, but a ban written straight to the row (or one that
+  // raced a sign-in) must still lock the account out on the next request.
+  const bannedUntil = session.user.banExpires ? new Date(session.user.banExpires).getTime() : null;
+  if (session.user.banned && (bannedUntil === null || bannedUntil > Date.now())) {
+    return null;
+  }
+
   const lifecycle = await loadAccountLifecycle(userId);
   if (lifecycle.deactivatedAt) {
     await revokeUserSessions(userId);
     return null;
   }
-  const accountRestored = await cancelScheduledDeletion(userId);
+  // Only the account holder signing back in cancels a pending close — a support
+  // session viewing the account must not silently undo the customer's request.
+  const accountRestored = impersonatedBy ? false : await cancelScheduledDeletion(userId);
   const isSuperadmin = session.user.role === SUPERADMIN_ROLE;
 
   const memberships = await db
@@ -133,7 +144,10 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
     .from(member)
     .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(eq(member.userId, userId))
-    .limit(20);
+    // Ordered so the fallback below is stable; high enough that the active workspace is
+    // never cut off the list (a user can own up to 50 teams and join more).
+    .orderBy(asc(member.createdAt))
+    .limit(200);
 
   // An active id that no longer resolves (workspace deleted, membership revoked) falls
   // back to any remaining membership rather than locking the user out.
@@ -193,7 +207,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
       ),
     },
     isSuperadmin,
-    impersonatedBy: session.session.impersonatedBy ?? null,
+    impersonatedBy,
     workspace: current
       ? {
           id: current.id,
@@ -267,9 +281,13 @@ export async function requireWorkspaceRole(minimum: WorkspaceRole): Promise<Work
   return context;
 }
 
+/**
+ * Platform admin only, and never through an impersonation session: support mode is for
+ * viewing a customer's panel, not for acting as another account inside /admin.
+ */
 export async function requireSuperadmin(): Promise<SessionContext> {
   const context = await requireSession();
-  if (!context.isSuperadmin) {
+  if (!context.isSuperadmin || context.impersonatedBy) {
     redirect("/dashboard?error=forbidden");
   }
   return context;

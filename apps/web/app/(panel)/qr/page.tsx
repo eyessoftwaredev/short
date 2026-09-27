@@ -38,7 +38,8 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
         </Button>
       }
     >
-      {items.length === 0 ? (
+      {/* `total`, not `items`: a stale ?page= past the end still shows the pager. */}
+      {total === 0 ? (
         <EmptyState
           icon={<Icon name="qrcode" className="text-lg" />}
           eyebrow={t("title")}
@@ -85,7 +86,9 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
                       {item.name}
                     </Link>
                     <span className="truncate font-mono text-xs text-fg-muted">
-                      {item.hostname}/{item.slug}
+                      {item.payloadKind === "link"
+                        ? `${item.hostname}/${item.slug}`
+                        : t(`payload.${item.payloadKind}`)}
                     </span>
                     <span className="font-mono text-xs text-fg-disabled tabular-nums">
                       {t("created", { date: formatDate(item.createdAt) })}
@@ -93,7 +96,7 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
                   </div>
 
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                    {item.linkArchived ? (
+                    {item.payloadKind === "link" && item.linkArchived ? (
                       <Badge tone="warn">{t("linkArchived")}</Badge>
                     ) : (
                       <Badge tone="muted">{t("active")}</Badge>

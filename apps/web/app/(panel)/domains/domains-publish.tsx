@@ -31,7 +31,7 @@ export function DomainsPublish() {
         <span className="block text-sm font-medium">{t("publishTitle")}</span>
         <span className="block text-sm text-fg-muted">{notice ?? t("publishHint")}</span>
       </span>
-      <Button disabled={pending} onClick={() => startTransition(() => void resync())}>
+      <Button disabled={pending} onClick={() => startTransition(async () => { await resync(); })}>
         <Icon name="rotate-right" className="text-base" />
         {t("resync")}
       </Button>

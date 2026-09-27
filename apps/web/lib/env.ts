@@ -66,7 +66,12 @@ export function serverEnv(): ServerEnv {
     return cached;
   }
 
-  const parsed = serverSchema.safeParse(process.env);
+  // Deploy dashboards (Coolify) keep blank variables as "". Treat them as unset so an
+  // empty optional value falls back to its default instead of failing `.min()` checks.
+  const provided = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== undefined && value.trim() !== ""),
+  );
+  const parsed = serverSchema.safeParse(provided);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)

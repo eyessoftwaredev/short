@@ -18,11 +18,11 @@ function isUnverifiedLogin(error: { status?: number; code?: string; message?: st
   if (code === "EMAIL_NOT_VERIFIED") {
     return true;
   }
-  const message = (error.message ?? "").toLowerCase();
-  if (message.includes("verif")) {
-    return true;
+  // A banned account is also a 403; it must see the ban message, not the verify screen.
+  if (code !== "") {
+    return false;
   }
-  return error.status === 403;
+  return (error.message ?? "").toLowerCase().includes("verif");
 }
 
 export function LoginForm() {

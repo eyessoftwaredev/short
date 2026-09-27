@@ -20,6 +20,12 @@ function toBodyInit(bytes: Uint8Array): BodyInit {
 
 const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 
+/** Same as user media: never let a served asset run script if opened directly. */
+const SAFE_ASSET_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+} as const;
+
 export async function GET(request: Request, { params }: { params: Promise<{ kind: string }> }) {
   const { kind } = await params;
   if (!isPlatformAssetKind(kind)) {
@@ -51,6 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
         status: 304,
         headers: {
           "cache-control": CACHE_CONTROL,
+          vary: "accept",
           etag: delivered.etag,
           "last-modified": asset.updatedAt.toUTCString(),
         },
@@ -61,6 +68,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
       headers: {
         "content-type": delivered.contentType,
         "cache-control": CACHE_CONTROL,
+        // The format is negotiated from Accept, so shared caches must key on it.
+        vary: "accept",
+        ...SAFE_ASSET_HEADERS,
         etag: delivered.etag,
         "last-modified": asset.updatedAt.toUTCString(),
       },
@@ -74,6 +84,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ kind
   const brand = await getPlatformBrand();
   return new NextResponse(toBodyInit(fallbackSvg(brandInitial(brand.name))), {
     headers: {
+      ...SAFE_ASSET_HEADERS,
       "content-type": "image/svg+xml",
       "cache-control": "public, max-age=60",
     },

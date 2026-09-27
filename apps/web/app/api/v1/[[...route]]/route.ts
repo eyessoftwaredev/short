@@ -9,6 +9,7 @@ import {
   linkListQuerySchema,
   qrInputSchema,
 } from "@short/core";
+import { scanDestination } from "@/lib/abuse";
 import { recordAudit } from "@/lib/audit";
 import { ApiError, checkApiRateLimit, resolveApiContext, type ApiContext } from "@/lib/api-auth";
 import {
@@ -19,7 +20,14 @@ import {
 } from "@/lib/api-serializers";
 import { loadBreakdownSet, loadMonthlyClicks, loadSummary, loadTimeseries } from "@/lib/analytics";
 import { incrementApiRequests, incrementLinksCreated } from "@/lib/billing";
-import { createBiopage, getBiopage, listBiopages, updateBiopage } from "@/lib/biopages";
+import {
+  createBiopage,
+  getBiopage,
+  handleTaken,
+  listBiopages,
+  updateBiopage,
+} from "@/lib/biopages";
+import { CloudflareError } from "@/lib/cloudflare";
 import { addDomain } from "@/lib/domains";
 import { serverEnv } from "@/lib/env";
 import {
@@ -30,6 +38,7 @@ import {
   listWorkspaceDomains,
   updateLink,
 } from "@/lib/links";
+import { assertOwnedMedia } from "@/lib/media";
 import { createQrCode, getQrCode, listQrCodes, updateQrCode } from "@/lib/qr-codes";
 import {
   assertFeature,
@@ -39,7 +48,7 @@ import {
   getWorkspaceUsage,
 } from "@/lib/quota";
 import { QuotaError } from "@/lib/action-result";
-import { resolveRange } from "@/lib/stats";
+import { clampRangeToRetention, resolveRange } from "@/lib/stats";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { openApiDocument } from "./openapi";
 
@@ -52,6 +61,106 @@ const app = new Hono<{ Variables: Variables }>().basePath("/api/v1");
 
 function errorBody(code: string, message: string, fields?: Record<string, string[]>) {
   return { error: { code, message, ...(fields ? { fields } : {}) } };
+}
+
+/**
+ * Domain libraries throw plain `Error`s for caller mistakes (foreign ids, taken slugs).
+ * They are mapped here so an integration gets a 4xx it can act on instead of a 500.
+ */
+const LIB_ERRORS: Record<string, [400 | 404 | 409, string]> = {
+  "Domain not found": [400, "invalid_domain"],
+  "Folder not found": [400, "invalid_folder"],
+  "Link not found in this workspace": [400, "invalid_link"],
+  "Image must be an uploaded workspace file": [400, "invalid_image"],
+  "Image is not in this workspace": [400, "invalid_image"],
+  "That slug is already taken on this domain": [409, "slug_taken"],
+  "Domain already exists": [409, "domain_taken"],
+  "Link not found": [404, "not_found"],
+  "QR code not found": [404, "not_found"],
+  "Bio page not found": [404, "not_found"],
+};
+
+/** Request bodies must be JSON objects; arrays, primitives and bad JSON are a 400. */
+async function readJsonObject(req: { json: () => Promise<unknown> }): Promise<Record<string, unknown>> {
+  const body: unknown = await req.json().catch(() => undefined);
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    throw new ApiError(400, "invalid_json", "Request body must be a JSON object.");
+  }
+  return body as Record<string, unknown>;
+}
+
+const listPageQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(100),
+});
+
+type BiopageInput = z.infer<typeof biopageInputSchema>;
+
+/** A bio page may sit on the platform domain or on a domain this workspace owns. */
+async function assertBiopageDomain(workspaceId: string, domainId: string | null): Promise<void> {
+  if (!domainId) {
+    return;
+  }
+  const available = await listWorkspaceDomains(workspaceId);
+  if (!available.some((domain) => domain.id === domainId)) {
+    throw new ApiError(400, "invalid_domain", "No domain with that id on this account.");
+  }
+}
+
+/** Mirrors the panel: images must be files uploaded to this workspace. */
+async function assertBiopageMedia(workspaceId: string, input: BiopageInput): Promise<void> {
+  for (const value of [
+    input.avatarUrl,
+    input.logoUrl,
+    input.coverUrl,
+    input.ogImageUrl,
+    input.bgImageUrl,
+    input.adMobileImage,
+    input.adLeftImage,
+    input.adRightImage,
+  ]) {
+    await assertOwnedMedia(workspaceId, value);
+  }
+  for (const block of input.blocks) {
+    if (block.type === "link") {
+      await assertOwnedMedia(workspaceId, block.iconUrl);
+    }
+    if (block.type === "image") {
+      await assertOwnedMedia(workspaceId, block.url);
+    }
+  }
+}
+
+function assertBiopageFeatures(plan: ApiContext["plan"], input: BiopageInput): void {
+  if (input.customCss.trim() !== "") {
+    assertFeature(plan, "customCss");
+  }
+  if (input.blocks.some((block) => block.type === "form")) {
+    assertFeature(plan, "bioForms");
+  }
+  if (input.password) {
+    assertFeature(plan, "passwordProtection");
+  }
+}
+
+async function assertBiopageWritable(
+  context: ApiContext,
+  input: BiopageInput,
+  existing?: { id: string; handle: string },
+): Promise<void> {
+  assertBiopageFeatures(context.plan, input);
+  assertSlugLength({
+    slug: input.handle,
+    plan: context.plan,
+    isSuperadmin: false,
+    previous: existing?.handle,
+    kind: "handle",
+  });
+  await assertBiopageDomain(context.workspace.id, input.domainId);
+  await assertBiopageMedia(context.workspace.id, input);
+  if (await handleTaken(input.handle, input.domainId, existing?.id)) {
+    throw new ApiError(409, "handle_taken", "That handle is already taken on this domain.");
+  }
 }
 
 app.get("/openapi.json", (c) =>
@@ -116,7 +225,7 @@ app.get("/links", async (c) => {
 
 app.post("/links", async (c) => {
   const context = c.get("api");
-  const parsed = linkInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  const parsed = linkInputSchema.safeParse(await readJsonObject(c.req));
   if (!parsed.success) {
     throw parsed.error;
   }
@@ -140,6 +249,7 @@ app.post("/links", async (c) => {
     plan: context.plan,
     isSuperadmin: false,
   });
+  await assertOwnedMedia(context.workspace.id, input.image);
 
   const link = await createLink({
     workspaceId: context.workspace.id,
@@ -147,6 +257,7 @@ app.post("/links", async (c) => {
     input,
   });
   const resource = serializeLink(link);
+  await scanDestination(context.workspace.id, link.id, input.destination);
 
   await incrementLinksCreated(context.workspace.id);
   await recordAudit({
@@ -185,7 +296,7 @@ app.patch("/links/:id", async (c) => {
   }
 
   // PATCH semantics: unspecified fields keep their stored value.
-  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const body = await readJsonObject(c.req);
   const merged = {
     domainId: existing.domainId,
     slug: existing.slug,
@@ -234,9 +345,13 @@ app.patch("/links/:id", async (c) => {
     isSuperadmin: false,
     previous: existing.slug,
   });
+  await assertOwnedMedia(context.workspace.id, input.image);
 
   const link = await updateLink({ workspaceId: context.workspace.id, linkId: id, input });
   const resource = serializeLink(link);
+  if (input.destination !== existing.destination) {
+    await scanDestination(context.workspace.id, link.id, input.destination);
+  }
 
   await recordAudit({
     workspaceId: context.workspace.id,
@@ -281,7 +396,7 @@ app.delete("/links/:id", async (c) => {
 });
 
 app.get("/links/:id/stats", async (c) => {
-  const { workspace } = c.get("api");
+  const { workspace, plan } = c.get("api");
   const id = idParam.parse(c.req.param("id"));
 
   const link = await getLink(workspace.id, id);
@@ -289,7 +404,10 @@ app.get("/links/:id/stats", async (c) => {
     throw new ApiError(404, "not_found", "No link with that id on this account.");
   }
 
-  const range = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
+  const range = clampRangeToRetention(
+    resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to")),
+    plan.limits.retentionDays,
+  );
   const scope = { workspaceId: workspace.id, linkId: id, from: range.from, to: range.to };
 
   const [summary, timeseries, breakdowns] = await Promise.all([
@@ -309,8 +427,11 @@ app.get("/links/:id/stats", async (c) => {
 });
 
 app.get("/analytics", async (c) => {
-  const { workspace } = c.get("api");
-  const range = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
+  const { workspace, plan } = c.get("api");
+  const range = clampRangeToRetention(
+    resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to")),
+    plan.limits.retentionDays,
+  );
   const scope = { workspaceId: workspace.id, from: range.from, to: range.to };
 
   const [summary, timeseries, breakdowns] = await Promise.all([
@@ -337,33 +458,43 @@ app.get("/domains", async (c) => {
 
 app.post("/domains", async (c) => {
   const context = c.get("api");
-  const parsed = domainInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  const parsed = domainInputSchema.safeParse(await readJsonObject(c.req));
   if (!parsed.success) {
     throw parsed.error;
   }
   await assertQuota(context.workspace.id, context.plan, "customDomains");
   const result = await addDomain(context.workspace.id, parsed.data);
+  await recordAudit({
+    workspaceId: context.workspace.id,
+    actorId: null,
+    action: "domain.add",
+    targetType: "domain",
+    targetId: result.domain.id,
+    metadata: { hostname: result.domain.hostname, via: "api", keyId: context.keyId },
+  });
   return c.json({ data: serializeDomain(result.domain) }, 201);
 });
 
 app.get("/qr-codes", async (c) => {
   const { workspace } = c.get("api");
-  const { items, total } = await listQrCodes(workspace.id, 1, 100);
+  const { page, pageSize } = listPageQuery.parse(c.req.query());
+  const { items, total } = await listQrCodes(workspace.id, page, pageSize);
   return c.json({
     data: items.map(serializeQrCode),
-    pagination: { page: 1, pageSize: 100, total },
+    pagination: { page, pageSize, total },
   });
 });
 
 app.post("/qr-codes", async (c) => {
   const context = c.get("api");
-  const parsed = qrInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  const parsed = qrInputSchema.safeParse(await readJsonObject(c.req));
   if (!parsed.success) {
     throw parsed.error;
   }
   await assertQuota(context.workspace.id, context.plan, "qrCodes");
   if (parsed.data.style.logoUrl) {
     assertFeature(context.plan, "qrLogo");
+    await assertOwnedMedia(context.workspace.id, parsed.data.style.logoUrl);
   }
   const row = await createQrCode(context.workspace.id, parsed.data);
   return c.json({ data: serializeQrCode(row) }, 201);
@@ -382,10 +513,14 @@ app.patch("/qr-codes/:id", async (c) => {
     linkId: existing.linkId,
     payload: existing.payload,
     style: existing.style,
-    ...(await c.req.json().catch(() => ({}))),
+    ...(await readJsonObject(c.req)),
   });
   if (!parsed.success) {
     throw parsed.error;
+  }
+  if (parsed.data.style.logoUrl) {
+    assertFeature(context.plan, "qrLogo");
+    await assertOwnedMedia(context.workspace.id, parsed.data.style.logoUrl);
   }
   const row = await updateQrCode(context.workspace.id, id, parsed.data);
   return c.json({ data: serializeQrCode(row) });
@@ -393,26 +528,22 @@ app.patch("/qr-codes/:id", async (c) => {
 
 app.get("/biopages", async (c) => {
   const { workspace } = c.get("api");
-  const { items, total } = await listBiopages(workspace.id, 1, 100);
+  const { page, pageSize } = listPageQuery.parse(c.req.query());
+  const { items, total } = await listBiopages(workspace.id, page, pageSize);
   return c.json({
     data: items.map(serializeBiopage),
-    pagination: { page: 1, pageSize: 100, total },
+    pagination: { page, pageSize, total },
   });
 });
 
 app.post("/biopages", async (c) => {
   const context = c.get("api");
-  const parsed = biopageInputSchema.safeParse(await c.req.json().catch(() => ({})));
+  const parsed = biopageInputSchema.safeParse(await readJsonObject(c.req));
   if (!parsed.success) {
     throw parsed.error;
   }
   await assertQuota(context.workspace.id, context.plan, "biopages");
-  if (parsed.data.customCss.trim() !== "") {
-    assertFeature(context.plan, "customCss");
-  }
-  if (parsed.data.blocks.some((block) => block.type === "form")) {
-    assertFeature(context.plan, "bioForms");
-  }
+  await assertBiopageWritable(context, parsed.data);
   const row = await createBiopage(context.workspace.id, parsed.data);
   return c.json({ data: { id: row.id, handle: row.handle, published: row.published } }, 201);
 });
@@ -461,17 +592,12 @@ app.patch("/biopages/:id", async (c) => {
     seoDescription: existing.seoDescription,
     published: existing.published,
     blocks: existing.blocks,
-    ...(await c.req.json().catch(() => ({}))),
+    ...(await readJsonObject(c.req)),
   });
   if (!parsed.success) {
     throw parsed.error;
   }
-  if (parsed.data.customCss.trim() !== "") {
-    assertFeature(context.plan, "customCss");
-  }
-  if (parsed.data.blocks.some((block) => block.type === "form")) {
-    assertFeature(context.plan, "bioForms");
-  }
+  await assertBiopageWritable(context, parsed.data, existing);
   const row = await updateBiopage(context.workspace.id, id, parsed.data);
   return c.json({ data: { id: row.id, handle: row.handle, published: row.published } });
 });
@@ -492,6 +618,13 @@ app.onError((error, c) => {
       fields[path] = [...(fields[path] ?? []), issue.message];
     }
     return c.json(errorBody("validation_failed", "Request body is invalid.", fields), 400);
+  }
+  if (error instanceof CloudflareError) {
+    return c.json(errorBody("domain_rejected", "The hostname was rejected by the edge provider."), 400);
+  }
+  const mapped = LIB_ERRORS[error.message];
+  if (mapped) {
+    return c.json(errorBody(mapped[1], error.message), mapped[0]);
   }
 
   console.error("api/v1 failed", error);

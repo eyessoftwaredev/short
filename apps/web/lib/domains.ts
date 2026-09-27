@@ -1,6 +1,7 @@
 import { KV_SCHEMA_VERSION, type DomainInput, type DomainKvRecord } from "@short/core";
 import {
   and,
+  biopages,
   count,
   desc,
   domains,
@@ -11,6 +12,7 @@ import {
   ne,
   type DomainRow,
 } from "@short/db";
+import { platformHostname } from "./biopages";
 import {
   CloudflareError,
   cloudflareEnabled,
@@ -20,8 +22,13 @@ import {
   toHealth,
   type HostnameHealth,
 } from "./cloudflare";
-import { serverEnv } from "./env";
-import { deleteDomainRecord, putDomainRecord } from "./kv";
+import { serverEnv, siteUrl } from "./env";
+import {
+  deleteBiopageRecord,
+  deleteDomainRecord,
+  deleteLinkRecord,
+  putDomainRecord,
+} from "./kv";
 import { dispatchWebhook } from "./webhooks";
 
 export type DomainWithUsage = DomainRow & { linkCount: number };
@@ -55,7 +62,13 @@ export async function listDomains(workspaceId: string): Promise<DomainWithUsage[
   return rows.map((row) => ({ ...row.domain, linkCount: row.linkCount }));
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getDomain(workspaceId: string, id: string): Promise<DomainRow | null> {
+  // The column is a uuid; a hand-typed id would fail the cast instead of reading as "not found".
+  if (!UUID.test(id)) {
+    return null;
+  }
   const [row] = await getDb()
     .select()
     .from(domains)
@@ -69,6 +82,34 @@ export async function getDomainByHostname(hostname: string): Promise<DomainRow |
   return row ?? null;
 }
 
+function hostOf(value: string): string {
+  try {
+    return new URL(value.includes("://") ? value : `https://${value}`).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * The panel, marketing site, shared short domain and CNAME target belong to the platform.
+ * A customer claim on any of them (or a subdomain) would hijack platform traffic on the
+ * edge, so they are refused before Cloudflare is ever asked.
+ */
+export function isPlatformOwnedHostname(hostname: string): boolean {
+  const env = serverEnv();
+  let site = "";
+  try {
+    site = siteUrl();
+  } catch {
+    site = "";
+  }
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  const owned = [env.APP_URL, env.BETTER_AUTH_URL, site, env.PLATFORM_SHORT_DOMAIN, env.CUSTOM_HOSTNAME_TARGET]
+    .map(hostOf)
+    .filter((value) => value !== "" && value !== "localhost");
+  return owned.some((root) => host === root || host.endsWith(`.${root}`));
+}
+
 /** True when the hostname is already on this account, platform-owned, or DNS-verified elsewhere. */
 export function hostnameReserved(row: DomainRow, workspaceId: string): boolean {
   if (row.workspaceId === workspaceId || row.isPlatform) {
@@ -77,19 +118,61 @@ export function hostnameReserved(row: DomainRow, workspaceId: string): boolean {
   return row.status === "active" || row.status === "provisioning";
 }
 
+/** Links or bio pages on a claim; releasing it would cascade-delete another workspace's work. */
+async function claimHasContent(domainId: string): Promise<boolean> {
+  const db = getDb();
+  const [[linkCount], [pageCount]] = await Promise.all([
+    db.select({ value: count() }).from(links).where(eq(links.domainId, domainId)),
+    db.select({ value: count() }).from(biopages).where(eq(biopages.domainId, domainId)),
+  ]);
+  return (linkCount?.value ?? 0) > 0 || (pageCount?.value ?? 0) > 0;
+}
+
+/** A foreign claim can be taken over only while it is unverified and still empty. */
+async function claimReserved(row: DomainRow, workspaceId: string): Promise<boolean> {
+  return hostnameReserved(row, workspaceId) || (await claimHasContent(row.id));
+}
+
 export async function hostnameExists(hostname: string, workspaceId?: string): Promise<boolean> {
   const row = await getDomainByHostname(hostname);
   if (!row) {
     return false;
   }
   if (workspaceId) {
-    return hostnameReserved(row, workspaceId);
+    return claimReserved(row, workspaceId);
   }
   return true;
 }
 
-/** Drops an unverified claim so another account can register the hostname. Keeps the CF hostname. */
+const KV_PURGE_CONCURRENCY = 8;
+
+async function inBatches<T>(items: T[], run: (item: T) => Promise<void>): Promise<void> {
+  for (let index = 0; index < items.length; index += KV_PURGE_CONCURRENCY) {
+    await Promise.all(items.slice(index, index + KV_PURGE_CONCURRENCY).map(run));
+  }
+}
+
+/**
+ * Panel KV writes carry no TTL, so link and bio page records keyed by this hostname would
+ * outlive the domain row and resolve again for whichever workspace registers it next.
+ */
+async function purgeHostnameRecords(domain: DomainRow): Promise<void> {
+  const db = getDb();
+  const [linkRows, pageRows] = await Promise.all([
+    db.select({ slug: links.slug }).from(links).where(eq(links.domainId, domain.id)),
+    db.select({ handle: biopages.handle }).from(biopages).where(eq(biopages.domainId, domain.id)),
+  ]);
+  await inBatches(linkRows, (row) => deleteLinkRecord(domain.hostname, row.slug));
+  await inBatches(pageRows, (row) => deleteBiopageRecord(domain.hostname, row.handle));
+}
+
+/**
+ * Drops an unverified, empty claim so another account can register the hostname. Keeps
+ * the CF hostname. Callers go through `claimReserved` first, so no links or bio pages of
+ * the previous workspace are cascaded away.
+ */
 async function releaseUnverifiedClaim(row: DomainRow): Promise<void> {
+  await purgeHostnameRecords(row);
   await getDb().delete(domains).where(eq(domains.id, row.id));
   await deleteDomainRecord(row.hostname);
 }
@@ -116,7 +199,7 @@ export async function addDomain(
 
   const existing = await getDomainByHostname(input.hostname);
   if (existing) {
-    if (hostnameReserved(existing, workspaceId)) {
+    if (await claimReserved(existing, workspaceId)) {
       throw new Error("Domain already exists");
     }
     await releaseUnverifiedClaim(existing);
@@ -245,13 +328,37 @@ export async function refreshDomain(
   return { domain: updated, health };
 }
 
-export async function removeDomain(workspaceId: string, id: string): Promise<void> {
+/** Removing the domain would drop these bio pages into the shared platform handle space. */
+export class DomainHasBiopagesError extends Error {
+  constructor(readonly biopageCount: number) {
+    super("Move or delete the bio pages on this domain first");
+    this.name = "DomainHasBiopagesError";
+  }
+}
+
+export async function removeDomain(
+  workspaceId: string,
+  id: string,
+  options: { dropBiopages?: boolean } = {},
+): Promise<void> {
   const domain = await getDomain(workspaceId, id);
   if (!domain) {
     return;
   }
   if (domain.isPlatform) {
     throw new Error("The platform domain cannot be removed");
+  }
+
+  // `biopages.domain_id` is ON DELETE SET NULL, which would move these pages onto the
+  // platform host: a handle squat around the vanity-handle gate, or a unique-index
+  // violation. Ask the customer to deal with them unless the whole workspace is going.
+  const [pages] = await getDb()
+    .select({ value: count() })
+    .from(biopages)
+    .where(eq(biopages.domainId, domain.id));
+  const pageCount = pages?.value ?? 0;
+  if (pageCount > 0 && !options.dropBiopages) {
+    throw new DomainHasBiopagesError(pageCount);
   }
 
   if (domain.cfHostnameId && cloudflareEnabled()) {
@@ -263,8 +370,44 @@ export async function removeDomain(workspaceId: string, id: string): Promise<voi
     }
   }
 
+  await purgeHostnameRecords(domain);
+  if (pageCount > 0) {
+    await getDb().delete(biopages).where(eq(biopages.domainId, domain.id));
+  }
   await getDb().delete(domains).where(eq(domains.id, id));
   await deleteDomainRecord(domain.hostname);
+}
+
+/**
+ * Tears down everything a deleted workspace published to the edge: custom hostnames on
+ * Cloudflare, their KV records, and the workspace's links and bio pages on the shared
+ * platform hostname. The cascade on `organization` only cleans Postgres.
+ */
+export async function purgeWorkspaceEdgeRecords(workspaceId: string): Promise<void> {
+  const db = getDb();
+  const owned = await db
+    .select({ id: domains.id })
+    .from(domains)
+    .where(and(eq(domains.workspaceId, workspaceId), eq(domains.isPlatform, false)));
+  for (const row of owned) {
+    await removeDomain(workspaceId, row.id, { dropBiopages: true });
+  }
+
+  const [linkRows, pageRows] = await Promise.all([
+    db
+      .select({ slug: links.slug, hostname: domains.hostname })
+      .from(links)
+      .innerJoin(domains, eq(links.domainId, domains.id))
+      .where(eq(links.workspaceId, workspaceId)),
+    db
+      .select({ handle: biopages.handle, hostname: domains.hostname })
+      .from(biopages)
+      .leftJoin(domains, eq(biopages.domainId, domains.id))
+      .where(eq(biopages.workspaceId, workspaceId)),
+  ]);
+  await inBatches(linkRows, (row) => deleteLinkRecord(row.hostname, row.slug));
+  const platform = platformHostname();
+  await inBatches(pageRows, (row) => deleteBiopageRecord(row.hostname ?? platform, row.handle));
 }
 
 export function cnameTarget(): string {

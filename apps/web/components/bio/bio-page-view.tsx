@@ -165,7 +165,14 @@ export function BioPageView({
   if (page.bgType === "color" && page.bgColor) {
     rootStyle.backgroundColor = page.bgColor;
   }
-  if (page.bgType === "gradient" && page.bgGradient) {
+  // Only real gradients: a free-form value could pull `url(...)` from a third party and
+  // log every visitor's IP.
+  if (
+    page.bgType === "gradient" &&
+    page.bgGradient &&
+    /^(repeating-)?(linear|radial|conic)-gradient\(/i.test(page.bgGradient.trim()) &&
+    !/url\s*\(|image-set|expression/i.test(page.bgGradient)
+  ) {
     rootStyle.backgroundImage = page.bgGradient;
   }
   if (page.bgType === "image" && page.bgImageUrl) {

@@ -100,17 +100,17 @@ export function DomainSettings({ domain, canManage }: DomainSettingsProps) {
 
       <div className="flex min-w-0 flex-wrap gap-2">
         {readOnly ? null : (
-          <Button variant="primary" disabled={pending} onClick={() => startTransition(() => void save())}>
+          <Button variant="primary" disabled={pending} onClick={() => startTransition(async () => { await save(); })}>
             {pending ? t("saving") : tc("save")}
           </Button>
         )}
         {canManage && !domain.isPlatform ? (
           <>
-            <Button disabled={pending} onClick={() => startTransition(() => void recheck())}>
+            <Button disabled={pending} onClick={() => startTransition(async () => { await recheck(); })}>
               <Icon name="rotate-right" className="text-base" />
               {t("recheck")}
             </Button>
-            <Button variant="danger" disabled={pending} onClick={() => startTransition(() => void remove())}>
+            <Button variant="danger" disabled={pending} onClick={() => startTransition(async () => { await remove(); })}>
               <Icon name="trash" className="text-base" />
               {t("remove")}
             </Button>

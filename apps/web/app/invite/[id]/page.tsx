@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
+import { isValidInviteProof } from "@/lib/secret";
 import { getPublicInvite, isInviteUsable, userExistsByEmail } from "@/lib/team";
 import { AuthShell, type AuthHighlight } from "../../_auth/auth-shell";
 import { InviteForm } from "./invite-form";
@@ -11,9 +12,16 @@ import { InviteForm } from "./invite-form";
 export const metadata: Metadata = { title: "Team invite" };
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export default async function InvitePage({ params }: { params: Params }) {
-  const { id } = await params;
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   if (id.trim() === "") {
     notFound();
   }
@@ -22,6 +30,11 @@ export default async function InvitePage({ params }: { params: Params }) {
   if (!invite) {
     notFound();
   }
+
+  // Only a link opened from the invitation email carries a valid proof; without it the
+  // invitee confirms the address through the normal verification mail instead.
+  const rawProof = typeof query.t === "string" ? query.t : "";
+  const proof = isValidInviteProof(invite.id, invite.email, rawProof) ? rawProof : "";
 
   const [session, t] = await Promise.all([
     auth.api.getSession({ headers: await headers() }),
@@ -64,6 +77,7 @@ export default async function InvitePage({ params }: { params: Params }) {
       }}
     >
       <InviteForm
+        proof={proof}
         sessionEmail={session?.user.email ?? null}
         accountExists={accountExists}
         invite={{

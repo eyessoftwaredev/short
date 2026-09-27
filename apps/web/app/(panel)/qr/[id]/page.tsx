@@ -68,7 +68,11 @@ export default async function EditQrPage({ params }: { params: Params }) {
         variant="compact"
         eyebrow={t("designer")}
         title={record.name}
-        description={t("encodes", { url: shortUrl(record.hostname, record.slug) })}
+        description={
+          record.payloadKind === "link"
+            ? t("encodes", { url: shortUrl(record.hostname, record.slug) })
+            : t(`payload.${record.payloadKind}`)
+        }
       />
       <QrDesigner
         mode="edit"

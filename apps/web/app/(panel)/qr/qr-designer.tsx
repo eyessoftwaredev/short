@@ -28,8 +28,8 @@ import { buildQrSvg } from "@/lib/qr-svg";
 import { cn } from "@/lib/cx";
 import {
   applyQrStyleToForm,
+  previewQrPayload,
   qrFormSchema,
-  toQrInput,
   toQrStyle,
   type QrFormValues,
 } from "@/lib/qr-form";
@@ -109,6 +109,9 @@ function qrFieldError(
   }
   if (message === "hexColor") {
     return t("hexColor");
+  }
+  if (message === "vcardName") {
+    return t("nameRequired");
   }
   return te("validation");
 }
@@ -259,6 +262,7 @@ export function QrDesigner({
     watch,
     setValue,
     reset,
+    setError,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<QrFormValues>({
     resolver: zodResolver(qrFormSchema),
@@ -272,11 +276,7 @@ export function QrDesigner({
     if (values.payloadKind === "link") {
       return `${target?.url ?? "https://example.com"}?qr=${qrId ?? PLACEHOLDER_QR_ID}`;
     }
-    try {
-      return toQrInput(values).payload ?? "";
-    } catch {
-      return values.payloadUrl || values.vcardName || values.wifiSsid || "https://example.com";
-    }
+    return previewQrPayload(values) || "https://example.com";
   }, [qrId, target?.url, values]);
   const quality = scanQuality(values.foreground, values.background);
   const qualityLabel = t(QUALITY_LABEL_KEYS[quality.kind]);
@@ -297,12 +297,23 @@ export function QrDesigner({
 
   const onSubmit = handleSubmit(async (formValues) => {
     setFormError(null);
-    const result =
-      mode === "create"
-        ? await createQrCodeAction(formValues)
-        : await updateQrCodeAction(qrId ?? "", formValues);
+    let result: Awaited<ReturnType<typeof createQrCodeAction>>;
+    try {
+      result =
+        mode === "create"
+          ? await createQrCodeAction(formValues)
+          : await updateQrCodeAction(qrId ?? "", formValues);
+    } catch {
+      setFormError(actionMessage("generic"));
+      return;
+    }
 
     if (!result.ok) {
+      for (const [path, messages] of Object.entries(result.fieldErrors ?? {})) {
+        if (path in formValues) {
+          setError(path as keyof QrFormValues, { type: "server", message: messages[0] ?? "" });
+        }
+      }
       setFormError(actionMessage(result.error));
       return;
     }
@@ -320,14 +331,36 @@ export function QrDesigner({
       return;
     }
     setDeleting(true);
-    const result = await deleteQrCodeAction(qrId);
-    if (!result.ok) {
-      setFormError(actionMessage(result.error));
+    const result = await deleteQrCodeAction(qrId).catch(() => null);
+    if (!result?.ok) {
+      setFormError(actionMessage(result?.error));
       setDeleting(false);
       setConfirmDelete(false);
       return;
     }
     router.push("/qr");
+  }
+
+  function saveTemplate(): void {
+    void (async () => {
+      setTemplateBusy(true);
+      setTemplateError(null);
+      try {
+        const result = await saveQrTemplateAction(templateName.trim(), values);
+        if (!result.ok) {
+          setTemplateError(t("templateSaveFailed"));
+          return;
+        }
+        setSaveTemplateOpen(false);
+        setTemplateName("");
+        setActiveTemplateId(result.data.id);
+        router.refresh();
+      } catch {
+        setTemplateError(t("templateSaveFailed"));
+      } finally {
+        setTemplateBusy(false);
+      }
+    })();
   }
 
   const exportBase = qrId ? `/api/qr/${qrId}` : null;
@@ -496,15 +529,30 @@ export function QrDesigner({
               </Field>
             ) : null}
 
+            {values.payloadKind === "link" && links.length === 0 ? (
+              <div className="flex min-w-0 flex-col gap-2 rounded-default border border-dashed border-border px-4 py-3">
+                <p className="m-0 text-sm font-medium">{t("needLinkTitle")}</p>
+                <p className="m-0 text-xs text-fg-muted">{t("needLinkDesc")}</p>
+                <Button size="sm" href="/links/new" className="self-start">
+                  <Icon name="plus" className="text-sm" />
+                  {t("createLink")}
+                </Button>
+              </div>
+            ) : null}
+
             {values.payloadKind === "url" ? (
-              <Field label={t("payloadUrl")}>
+              <Field label={t("payloadUrl")} error={qrFieldError(errors.payloadUrl?.message, t, te)}>
                 <Input placeholder="https://example.com" {...register("payloadUrl")} />
               </Field>
             ) : null}
 
             {values.payloadKind === "vcard" ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("vcardName")} className="sm:col-span-2">
+                <Field
+                  label={t("vcardName")}
+                  className="sm:col-span-2"
+                  error={qrFieldError(errors.vcardName?.message, t, te)}
+                >
                   <Input {...register("vcardName")} />
                 </Field>
                 <Field label={t("vcardOrg")}>
@@ -513,7 +561,7 @@ export function QrDesigner({
                 <Field label={t("vcardPhone")}>
                   <Input {...register("vcardPhone")} />
                 </Field>
-                <Field label={t("vcardEmail")}>
+                <Field label={t("vcardEmail")} error={qrFieldError(errors.vcardEmail?.message, t, te)}>
                   <Input type="email" {...register("vcardEmail")} />
                 </Field>
                 <Field label={t("vcardUrl")}>
@@ -524,7 +572,7 @@ export function QrDesigner({
 
             {values.payloadKind === "wifi" ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("wifiSsid")}>
+                <Field label={t("wifiSsid")} error={qrFieldError(errors.wifiSsid?.message, t, te)}>
                   <Input {...register("wifiSsid")} />
                 </Field>
                 <Field label={t("wifiPassword")}>
@@ -891,27 +939,7 @@ export function QrDesigner({
             <Button
               variant="primary"
               disabled={templateBusy || templateName.trim().length === 0}
-              onClick={() => {
-                void (async () => {
-                  setTemplateBusy(true);
-                  setTemplateError(null);
-                  try {
-                    const result = await saveQrTemplateAction(templateName.trim(), values);
-                    if (!result.ok) {
-                      setTemplateError(t("templateSaveFailed"));
-                      return;
-                    }
-                    setSaveTemplateOpen(false);
-                    setTemplateName("");
-                    setActiveTemplateId(result.data.id);
-                    router.refresh();
-                  } catch {
-                    setTemplateError(t("templateSaveFailed"));
-                  } finally {
-                    setTemplateBusy(false);
-                  }
-                })();
-              }}
+              onClick={saveTemplate}
             >
               {templateBusy ? t("saving") : t("saveTemplateConfirm")}
             </Button>
@@ -925,6 +953,16 @@ export function QrDesigner({
               maxLength={120}
               placeholder={t("templateNamePlaceholder")}
               onChange={(event) => setTemplateName(event.target.value)}
+              onKeyDown={(event) => {
+                // The modal renders inside the designer's <form>; Enter must not
+                // submit (and create) the QR code itself.
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (!templateBusy && templateName.trim() !== "") {
+                    saveTemplate();
+                  }
+                }
+              }}
             />
           </Field>
           {templateError ? <p className="mt-2 text-xs text-danger">{templateError}</p> : null}

@@ -27,6 +27,11 @@ export type EmailPayload = {
  */
 export async function sendEmail(payload: EmailPayload): Promise<void> {
   if (!features().email) {
+    if (process.env.NODE_ENV === "production") {
+      // Bodies carry reset and verification tokens; they must never land in production logs.
+      console.error(`[email] RESEND_API_KEY is not configured; dropped "${payload.subject}"`);
+      return;
+    }
     console.info(`[email:dev] to=${payload.to} subject=${payload.subject}\n${payload.text ?? payload.html}`);
     return;
   }

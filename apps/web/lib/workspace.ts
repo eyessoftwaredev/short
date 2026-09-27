@@ -93,12 +93,16 @@ export async function createWorkspace(
   const id = crypto.randomUUID();
   const slug = await uniqueWorkspaceSlug(workspaceName);
 
-  await db.insert(organization).values({ id, name: workspaceName, slug, kind });
-  await db.insert(member).values({
-    id: crypto.randomUUID(),
-    organizationId: id,
-    userId,
-    role: "owner",
+  // One transaction: an organization row without its owner membership would be an
+  // orphan nobody can open, manage or delete.
+  await db.transaction(async (tx) => {
+    await tx.insert(organization).values({ id, name: workspaceName, slug, kind });
+    await tx.insert(member).values({
+      id: crypto.randomUUID(),
+      organizationId: id,
+      userId,
+      role: "owner",
+    });
   });
 
   if (kind === "personal") {

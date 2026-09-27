@@ -7,6 +7,8 @@ import { useTranslations } from "next-intl";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 import { isTwoFactorRedirect, twoFactorContinueHref } from "@/lib/two-factor";
+import { INVITE_PROOF_HEADER, verifyPendingPath } from "@/lib/verify-path";
+import { grantVerifyResend } from "../../verify/actions";
 import { AuthAlert, AuthHeading } from "../../_auth/auth-primitives";
 import { PasswordField } from "../../_auth/password-field";
 import { verifyEmailFromInviteAction } from "./actions";
@@ -23,12 +25,22 @@ export type InviteView = {
   reason: "expired" | "used" | null;
 };
 
+function isEmailNotVerified(error: { code?: string; message?: string | null }): boolean {
+  if ((error.code ?? "").toUpperCase() === "EMAIL_NOT_VERIFIED") {
+    return true;
+  }
+  return !error.code && (error.message ?? "").toLowerCase().includes("verif");
+}
+
 export function InviteForm({
   invite,
+  proof,
   sessionEmail,
   accountExists,
 }: {
   invite: InviteView;
+  /** Inbox proof from the emailed link; empty when the page was opened without it. */
+  proof: string;
   sessionEmail: string | null;
   accountExists: boolean;
 }) {
@@ -41,13 +53,18 @@ export function InviteForm({
   const [password, setPassword] = useState("");
 
   const loginHref = `/login?next=${encodeURIComponent(`/invite/${invite.id}`)}`;
+  const invitePath = `/invite/${invite.id}`;
   const emailMatches =
     sessionEmail !== null && sessionEmail.toLowerCase() === invite.email.toLowerCase();
 
   const accept = async (): Promise<boolean> => {
     const result = await authClient.organization.acceptInvitation({ invitationId: invite.id });
     if (result.error) {
-      setError(result.error.message ?? t("inviteAcceptFailed"));
+      setError(
+        result.error.message === "quota_members"
+          ? te("quota_members")
+          : (result.error.message ?? t("inviteAcceptFailed")),
+      );
       return false;
     }
     try {
@@ -58,6 +75,17 @@ export function InviteForm({
     return true;
   };
 
+  // Full navigation so the fresh session cookie is sent on the very next request.
+  const enterPanel = (): void => {
+    window.location.assign("/dashboard");
+  };
+
+  /** No emailed proof: confirm the address through the regular verification mail. */
+  const continueToVerify = async (): Promise<void> => {
+    await grantVerifyResend(invite.email, password);
+    router.push(verifyPendingPath(invite.id));
+  };
+
   const joinSignedIn = async (): Promise<void> => {
     setPending(true);
     setError(null);
@@ -65,8 +93,7 @@ export function InviteForm({
       if (!(await accept())) {
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
+      enterPanel();
     } catch {
       setError(te("generic"));
     } finally {
@@ -74,10 +101,17 @@ export function InviteForm({
     }
   };
 
+  /** Unverified account + emailed proof: verify, sign in, then join. */
   const finishAuth = async (): Promise<boolean> => {
-    const verified = await verifyEmailFromInviteAction(invite.id);
+    const verified = await verifyEmailFromInviteAction(invite.id, proof, password);
     if (!verified.ok) {
-      setError(te(verified.error === "invite_invalid" ? "invite_invalid" : "generic"));
+      setError(
+        te(
+          verified.error === "invite_invalid" || verified.error === "wrong_password"
+            ? verified.error
+            : "generic",
+        ),
+      );
       return false;
     }
 
@@ -108,20 +142,28 @@ export function InviteForm({
     setPending(true);
     setError(null);
     try {
-      const created = await authClient.signUp.email({
-        name,
-        email: invite.email,
-        password,
-      });
+      const created = await authClient.signUp.email(
+        {
+          name,
+          email: invite.email,
+          password,
+          // The verification mail (sent when there is no proof) lands back on this invite.
+          callbackURL: invitePath,
+        },
+        proof === "" ? undefined : { headers: { [INVITE_PROOF_HEADER]: `${invite.id}.${proof}` } },
+      );
       if (created.error) {
         setError(created.error.message ?? t("inviteAcceptFailed"));
+        return;
+      }
+      if (proof === "") {
+        await continueToVerify();
         return;
       }
       if (!(await finishAuth())) {
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
+      enterPanel();
     } catch {
       setError(te("generic"));
     } finally {
@@ -140,21 +182,28 @@ export function InviteForm({
         callbackURL: "/dashboard",
       });
       if (signedIn.error) {
-        const unverified = (signedIn.error.message ?? "").toLowerCase().includes("verif");
-        if (!unverified && signedIn.error.status !== 403) {
+        if (!isEmailNotVerified(signedIn.error)) {
           setError(signedIn.error.message ?? t("inviteAcceptFailed"));
           return;
         }
+        if (proof === "") {
+          await continueToVerify();
+          return;
+        }
+        if (!(await finishAuth())) {
+          return;
+        }
+        enterPanel();
+        return;
       }
       if (isTwoFactorRedirect(signedIn.data)) {
         window.location.assign(twoFactorContinueHref());
         return;
       }
-      if (!(await finishAuth())) {
+      if (!(await accept())) {
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
+      enterPanel();
     } catch {
       setError(te("generic"));
     } finally {

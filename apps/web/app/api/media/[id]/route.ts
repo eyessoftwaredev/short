@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteWorkspaceMedia, getMediaById } from "@/lib/media";
+import { deleteWorkspaceMedia, getMediaById, MEDIA_RESPONSE_HEADERS } from "@/lib/media";
 import { requireWorkspace } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -26,6 +26,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   return new NextResponse(toBodyInit(asset.bytes), {
     headers: {
+      ...MEDIA_RESPONSE_HEADERS,
       "content-type": asset.contentType,
       "cache-control": "public, max-age=31536000, immutable",
     },

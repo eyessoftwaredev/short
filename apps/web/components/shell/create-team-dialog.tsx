@@ -32,6 +32,10 @@ export function CreateTeamDialog({
   }
 
   function submit(): void {
+    // Enter bypasses the disabled button, so the guard lives here too.
+    if (pending || name.trim().length < 2) {
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {

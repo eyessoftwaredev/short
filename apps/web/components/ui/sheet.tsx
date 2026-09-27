@@ -3,7 +3,7 @@
 import { Icon } from "@/components/kit/icon";
 
 import { useTranslations } from "next-intl";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cx";
 
@@ -30,6 +30,7 @@ export function Sheet({
   size = "md",
 }: SheetProps) {
   const t = useTranslations("common");
+  const titleId = useId();
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -59,6 +60,7 @@ export function Sheet({
       <aside
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
         className={cn(
           "flex min-w-0 flex-col bg-bg shadow-modal",
@@ -69,7 +71,9 @@ export function Sheet({
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div className="min-w-0">
-            <h3 className="m-0 truncate text-lg font-semibold">{title}</h3>
+            <h3 id={titleId} className="m-0 truncate text-lg font-semibold">
+              {title}
+            </h3>
             {description ? <p className="mt-1 text-sm text-fg-muted">{description}</p> : null}
           </div>
           <Button variant="ghost" icon aria-label={t("close")} onClick={onClose}>

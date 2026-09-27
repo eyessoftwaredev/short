@@ -1,5 +1,6 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { getPlan, type PlanDefinition } from "@short/core";
-import { eq, getDb, organization, plans, subscriptions } from "@short/db";
+import { eq, getDb, organization, plans, subscriptions, user } from "@short/db";
 import { auth } from "./auth";
 import { rateLimit, type RateLimitResult } from "./redis";
 import { getWorkspaceOwnerId } from "./workspace";
@@ -22,15 +23,27 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Constant-time check of an `authorization: Bearer <secret>` header for the internal and
+ * cron endpoints. Both sides are hashed first so a length mismatch leaks nothing, and an
+ * empty expected secret never matches.
+ */
+export function hasBearerSecret(headers: Headers, expected: string | null | undefined): boolean {
+  const token = bearer(headers.get("authorization"));
+  if (!token || !expected) {
+    return false;
+  }
+  const left = createHash("sha256").update(token).digest();
+  const right = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(left, right);
+}
+
 function bearer(header: string | null): string | null {
   if (!header) {
     return null;
   }
-  const [scheme, value] = header.split(" ");
-  if (scheme?.toLowerCase() === "bearer" && value) {
-    return value;
-  }
-  return null;
+  const match = /^bearer\s+(\S+)\s*$/i.exec(header.trim());
+  return match?.[1] ?? null;
 }
 
 /**
@@ -43,7 +56,9 @@ export async function resolveApiContext(headers: Headers): Promise<ApiContext> {
     throw new ApiError(401, "missing_api_key", "Provide your key in the x-api-key header.");
   }
 
-  const result = await auth.api.verifyApiKey({ body: { key: raw } });
+  const result = await auth.api
+    .verifyApiKey({ body: { key: raw } })
+    .catch(() => ({ valid: false as const, key: null, error: null }));
   if (!result.valid || !result.key) {
     const message =
       typeof result.error?.message === "string" ? result.error.message : "API key is not valid.";
@@ -61,20 +76,34 @@ export async function resolveApiContext(headers: Headers): Promise<ApiContext> {
     throw new ApiError(403, "no_access", "The workspace this key belongs to no longer exists.");
   }
 
+  // Keys outlive the session that minted them, so a banned or closed billing owner has
+  // to be checked here; better-auth only checks the key row itself.
   const ownerId = await getWorkspaceOwnerId(workspace.id);
-  const [row] = ownerId
-    ? await db
-        .select({
-          planKey: subscriptions.planKey,
-          limits: plans.limits,
-          features: plans.features,
-          name: plans.name,
-        })
-        .from(subscriptions)
-        .leftJoin(plans, eq(subscriptions.planKey, plans.key))
-        .where(eq(subscriptions.userId, ownerId))
-        .limit(1)
-    : [];
+  if (!ownerId) {
+    throw new ApiError(403, "no_access", "The workspace this key belongs to has no owner.");
+  }
+  const [owner] = await db
+    .select({ banned: user.banned, banExpires: user.banExpires, deactivatedAt: user.deactivatedAt })
+    .from(user)
+    .where(eq(user.id, ownerId))
+    .limit(1);
+  const banActive =
+    owner?.banned === true && (!owner.banExpires || owner.banExpires.getTime() > Date.now());
+  if (!owner || banActive || owner.deactivatedAt) {
+    throw new ApiError(403, "account_suspended", "The account that owns this workspace is suspended.");
+  }
+
+  const [row] = await db
+    .select({
+      planKey: subscriptions.planKey,
+      limits: plans.limits,
+      features: plans.features,
+      name: plans.name,
+    })
+    .from(subscriptions)
+    .leftJoin(plans, eq(subscriptions.planKey, plans.key))
+    .where(eq(subscriptions.userId, ownerId))
+    .limit(1);
 
   const base = getPlan(row?.planKey ?? "free");
   const plan: PlanDefinition = row

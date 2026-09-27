@@ -3,6 +3,7 @@
 import { eq, getDb, user } from "@short/db";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { clientIp } from "@/lib/abuse";
 import { auth } from "@/lib/auth";
 import { rateLimit } from "@/lib/redis";
 import { getAllowedVerifyEmail, writeVerifyGrant } from "@/lib/verify-grant";
@@ -17,15 +18,6 @@ export type ResendVerificationResult = {
   ok: boolean;
   remainingSeconds: number;
 };
-
-function clientIp(headerList: Headers): string {
-  return (
-    headerList.get("cf-connecting-ip") ??
-    headerList.get("x-real-ip") ??
-    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
-}
 
 function isUnverifiedAuthError(error: unknown): boolean {
   if (!error || typeof error !== "object") {
@@ -54,7 +46,7 @@ export async function grantVerifyResend(email: string, password: string): Promis
     }
 
     const headerList = await headers();
-    const ipLimit = await rateLimit(`verify-grant:${clientIp(headerList)}`, 20, 3600);
+    const ipLimit = await rateLimit(`verify-grant:${clientIp(headerList) ?? "unknown"}`, 20, 3600);
     if (!ipLimit.allowed) {
       return;
     }
@@ -97,7 +89,7 @@ export async function resendVerificationEmail(): Promise<ResendVerificationResul
     }
 
     const headerList = await headers();
-    const gate = await consumeResendSlot(email, clientIp(headerList));
+    const gate = await consumeResendSlot(email, clientIp(headerList) ?? "unknown");
     if (!gate.allowed) {
       return { ok: false, remainingSeconds: gate.remainingSeconds };
     }
@@ -143,7 +135,7 @@ export async function changeUnverifiedEmailAction(
     }
 
     const headerList = await headers();
-    const ipLimit = await rateLimit(`verify-change:${clientIp(headerList)}`, 10, 3600);
+    const ipLimit = await rateLimit(`verify-change:${clientIp(headerList) ?? "unknown"}`, 10, 3600);
     if (!ipLimit.allowed) {
       const wait = Math.max(1, Math.ceil((ipLimit.resetAt - Date.now()) / 1000));
       return { ok: false, remainingSeconds: wait };
@@ -190,7 +182,7 @@ export async function changeUnverifiedEmailAction(
 
     await writeVerifyGrant(nextEmail);
 
-    const gate = await consumeResendSlot(nextEmail, clientIp(headerList));
+    const gate = await consumeResendSlot(nextEmail, clientIp(headerList) ?? "unknown");
     if (!gate.allowed) {
       return { ok: false, remainingSeconds: gate.remainingSeconds };
     }

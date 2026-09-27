@@ -3,6 +3,7 @@ import {
   QR_ERROR_LEVELS,
   QR_PAYLOAD_KINDS,
   qrInputSchema,
+  safeDestinationSchema,
   type QrInput,
   type QrPayloadKind,
   type QrStyle,
@@ -40,7 +41,27 @@ export const qrFormSchema = z.object({
   logoUrl: z.string().trim().max(2048),
   logoScale: z.number().min(0.1).max(0.3),
   caption: z.string().trim().max(60),
-});
+})
+  // Kind-specific requirements, on the form's own field names so errors land inline.
+  .superRefine((values, ctx) => {
+    if (values.payloadKind === "link" && values.linkId === "") {
+      ctx.addIssue({ code: "custom", message: "linkRequired", path: ["linkId"] });
+    }
+    if (values.payloadKind === "url" && !safeDestinationSchema.safeParse(values.payloadUrl).success) {
+      ctx.addIssue({ code: "custom", message: "payloadUrl", path: ["payloadUrl"] });
+    }
+    if (values.payloadKind === "vcard") {
+      if (values.vcardName === "") {
+        ctx.addIssue({ code: "custom", message: "vcardName", path: ["vcardName"] });
+      }
+      if (values.vcardEmail !== "" && !z.email().safeParse(values.vcardEmail).success) {
+        ctx.addIssue({ code: "custom", message: "vcardEmail", path: ["vcardEmail"] });
+      }
+    }
+    if (values.payloadKind === "wifi" && values.wifiSsid === "") {
+      ctx.addIssue({ code: "custom", message: "wifiSsid", path: ["wifiSsid"] });
+    }
+  });
 
 export type QrFormValues = z.infer<typeof qrFormSchema>;
 
@@ -116,15 +137,20 @@ export function toQrStyle(values: QrFormValues): QrStyle {
   };
 }
 
+/** A line break inside a value would start a new vCard property (e.g. a forged URL:). */
+function vcardValue(value: string): string {
+  return value.replace(/[\r\n]+/g, " ");
+}
+
 function encodeVcard(values: QrFormValues): string {
   const lines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `FN:${values.vcardName}`,
-    values.vcardOrg ? `ORG:${values.vcardOrg}` : "",
-    values.vcardPhone ? `TEL:${values.vcardPhone}` : "",
-    values.vcardEmail ? `EMAIL:${values.vcardEmail}` : "",
-    values.vcardUrl ? `URL:${values.vcardUrl}` : "",
+    `FN:${vcardValue(values.vcardName)}`,
+    values.vcardOrg ? `ORG:${vcardValue(values.vcardOrg)}` : "",
+    values.vcardPhone ? `TEL:${vcardValue(values.vcardPhone)}` : "",
+    values.vcardEmail ? `EMAIL:${vcardValue(values.vcardEmail)}` : "",
+    values.vcardUrl ? `URL:${vcardValue(values.vcardUrl)}` : "",
     "END:VCARD",
   ];
   return lines.filter((line) => line !== "").join("\n");
@@ -137,7 +163,8 @@ function encodeWifi(values: QrFormValues): string {
 
 function payloadForKind(values: QrFormValues): string | null {
   if (values.payloadKind === "url") {
-    return values.payloadUrl;
+    // Normalized (scheme added) and restricted to http(s): no javascript:/data: payloads.
+    return safeDestinationSchema.parse(values.payloadUrl);
   }
   if (values.payloadKind === "vcard") {
     return encodeVcard(values);
@@ -148,7 +175,18 @@ function payloadForKind(values: QrFormValues): string | null {
   return null;
 }
 
-export function toQrInput(values: QrFormValues): QrInput {
+/** Live-preview payload for the non-link kinds; tolerates half-filled fields. */
+export function previewQrPayload(values: QrFormValues): string {
+  if (values.payloadKind === "url") {
+    const parsed = safeDestinationSchema.safeParse(values.payloadUrl);
+    return parsed.success ? parsed.data : values.payloadUrl;
+  }
+  return payloadForKind(values) ?? "";
+}
+
+export function toQrInput(raw: QrFormValues): QrInput {
+  // Server actions receive whatever the client sent, so the form schema runs here too.
+  const values = qrFormSchema.parse(raw);
   return qrInputSchema.parse({
     name: values.name,
     payloadKind: values.payloadKind,
@@ -204,15 +242,18 @@ function parseWifi(payload: string): {
   security: "WPA" | "WEP" | "nopass";
   hidden: boolean;
 } | null {
-  const match = /^WIFI:T:([^;]*);S:([^;]*);P:([^;]*);H:([^;]*);;$/i.exec(payload);
+  // SSID and password are backslash-escaped by `encodeWifi`, so `;` can appear inside them.
+  const match =
+    /^WIFI:T:([^;]*);S:((?:\\.|[^;\\])*);P:((?:\\.|[^;\\])*);H:([^;]*);;$/i.exec(payload);
   if (!match) {
     return null;
   }
+  const unescape = (value: string) => value.replace(/\\(.)/g, "$1");
   const security = match[1] === "WEP" || match[1] === "nopass" ? match[1] : "WPA";
   return {
     security,
-    ssid: match[2] ?? "",
-    password: match[3] ?? "",
+    ssid: unescape(match[2] ?? ""),
+    password: unescape(match[3] ?? ""),
     hidden: match[4] === "true",
   };
 }

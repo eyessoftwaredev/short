@@ -26,7 +26,8 @@ export function proxy(request: NextRequest) {
 
   if (!hasSession && PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     const url = new URL("/login", request.url);
-    url.searchParams.set("next", pathname);
+    // Keep the query so a deep link (filters, /links?id=…) survives the sign-in detour.
+    url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

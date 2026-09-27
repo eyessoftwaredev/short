@@ -74,7 +74,15 @@ export type QrSvgOptions = {
   size?: number;
 };
 
-export function buildQrSvg(data: string, style: QrStyle, options: QrSvgOptions = {}): string {
+export function buildQrSvg(data: string, rawStyle: QrStyle, options: QrSvgOptions = {}): string {
+  // Stored styles are schema-validated hex colors, but this markup is injected with
+  // dangerouslySetInnerHTML, so colors are escaped like every other interpolated value.
+  const style: QrStyle = {
+    ...rawStyle,
+    foreground: escapeXml(rawStyle.foreground),
+    background: escapeXml(rawStyle.background),
+    cornerColor: rawStyle.cornerColor == null ? null : escapeXml(rawStyle.cornerColor),
+  };
   const matrix = buildMatrix(data, style);
   const width = options.size ?? style.size;
   const captionHeight = style.caption === "" ? 0 : Math.round(width * 0.085);

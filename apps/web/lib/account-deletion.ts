@@ -4,7 +4,20 @@ import {
   scheduledDeletionAt,
   shouldCancelScheduledDeletion,
 } from "@short/core";
-import { and, eq, getDb, isNotNull, isNull, lte, member, organization, session, user } from "@short/db";
+import {
+  and,
+  eq,
+  getDb,
+  isNotNull,
+  isNull,
+  lte,
+  member,
+  organization,
+  session,
+  subscriptions,
+  user,
+} from "@short/db";
+import { getStripe, stripeEnabled } from "./stripe";
 
 export { ACCOUNT_DELETION_BAN_REASON, scheduledDeletionAt } from "@short/core";
 
@@ -83,6 +96,27 @@ export async function loadAccountLifecycle(userId: string): Promise<{
   };
 }
 
+/**
+ * A closed account must stop being charged. Best effort: the account is deactivated
+ * regardless, and the Stripe webhook records the final status once the cancel lands.
+ */
+async function cancelStripeSubscription(userId: string): Promise<void> {
+  try {
+    const [row] = await getDb()
+      .select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId, status: subscriptions.status })
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .limit(1);
+    if (!row?.stripeSubscriptionId || row.status === "canceled" || !(await stripeEnabled())) {
+      return;
+    }
+    const stripe = await getStripe();
+    await stripe.subscriptions.cancel(row.stripeSubscriptionId);
+  } catch (error) {
+    console.error("failed to cancel Stripe subscription for closed account", userId, error);
+  }
+}
+
 export async function finalizeDueAccountDeletions(now = new Date()): Promise<number> {
   const db = getDb();
   const due = await db
@@ -120,6 +154,7 @@ export async function finalizeDueAccountDeletions(now = new Date()): Promise<num
       })
       .where(eq(user.id, row.id));
     await revokeUserSessions(row.id);
+    await cancelStripeSubscription(row.id);
   }
 
   return due.length;

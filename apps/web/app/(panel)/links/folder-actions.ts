@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isUniqueViolation } from "@short/db";
 import { z } from "zod";
 import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { createFolder, deleteFolder, renameFolder } from "@/lib/folders";
@@ -19,6 +20,9 @@ export async function createFolderAction(name: string): Promise<ActionResult<{ i
     revalidatePath("/links");
     return ok({ id: row.id });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return fail("folder_exists");
+    }
     return toActionError(error);
   }
 }
@@ -29,6 +33,9 @@ export async function renameFolderAction(
 ): Promise<ActionResult<null>> {
   try {
     const context = await requireWorkspace();
+    if (!z.string().uuid().safeParse(id).success) {
+      return fail("validation");
+    }
     const parsed = nameSchema.safeParse(name);
     if (!parsed.success) {
       return fromZodError(parsed.error);
@@ -37,6 +44,9 @@ export async function renameFolderAction(
     revalidatePath("/links");
     return ok(null);
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return fail("folder_exists");
+    }
     return toActionError(error);
   }
 }

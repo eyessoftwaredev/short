@@ -8,6 +8,7 @@ import {
   deleteBiopage,
   getBiopage,
   handleTaken,
+  resolveBiopageDomainId,
   setBiopagePublished,
   updateBiopage,
 } from "@/lib/biopages";
@@ -58,6 +59,11 @@ export async function createBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
+    const domainId = await resolveBiopageDomainId(context.workspace.id, input.domainId);
+    if (domainId === undefined) {
+      return fail("domain_invalid");
+    }
+    input.domainId = domainId;
     await assertBioMedia(context.workspace.id, input);
     assertBioFeatures(context.plan, input);
 
@@ -100,9 +106,17 @@ export async function updateBiopageAction(
   try {
     const context = await requireWorkspace();
     const input = toBiopageInput(values);
+    const domainId = await resolveBiopageDomainId(context.workspace.id, input.domainId);
+    if (domainId === undefined) {
+      return fail("domain_invalid");
+    }
+    input.domainId = domainId;
     await assertBioMedia(context.workspace.id, input);
     assertBioFeatures(context.plan, input);
     const existing = await getBiopage(context.workspace.id, id);
+    if (!existing) {
+      return fail("generic");
+    }
     assertSlugLength({
       slug: input.handle,
       plan: context.plan,
@@ -130,7 +144,7 @@ export async function updateBiopageAction(
     revalidatePath("/bio");
     revalidatePath(`/bio/${id}/edit`);
     revalidatePath(`/${row.handle}`);
-    if (existing && existing.handle !== row.handle) {
+    if (existing.handle !== row.handle) {
       revalidatePath(`/${existing.handle}`);
     }
     return ok({ id: row.id, handle: row.handle });

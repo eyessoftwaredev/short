@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
 import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota } from "@/lib/quota";
-import { createQrCode, deleteQrCode, updateQrCode } from "@/lib/qr-codes";
+import { createQrCode, deleteQrCode, getQrCode, updateQrCode } from "@/lib/qr-codes";
 import { toQrInput, toQrStyle, type QrFormValues } from "@/lib/qr-form";
 import { createQrTemplate, deleteQrTemplate } from "@/lib/qr-templates";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
@@ -52,7 +52,13 @@ export async function updateQrCodeAction(
     const context = await requireWorkspace();
     const input = toQrInput(values);
 
-    if (input.style.logoUrl) {
+    const existing = await getQrCode(context.workspace.id, id);
+    if (!existing) {
+      return fail("generic");
+    }
+    // Keeping a logo that was added before a downgrade is allowed, like every other
+    // update; only adding or swapping a logo needs the paid feature.
+    if (input.style.logoUrl && input.style.logoUrl !== existing.style.logoUrl) {
       assertFeature(context.plan, "qrLogo");
       await assertOwnedMedia(context.workspace.id, input.style.logoUrl);
     }
@@ -117,7 +123,9 @@ export async function deleteQrTemplateAction(id: string): Promise<ActionResult<n
 export async function deleteQrCodeAction(id: string): Promise<ActionResult<null>> {
   try {
     const context = await requireWorkspace();
-    await deleteQrCode(context.workspace.id, id);
+    if (!(await deleteQrCode(context.workspace.id, id))) {
+      return fail("generic");
+    }
 
     await recordAudit({
       workspaceId: context.workspace.id,

@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { isSafeDestination, linkInputSchema, normalizeDestination } from "@short/core";
 import { PLATFORM_WORKSPACE_ID, ensurePlatformDomain, getDb } from "@short/db";
 import { QuotaError } from "./action-result";
-import { scanDestination } from "./abuse";
+import { clientIp, lookupThreat, scanDestination } from "./abuse";
 import { incrementLinksCreated } from "./billing";
 import { serverEnv } from "./env";
 import { createLink, shortUrl } from "./links";
@@ -18,15 +18,6 @@ export type LandingShortenResult =
   | { ok: true; shortUrl: string; owned: boolean }
   | { ok: false; error: LandingShortenError };
 
-function clientIp(headerList: Headers): string {
-  return (
-    headerList.get("cf-connecting-ip") ??
-    headerList.get("x-real-ip") ??
-    headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
-}
-
 export async function createLandingShortLink(raw: string): Promise<LandingShortenResult> {
   const destination = normalizeDestination(raw);
   if (destination === "" || !isSafeDestination(destination)) {
@@ -36,7 +27,7 @@ export async function createLandingShortLink(raw: string): Promise<LandingShorte
   const headerList = await headers();
   const signedIn = await getLandingAuthState();
   const session = signedIn ? await getSessionContext() : null;
-  const ip = clientIp(headerList);
+  const ip = clientIp(headerList) ?? "unknown";
   const hourly = await rateLimit(`landing-shorten:${ip}`, signedIn ? 40 : 10, 3600);
   if (!hourly.allowed) {
     return { ok: false, error: "rate_limited" };
@@ -63,7 +54,9 @@ export async function createLandingShortLink(raw: string): Promise<LandingShorte
       const personalId = await getPersonalWorkspaceId(session.user.id);
       if (personalId) {
         try {
-          await assertQuota(personalId, session.plan, "links");
+          // The link lands in the caller's personal workspace, so their own plan applies
+          // (`session.plan` follows whichever team workspace happens to be active).
+          await assertQuota(personalId, session.accountPlan, "links");
           workspaceId = personalId;
           creatorId = session.user.id;
           owned = true;
@@ -76,15 +69,24 @@ export async function createLandingShortLink(raw: string): Promise<LandingShorte
       }
     }
 
-    const input = linkInputSchema.parse({
+    // Anonymous links sit on the platform domain with no accountable owner, which makes
+    // them the phishing vector of choice: known-bad destinations are refused up front.
+    if (!owned && (await lookupThreat(destination))) {
+      return { ok: false, error: "invalid" };
+    }
+
+    const parsed = linkInputSchema.safeParse({
       domainId: platformDomain.id,
       destination,
     });
-    const link = await createLink({ workspaceId, creatorId, input });
-    after(() => {
-      void scanDestination(workspaceId, link.id, destination);
-    });
+    if (!parsed.success) {
+      return { ok: false, error: "invalid" };
+    }
+    const link = await createLink({ workspaceId, creatorId, input: parsed.data });
     if (owned) {
+      after(() => {
+        void scanDestination(workspaceId, link.id, destination);
+      });
       await incrementLinksCreated(workspaceId);
     }
 

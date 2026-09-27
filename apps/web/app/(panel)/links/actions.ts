@@ -13,7 +13,7 @@ import {
   type DestinationRewritePreview,
   type DestinationRewriteResult,
 } from "@/lib/bulk-destinations";
-import type { LinkInput, PlanDefinition } from "@short/core";
+import { normalizeHostInput, type LinkInput, type PlanDefinition } from "@short/core";
 import { linkFormSchema, toLinkInput, type LinkFormValues } from "@/lib/link-form";
 import {
   createLink,
@@ -23,7 +23,7 @@ import {
   shortUrl,
   updateLink,
 } from "@/lib/links";
-import { scanDestination } from "@/lib/abuse";
+import { lookupThreat, scanDestination } from "@/lib/abuse";
 import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace, requireWorkspaceRole } from "@/lib/session";
@@ -91,16 +91,24 @@ export async function updateLinkAction(
       return toActionError(parsed.error);
     }
 
-    const input = applyPlanLimits(toLinkInput(parsed.data), context.plan);
+    const existing = await getLink(context.workspace.id, linkId);
+    if (!existing) {
+      return fail("generic");
+    }
+
+    // An already-expired link stays editable as long as its expiry is left unchanged.
+    const input = applyPlanLimits(
+      toLinkInput(parsed.data, { currentExpiresAt: existing.expiresAt }),
+      context.plan,
+    );
     assertLinkFeatures(input, context.plan);
     await assertOwnedMedia(context.workspace.id, input.image);
 
-    const existing = await getLink(context.workspace.id, linkId);
     assertSlugLength({
       slug: input.slug,
       plan: context.plan,
       isSuperadmin: context.isSuperadmin,
-      previous: existing?.slug,
+      previous: existing.slug,
     });
 
     const link = await updateLink({ workspaceId: context.workspace.id, linkId, input });
@@ -120,6 +128,7 @@ export async function updateLinkAction(
 
     revalidatePath("/links");
     revalidatePath(`/links/${linkId}`);
+    revalidatePath("/qr");
 
     return ok({ id: link.id, shortUrl: shortUrl(link.hostname, link.slug) });
   } catch (error) {
@@ -130,11 +139,14 @@ export async function updateLinkAction(
 export async function deleteLinkAction(linkId: string): Promise<ActionResult> {
   try {
     const context = await requireWorkspace();
-    if (context.role === "member") {
+    // Mirrors `canDelete` on the list page, which also lets superadmins through.
+    if (context.role === "member" && !context.isSuperadmin) {
       return fail("delete_forbidden");
     }
 
-    await deleteLink(context.workspace.id, linkId);
+    if (!(await deleteLink(context.workspace.id, linkId))) {
+      return fail("generic");
+    }
     await recordAudit({
       workspaceId: context.workspace.id,
       actorId: context.user.id,
@@ -147,6 +159,9 @@ export async function deleteLinkAction(linkId: string): Promise<ActionResult> {
     after(() => dispatchWebhook(context.workspace.id, "link.deleted", { id: linkId }));
 
     revalidatePath("/links");
+    revalidatePath("/dashboard");
+    // QR codes cascade with their link.
+    revalidatePath("/qr");
     return ok(undefined);
   } catch (error) {
     return toActionError(error);
@@ -159,7 +174,9 @@ export async function archiveLinkAction(
 ): Promise<ActionResult> {
   try {
     const context = await requireWorkspace();
-    await setLinkArchived(context.workspace.id, linkId, archived);
+    if (!(await setLinkArchived(context.workspace.id, linkId, Boolean(archived)))) {
+      return fail("generic");
+    }
     await recordAudit({
       workspaceId: context.workspace.id,
       actorId: context.user.id,
@@ -207,6 +224,11 @@ export async function applyDestinationRewriteAction(
 ): Promise<ActionResult<DestinationRewriteResult>> {
   try {
     const context = await requireWorkspaceRole("admin");
+    // A bulk rewrite skips the per-link scan, so the new host is checked once up front:
+    // otherwise benign links could be created and then pointed at a known-bad host.
+    if (await lookupThreat(`https://${normalizeHostInput(to)}/`)) {
+      return fail("rewrite_unsafe");
+    }
     const result = await applyDestinationRewrite(context.workspace.id, from, to);
 
     await recordAudit({

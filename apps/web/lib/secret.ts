@@ -1,4 +1,11 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 import { serverEnv } from "./env";
 
 const ALGO = "aes-256-gcm";
@@ -6,8 +13,18 @@ const SALT = "short-secrets";
 /** Tokens written before SECRET_ENCRYPTION_KEY existed. */
 const LEGACY_SALT = "short-cf-conn";
 
+/** scrypt is deliberately slow; derive each key once per process, not per call. */
+const derivedKeys = new Map<string, Buffer>();
+
 function deriveKey(secret: string, salt: string): Buffer {
-  return scryptSync(secret, salt, 32);
+  const cacheKey = `${salt}\u0000${secret}`;
+  const cached = derivedKeys.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const key = scryptSync(secret, salt, 32);
+  derivedKeys.set(cacheKey, key);
+  return key;
 }
 
 function modernKey(): Buffer {
@@ -75,4 +92,23 @@ export function reencryptIfLegacy(packed: string): string | null {
   }
   const recovered = tryDecrypt(packed, legacy);
   return recovered === null ? null : encryptSecret(recovered);
+}
+
+/**
+ * Inbox proof for a team invite. It only travels inside the invitation email, so the
+ * inviter — who can see the invitation id — cannot use it to mark an address verified.
+ */
+export function inviteProof(inviteId: string, email: string): string {
+  return createHmac("sha256", serverEnv().BETTER_AUTH_SECRET)
+    .update(`invite-proof:${inviteId}:${email.trim().toLowerCase()}`)
+    .digest("base64url");
+}
+
+export function isValidInviteProof(inviteId: string, email: string, proof: string): boolean {
+  if (proof === "") {
+    return false;
+  }
+  const expected = Buffer.from(inviteProof(inviteId, email));
+  const given = Buffer.from(proof);
+  return expected.length === given.length && timingSafeEqual(expected, given);
 }

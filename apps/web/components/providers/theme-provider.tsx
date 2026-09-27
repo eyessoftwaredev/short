@@ -70,13 +70,10 @@ export function ThemeProvider({ children, defaultDark = false }: ThemeProviderPr
     writeTheme(value);
   }, []);
 
+  // Side effects stay out of the state updater, which React may run twice.
   const toggleTheme = useCallback(() => {
-    setDarkState((prev) => {
-      const next = !prev;
-      writeTheme(next);
-      return next;
-    });
-  }, []);
+    setDark(!dark);
+  }, [dark, setDark]);
 
   const setPalette = useCallback((value: PaletteId) => {
     setPaletteState(value);
