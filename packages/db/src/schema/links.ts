@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import type { AbVariant, DomainStatus, QrPayloadKind, QrStyle, TargetRule, UtmParams } from "@short/core";
 import {
   boolean,
@@ -113,6 +114,13 @@ export const links = pgTable(
     uniqueIndex("links_domain_slug_uq").on(table.domainId, table.slug),
     index("links_workspace_created_idx").on(table.workspaceId, table.createdAt),
     index("links_folder_idx").on(table.folderId),
+    // User deletion sets creator_id null; admin user detail filters on it.
+    index("links_creator_idx").on(table.creatorId),
+    // Admin global link list and "links created since" counters order/filter on created_at alone.
+    index("links_created_idx").on(table.createdAt),
+    index("links_abuse_flagged_idx")
+      .on(table.abuseFlaggedAt)
+      .where(sql`${table.abuseFlaggedAt} IS NOT NULL`),
   ],
 );
 

@@ -45,7 +45,7 @@ cp .env.example .env            # then fill in the secrets
 pnpm db:migrate                 # Drizzle -> Postgres
 pnpm ch:migrate                 # DDL + materialized views -> ClickHouse
 pnpm db:seed                    # plan catalogue
-pnpm dev                        # http://localhost:3000
+pnpm dev                        # http://localhost:3200
 ```
 
 The first account to register gets a personal workspace on the free plan. To reach

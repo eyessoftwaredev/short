@@ -17,6 +17,10 @@ yarn-error.log*
 .wrangler/
 .dev.vars
 dist-bundle/
+# Wrangler bundle/deploy scratch output from apps/edge/scripts
+apps/edge/.wrangler-bundle/
+apps/edge/.wrangler-deploy-bundle*/
+.tmp-edge-dist/
 
 .DS_Store
 Thumbs.db

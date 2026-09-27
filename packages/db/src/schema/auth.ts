@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
@@ -143,7 +144,12 @@ export const invitation = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("invitation_org_idx").on(table.organizationId)],
+  (table) => [
+    index("invitation_org_idx").on(table.organizationId),
+    // Deleting a user cascades through inviter_id; the pending-invite lookup matches lower(email).
+    index("invitation_inviter_idx").on(table.inviterId),
+    index("invitation_email_lower_idx").on(sql`lower(${table.email})`),
+  ],
 );
 
 /**
@@ -183,16 +189,21 @@ export const apikey = pgTable(
   ],
 );
 
-export const twoFactor = pgTable("two_factor", {
-  id: text("id").primaryKey(),
-  secret: text("secret").notNull(),
-  backupCodes: text("backup_codes").notNull(),
-  verified: boolean("verified"),
-  failedVerificationCount: integer("failed_verification_count"),
-  lockedUntil: timestamp("locked_until", { withTimezone: true }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-});
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    verified: boolean("verified"),
+    failedVerificationCount: integer("failed_verification_count"),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  // Better Auth looks the row up by user id on every 2FA sign-in.
+  (table) => [index("two_factor_user_idx").on(table.userId)],
+);
 
 export type ApiKeyRow = typeof apikey.$inferSelect;

@@ -1,5 +1,6 @@
 export { getDb, getSql, schema, type Database } from "./client";
 export { applyMigrations } from "./migrate";
+export { isUniqueViolation } from "./errors";
 export {
   PLATFORM_WORKSPACE_ID,
   ensurePlatformDomain,

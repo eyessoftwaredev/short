@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import type {
   BioBlock,
   BiopageBgType,
@@ -73,6 +74,13 @@ export const biopages = pgTable(
   },
   (table) => [
     uniqueIndex("biopages_domain_handle_uq").on(table.domainId, table.handle),
+    // NULLs are distinct in the index above, so platform-hosted pages (domain_id NULL)
+    // need their own constraint to keep a handle from being claimed twice.
+    uniqueIndex("biopages_platform_handle_uq")
+      .on(table.handle)
+      .where(sql`${table.domainId} IS NULL`),
+    // Public render and handle availability look pages up by handle alone.
+    index("biopages_handle_idx").on(table.handle),
     index("biopages_workspace_idx").on(table.workspaceId),
   ],
 );

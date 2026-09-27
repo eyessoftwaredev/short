@@ -65,6 +65,9 @@ export const auditLogs = pgTable(
   (table) => [
     index("audit_logs_workspace_created_idx").on(table.workspaceId, table.createdAt),
     index("audit_logs_actor_idx").on(table.actorId),
+    index("audit_logs_impersonator_idx").on(table.impersonatorId),
+    // Admin audit view lists every workspace ordered by created_at.
+    index("audit_logs_created_idx").on(table.createdAt),
   ],
 );
 

@@ -30,6 +30,7 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:?}
       CRON_SECRET: ${CRON_SECRET:?}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-short:}
       # Optional integrations — /admin/system reports each one as disabled when unset.
       CF_ACCOUNT_ID: ${CF_ACCOUNT_ID:-}
       CF_ZONE_ID: ${CF_ZONE_ID:-}
@@ -43,6 +44,7 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-Short <noreply@short.ky>}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      GOOGLE_SAFE_BROWSING_API_KEY: ${GOOGLE_SAFE_BROWSING_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

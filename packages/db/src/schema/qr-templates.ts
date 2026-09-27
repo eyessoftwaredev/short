@@ -15,7 +15,10 @@ export const qrTemplates = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("qr_templates_workspace_idx").on(table.workspaceId)],
+  (table) => [
+    index("qr_templates_workspace_idx").on(table.workspaceId),
+    index("qr_templates_created_by_idx").on(table.createdBy),
+  ],
 );
 
 export type QrTemplateRow = typeof qrTemplates.$inferSelect;

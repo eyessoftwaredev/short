@@ -4,6 +4,28 @@
 **/node_modules
 **/.turbo
 **/dist
+**/dist-bundle
+**/coverage
+**/*.tsbuildinfo
 tmp
+**/tmp
 *.zip
+*.log
 infra/compose.dev.local.yaml
+
+# Secrets. Next's standalone output copies apps/web/.env into the runtime image, so a
+# local `docker build` from a working copy would otherwise ship real credentials.
+**/.env
+**/.env.*
+!**/.env.example
+**/.dev.vars
+
+# Wrangler caches and deploy bundles (the edge workers are not part of this image).
+**/.wrangler
+apps/edge/.wrangler-*
+.tmp-edge-dist
+
+# Local-only directories that are not part of the build.
+.cursor
+design
+legacy-shortky

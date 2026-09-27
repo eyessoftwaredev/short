@@ -27,6 +27,7 @@ Create a **Docker Compose** resource pointing at this repository with
 | `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `CLICKHOUSE_PASSWORD` | Generated once, never rotated in place without a maintenance window |
 | `INTERNAL_TOKEN` | Shared with `apps/edge` |
 | `CRON_SECRET` | Bearer token for `/api/cron/*` |
+| `VISITOR_SALT` | Same value as the edge worker secret, so biopage views and clicks share a `visitor_id`. Falls back to `INTERNAL_TOKEN`. Set it on the panel's Dockerfile resource; do not pass it as an empty string (the env schema rejects values under 16 characters). |
 
 Optional integrations (`CF_*`, `GOOGLE_*`, `RESEND_API_KEY`, `STRIPE_*`) can be left
 empty — `/admin/system` renders each unset integration as *disabled* rather than
@@ -72,6 +73,19 @@ In Coolify, set this as the resource's pre-deployment command using
 `infra/Dockerfile.migrate`. Both migrators are idempotent: Drizzle tracks applied
 migrations in `__drizzle_migrations`, and every ClickHouse statement is
 `IF NOT EXISTS`.
+
+The panel image also carries the migrations, and `POST /api/cron/migrate` (bearer
+`CRON_SECRET`) applies them through `applyMigrations`, which holds a Postgres advisory
+lock so two replicas cannot apply the same migration twice. Index-only migrations use
+plain `CREATE INDEX` inside the migration transaction, which blocks writes to that table
+while the index builds; on a large `links` or `audit_logs` table, create the index by
+hand with `CREATE INDEX CONCURRENTLY` first — the migration's `IF NOT EXISTS` then
+skips it.
+
+`packages/db/drizzle/meta` only holds snapshots for 0000 and the latest migration.
+`pnpm db:generate` diffs against the latest snapshot, so it stays correct as long as
+every new migration is generated (or its snapshot regenerated) rather than hand-written
+without one.
 
 ### Cron
 

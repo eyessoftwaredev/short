@@ -64,6 +64,7 @@ export const subscriptions = pgTable(
   (table) => [
     uniqueIndex("subscriptions_user_uq").on(table.userId),
     index("subscriptions_stripe_customer_idx").on(table.stripeCustomerId),
+    index("subscriptions_workspace_idx").on(table.workspaceId),
   ],
 );
 

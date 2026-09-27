@@ -25,7 +25,10 @@ export const workspaceMedia = pgTable(
     uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("workspace_media_workspace_idx").on(table.workspaceId)],
+  (table) => [
+    index("workspace_media_workspace_idx").on(table.workspaceId),
+    index("workspace_media_uploaded_by_idx").on(table.uploadedBy),
+  ],
 );
 
 export type WorkspaceMediaRow = typeof workspaceMedia.$inferSelect;

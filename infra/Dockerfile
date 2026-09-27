@@ -36,6 +36,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV APP_ROOT=/app
+ENV MIGRATIONS_DIR=/app/packages/db/drizzle
 
 # sharp needs libc++ for its prebuilt binaries on alpine; curl for Coolify/Traefik health probes.
 RUN apk add --no-cache libstdc++ curl \
@@ -45,6 +47,7 @@ RUN apk add --no-cache libstdc++ curl \
 COPY --from=build --chown=nextjs:nodejs /repo/apps/web/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public
+COPY --from=build --chown=nextjs:nodejs /repo/packages/db/drizzle ./packages/db/drizzle
 
 USER nextjs
 EXPOSE 3000
