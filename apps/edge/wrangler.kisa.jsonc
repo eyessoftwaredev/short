@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
+  "minify": true,
 
   "routes": [
     { "pattern": "kisa.ly/*", "zone_name": "kisa.ly" },
