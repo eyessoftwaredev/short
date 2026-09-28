@@ -169,7 +169,13 @@ export function PlanPicker({
       {stripeConfigured ? null : <Callout tone="neutral">{t("plansReferenceOnly")}</Callout>}
       {canManage ? null : <Callout tone="info">{t("ownerChangePlan")}</Callout>}
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* Hidden plans (Enterprise) leave three public ones; fill the row instead of an empty fourth slot. */}
+      <div
+        className={cn(
+          "grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2",
+          plans.length === 3 ? "xl:grid-cols-3" : "xl:grid-cols-4",
+        )}
+      >
         {plans.map((plan, index) => {
           const isCurrent = plan.key === currentPlan;
           const isRecommended = plan.key === recommended;
