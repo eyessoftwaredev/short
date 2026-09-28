@@ -207,7 +207,7 @@ type DocsTableProps = {
 
 export function DocsTable({ headers, rows, monoFirst = false }: DocsTableProps) {
   return (
-    <div className="min-w-0 overflow-x-auto rounded-lg border border-border bg-bg shadow-card">
+    <div className="relative min-w-0 overflow-x-auto rounded-lg border border-border bg-bg shadow-card">
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-border bg-surface-subtle">

@@ -128,7 +128,7 @@ export default async function PricingPage() {
               </h2>
               <p className="m-0 text-base text-fg-muted">{t("matrix.description")}</p>
             </div>
-            <div className="min-w-0 overflow-x-auto rounded-lg border border-border bg-bg shadow-card">
+            <div className="relative min-w-0 overflow-x-auto rounded-lg border border-border bg-bg shadow-card">
               <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
                 <caption className="sr-only">{t("matrix.title")}</caption>
                 <thead>
