@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { Hero } from "@/components/ui";
 import { getLink, listLinks, shortUrl } from "@/lib/links";
 import { emptyQrForm } from "@/lib/qr-form";
 import { listQrTemplates } from "@/lib/qr-templates";
@@ -22,11 +21,11 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
 
   const [{ items }, templates, preselected] = await Promise.all([
     listLinks(context.workspace.id, {
-    status: "active",
-    sort: "created_desc",
-    page: 1,
-    pageSize: 200,
-  }),
+      status: "active",
+      sort: "created_desc",
+      page: 1,
+      pageSize: 200,
+    }),
     listQrTemplates(context.workspace.id),
     // "Design a custom code" from the link editor may point at an archived or older link
     // that the active list below does not include.
@@ -35,15 +34,19 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
 
   const options: QrLinkOption[] = items.map((link) => ({
     id: link.id,
-    label: `${link.hostname}/${link.slug}${link.title ? ` · ${link.title}` : ""}`,
+    shortLabel: `${link.hostname}/${link.slug}`,
+    title: link.title ?? null,
     url: shortUrl(link.hostname, link.slug),
+    destination: link.destination,
   }));
 
   if (preselected && !options.some((option) => option.id === preselected.id)) {
     options.unshift({
       id: preselected.id,
-      label: `${preselected.hostname}/${preselected.slug}${preselected.title ? ` · ${preselected.title}` : ""}`,
+      shortLabel: `${preselected.hostname}/${preselected.slug}`,
+      title: preselected.title ?? null,
       url: shortUrl(preselected.hostname, preselected.slug),
+      destination: preselected.destination,
     });
   }
 
@@ -54,12 +57,6 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
       title={t("newTitle")}
       crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
     >
-      <Hero
-        variant="compact"
-        eyebrow={t("designer")}
-        title={t("designTitle")}
-        description={t("designDesc")}
-      />
       <QrDesigner
         mode="create"
         defaultValues={emptyQrForm(selected?.id ?? "")}

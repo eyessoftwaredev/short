@@ -29,6 +29,7 @@ const EMPTY_SUMMARY: SummaryResult = {
   visitors: 0,
   countries: 0,
   previousClicks: 0,
+  previousQrScans: 0,
   previousVisitors: 0,
   previousBioViews: 0,
   previousBioClicks: 0,

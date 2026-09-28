@@ -1,10 +1,16 @@
 import { isPublicHttpUrl, type QrStyle } from "@short/core";
-import { getMediaById, mediaToDataUri, parseMediaId } from "./media";
+import { getMediaById, MAX_MEDIA_BYTES, parseMediaId } from "./media";
 import { parseQrLogoPreset } from "./qr-logo-presets";
 import { qrLogoPresetDataUri } from "./qr-logo-svg";
-import { buildQrSvg } from "./qr-svg";
+import { buildQrSvg, QR_PDF_DPI } from "./qr-svg";
 
+/** Remote and inline logos: small, they are fetched or decoded per export. */
 const MAX_LOGO_BYTES = 1024 * 1024;
+/**
+ * Raster logos are re-encoded to fit this box before they are inlined. The logo covers
+ * at most 30% of the code, so 1024px is sharp even on a 4096px export.
+ */
+const LOGO_MAX_PX = 1024;
 const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
 export class LogoEmbedError extends Error {
@@ -14,7 +20,53 @@ export class LogoEmbedError extends Error {
   }
 }
 
-async function fetchRemoteLogo(url: string): Promise<string | null> {
+type LogoBytes = { bytes: Buffer; type: string };
+
+function toDataUri({ bytes, type }: LogoBytes): string {
+  return `data:${type};base64,${bytes.toString("base64")}`;
+}
+
+/**
+ * The image as something every renderer can draw. The export rasterizer (sharp/librsvg)
+ * cannot decode WebP inside an SVG `<image>`: a WebP logo showed in the live preview and
+ * was silently missing from the PNG and PDF. Oversized photos also bloated every SVG
+ * download. Rasters are therefore bounded and re-encoded to PNG (JPEG stays JPEG);
+ * small PNG/JPEG files and SVG artwork pass through untouched.
+ */
+async function embeddableLogo(logo: LogoBytes): Promise<string | null> {
+  if (logo.type === "image/svg+xml") {
+    return toDataUri(logo);
+  }
+
+  try {
+    const { default: sharp } = await import("sharp");
+    const image = sharp(logo.bytes, { failOn: "none" });
+    const meta = await image.metadata();
+    const fits = (meta.width ?? 0) <= LOGO_MAX_PX && (meta.height ?? 0) <= LOGO_MAX_PX;
+    const oriented = meta.orientation == null || meta.orientation === 1;
+    if (
+      (logo.type === "image/png" || logo.type === "image/jpeg") &&
+      fits &&
+      oriented &&
+      logo.bytes.byteLength <= MAX_LOGO_BYTES
+    ) {
+      return toDataUri(logo);
+    }
+
+    const bounded = image
+      .rotate()
+      .resize({ width: LOGO_MAX_PX, height: LOGO_MAX_PX, fit: "inside", withoutEnlargement: true });
+    if (logo.type === "image/jpeg") {
+      return toDataUri({ bytes: await bounded.jpeg({ quality: 90 }).toBuffer(), type: "image/jpeg" });
+    }
+    return toDataUri({ bytes: await bounded.png().toBuffer(), type: "image/png" });
+  } catch (error) {
+    console.error("failed to prepare QR logo", error);
+    return null;
+  }
+}
+
+async function fetchRemoteLogo(url: string): Promise<LogoBytes | null> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -43,16 +95,24 @@ async function fetchRemoteLogo(url: string): Promise<string | null> {
       return null;
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_LOGO_BYTES) {
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.byteLength > MAX_LOGO_BYTES) {
       return null;
     }
 
-    return `data:${type};base64,${buffer.toString("base64")}`;
+    return { bytes, type };
   } catch (error) {
     console.error("failed to fetch QR logo", error);
     return null;
   }
+}
+
+function parseDataUri(value: string): LogoBytes | null {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i.exec(value);
+  if (!match?.[1] || !match[2] || !ALLOWED_LOGO_TYPES.includes(match[1].toLowerCase())) {
+    return null;
+  }
+  return { type: match[1].toLowerCase(), bytes: Buffer.from(match[2], "base64") };
 }
 
 /**
@@ -66,7 +126,8 @@ export async function fetchLogoDataUri(url: string | null): Promise<string | nul
   }
 
   if (url.startsWith("data:image/")) {
-    return url.length <= MAX_LOGO_BYTES ? url : null;
+    const inline = url.length <= MAX_LOGO_BYTES * 1.4 ? parseDataUri(url) : null;
+    return inline ? embeddableLogo(inline) : null;
   }
 
   const preset = parseQrLogoPreset(url);
@@ -77,13 +138,16 @@ export async function fetchLogoDataUri(url: string | null): Promise<string | nul
   const mediaId = parseMediaId(url);
   if (mediaId) {
     const row = await getMediaById(mediaId);
-    if (!row || row.bytes.byteLength > MAX_LOGO_BYTES) {
+    // Uploads are capped at MAX_MEDIA_BYTES; the old 1 MB cap here made every logo
+    // between 1 and 4 MB fail its download even though the upload had been accepted.
+    if (!row || row.bytes.byteLength > MAX_MEDIA_BYTES) {
       return null;
     }
-    return mediaToDataUri(row);
+    return embeddableLogo({ bytes: row.bytes, type: row.contentType });
   }
 
-  return fetchRemoteLogo(url);
+  const remote = await fetchRemoteLogo(url);
+  return remote ? embeddableLogo(remote) : null;
 }
 
 /** SVG with the logo inlined, ready to be written to disk or rasterized. */
@@ -99,9 +163,21 @@ export async function renderQrSvg(
   return buildQrSvg(payload, style, { logoHref, size });
 }
 
+/** The root element's declared width, i.e. the size the SVG was built at. */
+function declaredWidth(svg: string): number | null {
+  const match = /^<svg\b[^>]*?\swidth="([\d.]+)"/.exec(svg);
+  const value = match?.[1] ? Number(match[1]) : Number.NaN;
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
 export async function renderQrPng(svg: string, width: number): Promise<Buffer> {
   const { default: sharp } = await import("sharp");
-  return sharp(Buffer.from(svg), { density: 384 }).resize({ width }).png().toBuffer();
+  // Rasterize at twice the target width, then downsample: smooth text and frame curves.
+  // A fixed 384 dpi rendered a 2048px code at ~11,000px and a 4096px one past libvips'
+  // pixel limit ("Input image exceeds pixel limit"), so large downloads failed.
+  const source = declaredWidth(svg) ?? width;
+  const density = Math.min(384, Math.max(36, (72 * 2 * width) / source));
+  return sharp(Buffer.from(svg), { density }).resize({ width }).png().toBuffer();
 }
 
 export async function renderQrPdf(svg: string, width: number): Promise<Buffer> {
@@ -109,8 +185,13 @@ export async function renderQrPdf(svg: string, width: number): Promise<Buffer> {
 
   const pdf = await PDFDocument.create();
   const image = await pdf.embedPng(png);
-  const page = pdf.addPage([image.width, image.height]);
-  page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+  // Pixels were mapped 1:1 to points, so a 2048px code came out as a 72 cm page. At
+  // 300 dpi the page is the physical size a print shop expects from that many pixels.
+  const toPoints = (pixels: number) => (pixels * 72) / QR_PDF_DPI;
+  const pageWidth = toPoints(image.width);
+  const pageHeight = toPoints(image.height);
+  const page = pdf.addPage([pageWidth, pageHeight]);
+  page.drawImage(image, { x: 0, y: 0, width: pageWidth, height: pageHeight });
 
   return Buffer.from(await pdf.save());
 }

@@ -6,6 +6,17 @@ import QRCode from "qrcode";
  * that the export route rasterizes on the server.
  */
 
+/**
+ * Print resolution of PDF exports (lib/qr-export.ts): a 1024px code becomes an 8.7 cm
+ * wide page. Lives here so the designer can state the printed size.
+ */
+export const QR_PDF_DPI = 300;
+
+/** Printed width in centimetres of a `pixels` wide PDF export. */
+export function qrPrintWidthCm(pixels: number): number {
+  return Math.round((pixels / QR_PDF_DPI) * 2.54 * 10) / 10;
+}
+
 /** Finder patterns are 7x7 modules in three corners and must stay high-contrast squares. */
 const FINDER_SIZE = 7;
 
@@ -19,6 +30,23 @@ function buildMatrix(data: string, style: QrStyle): Matrix {
     size,
     get: (x, y) => x >= 0 && y >= 0 && x < size && y < size && bits[y * size + x] === 1,
   };
+}
+
+/**
+ * False when `data` does not fit in one QR code at the style's error-correction level
+ * (a logo forces H, which roughly halves the capacity). Saving such a code used to
+ * succeed and then break the QR list, which renders every thumbnail.
+ */
+export function qrFits(data: string, style: Pick<QrStyle, "logoUrl" | "errorCorrection">): boolean {
+  if (data === "") {
+    return false;
+  }
+  try {
+    QRCode.create(data, { errorCorrectionLevel: recommendedErrorLevel(style as QrStyle) });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isFinder(x: number, y: number, size: number): boolean {

@@ -124,6 +124,7 @@ import {
   faUserPlus,
   faUsers,
   faWandMagicSparkles,
+  faWifi,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -258,6 +259,7 @@ export const ICONS = {
   rocket: faRocket,
   sidebar: faTableColumns,
   "up-down": faUpDown,
+  wifi: faWifi,
 } as const satisfies Record<string, IconDefinition>;
 
 export type IconName = keyof typeof ICONS;

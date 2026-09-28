@@ -19,9 +19,19 @@ function parseFormat(value: string | null): QrExportFormat {
   return QR_EXPORT_FORMATS.includes(value as QrExportFormat) ? (value as QrExportFormat) : "png";
 }
 
+/**
+ * ASCII file name for the download. Accents are folded first, so "Menü kartı" becomes
+ * "menu-karti" rather than "men-kart" (non-ASCII letters used to be dropped outright).
+ */
 function safeFileName(name: string): string {
-  const cleaned = name.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
-  return cleaned === "" ? "qr-code" : cleaned.replace(/\s+/g, "-").toLowerCase();
+  const folded = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/İ/g, "I")
+    .replace(/ß/g, "ss");
+  const cleaned = folded.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+  return cleaned === "" ? "qr-code" : cleaned.replace(/\s+/g, "-").toLowerCase().slice(0, 80);
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +52,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const format = parseFormat(request.nextUrl.searchParams.get("format"));
   const requested = Number(request.nextUrl.searchParams.get("size") ?? record.style.size);
-  const size = Number.isFinite(requested) ? Math.min(Math.max(requested, 128), 4096) : 512;
+  // Rounded: sharp rejects a fractional resize width (`?size=1000.5` used to 500).
+  const size = Number.isFinite(requested) ? Math.round(Math.min(Math.max(requested, 128), 4096)) : 512;
 
   try {
     const svg = await renderQrSvg(qrPayload(record), record.style, size);
@@ -57,6 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       headers: {
         "content-type": CONTENT_TYPES[format],
         "content-disposition": `attachment; filename="${safeFileName(record.name)}.${format}"`,
+        "x-content-type-options": "nosniff",
         "cache-control": "private, max-age=0, no-store",
       },
     });

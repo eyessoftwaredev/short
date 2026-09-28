@@ -55,7 +55,13 @@ export async function createQrTemplate(
   return toView(row);
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function deleteQrTemplate(workspaceId: string, id: string): Promise<boolean> {
+  // Postgres throws on a malformed uuid; that is a plain "not found", not a crash.
+  if (!UUID.test(id)) {
+    return false;
+  }
   const result = await getDb()
     .delete(qrTemplates)
     .where(and(eq(qrTemplates.workspaceId, workspaceId), eq(qrTemplates.id, id)))

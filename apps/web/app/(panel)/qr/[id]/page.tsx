@@ -1,9 +1,7 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { Button, Hero } from "@/components/ui";
 import { listLinks, shortUrl } from "@/lib/links";
 import { getQrCode } from "@/lib/qr-codes";
 import { toQrForm } from "@/lib/qr-form";
@@ -11,12 +9,17 @@ import { listQrTemplates } from "@/lib/qr-templates";
 import { requireWorkspace } from "@/lib/session";
 import { QrDesigner, type QrLinkOption } from "../qr-designer";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("qr");
-  return { title: t("editTitle") };
-}
-
 type Params = Promise<{ id: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const [context, t, { id }] = await Promise.all([
+    requireWorkspace(),
+    getTranslations("qr"),
+    params,
+  ]);
+  const record = await getQrCode(context.workspace.id, id);
+  return { title: record ? `${record.name} · ${t("title")}` : t("editTitle") };
+}
 
 export default async function EditQrPage({ params }: { params: Params }) {
   const [context, t] = await Promise.all([requireWorkspace(), getTranslations("qr")]);
@@ -29,25 +32,30 @@ export default async function EditQrPage({ params }: { params: Params }) {
 
   const [{ items }, templates] = await Promise.all([
     listLinks(context.workspace.id, {
-    status: "all",
-    sort: "created_desc",
-    page: 1,
-    pageSize: 200,
-  }),
+      status: "all",
+      sort: "created_desc",
+      page: 1,
+      pageSize: 200,
+    }),
     listQrTemplates(context.workspace.id),
   ]);
 
   const options: QrLinkOption[] = items.map((link) => ({
     id: link.id,
-    label: `${link.hostname}/${link.slug}${link.title ? ` · ${link.title}` : ""}`,
+    shortLabel: `${link.hostname}/${link.slug}`,
+    title: link.title ?? null,
     url: shortUrl(link.hostname, link.slug),
+    destination: link.destination,
   }));
 
+  // The code's own link must stay selectable even when it is older than the newest 200.
   if (record.linkId && !options.some((option) => option.id === record.linkId)) {
     options.unshift({
       id: record.linkId,
-      label: `${record.hostname}/${record.slug}`,
+      shortLabel: `${record.hostname}/${record.slug}`,
+      title: null,
       url: shortUrl(record.hostname, record.slug),
+      destination: record.destination,
     });
   }
 
@@ -55,25 +63,7 @@ export default async function EditQrPage({ params }: { params: Params }) {
     <PanelShell
       title={record.name}
       crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/qr" }]}
-      topbarActions={
-        record.linkId ? (
-          <Button href={`/links/${record.linkId}/stats`}>
-            <Icon name="chart-line" className="text-sm" />
-            {t("scanStats")}
-          </Button>
-        ) : undefined
-      }
     >
-      <Hero
-        variant="compact"
-        eyebrow={t("designer")}
-        title={record.name}
-        description={
-          record.payloadKind === "link"
-            ? t("encodes", { url: shortUrl(record.hostname, record.slug) })
-            : t(`payload.${record.payloadKind}`)
-        }
-      />
       <QrDesigner
         mode="edit"
         qrId={record.id}

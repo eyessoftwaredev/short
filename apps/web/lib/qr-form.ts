@@ -267,6 +267,23 @@ export function toQrForm(
   };
 }
 
+/**
+ * One plain line about what a standalone code holds, for list cards: the web address,
+ * the Wi-Fi network name or the contact's name. Empty for short-link codes.
+ */
+export function describeQrPayload(kind: QrPayloadKind, payload: string | null): string {
+  if (!payload || kind === "link") {
+    return "";
+  }
+  if (kind === "url") {
+    return payload;
+  }
+  if (kind === "wifi") {
+    return parseWifi(payload)?.ssid ?? "";
+  }
+  return parseVcard(payload).name;
+}
+
 function parseWifi(payload: string): {
   ssid: string;
   password: string;

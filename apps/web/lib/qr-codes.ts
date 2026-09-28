@@ -1,4 +1,5 @@
-import type { QrInput, QrPayloadKind, QrStyle } from "@short/core";
+import { getBreakdown } from "@short/analytics";
+import { QR_PAYLOAD_KINDS, type QrInput, type QrPayloadKind, type QrStyle } from "@short/core";
 import {
   and,
   count,
@@ -6,6 +7,7 @@ import {
   domains,
   eq,
   getDb,
+  ilike,
   links,
   qrCodes,
   type QrCodeRow,
@@ -42,7 +44,23 @@ function selection() {
 export type QrCodeFilter = {
   /** Only codes that encode this short link (the link editor's "all QR codes" view). */
   linkId?: string | null;
+  /** Only codes of this content type. */
+  kind?: QrPayloadKind | null;
+  /** Case-insensitive match on the code's name. */
+  search?: string | null;
 };
+
+export function parseQrKind(value: string | null | undefined): QrPayloadKind | null {
+  return QR_PAYLOAD_KINDS.includes(value as QrPayloadKind) ? (value as QrPayloadKind) : null;
+}
+
+/** Workspace scope plus the optional link filter, shared by the list and the counts. */
+function scopeFilters(workspaceId: string, filter: QrCodeFilter) {
+  const linkId = filter.linkId && UUID.test(filter.linkId) ? filter.linkId : null;
+  return linkId
+    ? [eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.linkId, linkId)]
+    : [eq(qrCodes.workspaceId, workspaceId)];
+}
 
 export async function listQrCodes(
   workspaceId: string,
@@ -51,10 +69,17 @@ export async function listQrCodes(
   filter: QrCodeFilter = {},
 ): Promise<{ items: QrCodeWithTarget[]; total: number }> {
   const db = getDb();
-  const linkId = filter.linkId && UUID.test(filter.linkId) ? filter.linkId : null;
-  const where = linkId
-    ? and(eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.linkId, linkId))
-    : eq(qrCodes.workspaceId, workspaceId);
+  const filters = scopeFilters(workspaceId, filter);
+  const kind = parseQrKind(filter.kind);
+  if (kind) {
+    filters.push(eq(qrCodes.payloadKind, kind));
+  }
+  const search = filter.search?.trim().slice(0, 120);
+  if (search) {
+    // `%` and `_` typed by the user are literals, not ILIKE wildcards.
+    filters.push(ilike(qrCodes.name, `%${search.replace(/[\\%_]/g, "\\$&")}%`));
+  }
+  const where = and(...filters);
 
   const [items, totals] = await Promise.all([
     db
@@ -117,6 +142,28 @@ function normalizeQrRow(row: {
     destination: row.destination ?? "",
     linkArchived: row.linkArchived ?? false,
   };
+}
+
+/** How many codes of each content type, for the list's filter chips. */
+export async function countQrCodesByKind(
+  workspaceId: string,
+  filter: Pick<QrCodeFilter, "linkId"> = {},
+): Promise<Record<QrPayloadKind, number>> {
+  const rows = await getDb()
+    .select({ kind: qrCodes.payloadKind, value: count() })
+    .from(qrCodes)
+    .where(and(...scopeFilters(workspaceId, filter)))
+    .groupBy(qrCodes.payloadKind);
+  const counts = Object.fromEntries(QR_PAYLOAD_KINDS.map((kind) => [kind, 0])) as Record<
+    QrPayloadKind,
+    number
+  >;
+  for (const row of rows) {
+    if (row.kind in counts) {
+      counts[row.kind] = row.value;
+    }
+  }
+  return counts;
 }
 
 /**
@@ -212,6 +259,29 @@ export async function deleteQrCode(workspaceId: string, id: string): Promise<boo
     .where(and(eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.id, id)))
     .returning({ id: qrCodes.id });
   return deleted.length > 0;
+}
+
+/** Window for the scan counts on the QR list cards. */
+export const QR_SCAN_WINDOW_DAYS = 30;
+
+/**
+ * Human scans per QR code over the last `days`, keyed by code id. Codes without scans
+ * are absent. `null` means ClickHouse could not be reached, which the list must not
+ * show as "0 scans".
+ */
+export async function loadQrScanCounts(
+  workspaceId: string,
+  days = QR_SCAN_WINDOW_DAYS,
+): Promise<Map<string, number> | null> {
+  const to = new Date();
+  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+  try {
+    const rows = await getBreakdown({ workspaceId, from, to, eventType: "qr_scan" }, "qr", 1000);
+    return new Map(rows.map((row) => [row.key, row.clicks]));
+  } catch (error) {
+    console.error("[qr] scan counts failed", error);
+    return null;
+  }
 }
 
 /**

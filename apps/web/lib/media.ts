@@ -151,8 +151,10 @@ export const MEDIA_RESPONSE_HEADERS = {
 } as const;
 
 function sanitizeFilename(name: string): string {
-  const base = name.trim().slice(0, 200);
-  return base.replace(/[^\w.\-() ]+/g, "_") || "upload";
+  const base = name.normalize("NFC").trim().slice(0, 200);
+  // Unicode-aware: "Menü logosu.png" used to be stored as "Men_ logosu.png", which made
+  // the library search miss it. Only letters, digits and a few separators survive.
+  return base.replace(/[^\p{L}\p{N}._\-() ]+/gu, "_") || "upload";
 }
 
 export async function uploadWorkspaceMedia(input: {
@@ -165,7 +167,11 @@ export async function uploadWorkspaceMedia(input: {
   if (file.size === 0) {
     throw new Error("media_missing");
   }
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type as AllowedImageType)) {
+  // The browser's claim is only a hint (the bytes decide below). Some systems send an
+  // empty or unusual type for perfectly good files (WebP on older Windows, "image/jpg"),
+  // which used to be refused before the bytes were even looked at.
+  const claimed = file.type === "application/octet-stream" ? "" : file.type;
+  if (claimed !== "" && !claimed.startsWith("image/")) {
     throw new Error("media_type");
   }
   if (file.size > MAX_MEDIA_BYTES) {

@@ -14,6 +14,7 @@ import {
   updateQrCode,
 } from "@/lib/qr-codes";
 import { emptyQrForm, toQrInput, toQrStyle, type QrFormValues } from "@/lib/qr-form";
+import { qrFits } from "@/lib/qr-svg";
 import { createQrTemplate, deleteQrTemplate } from "@/lib/qr-templates";
 import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { requireWorkspace, type WorkspaceContext } from "@/lib/session";
@@ -50,12 +51,25 @@ async function insertQrCode(context: WorkspaceContext, input: QrInput): Promise<
   return { id: row.id, name: row.name };
 }
 
+/**
+ * Standalone payloads (vCard, Wi-Fi, long URLs) can exceed what one QR code holds. The
+ * designer blocks that too, but the server is the one that must not store a code that
+ * can never be drawn.
+ */
+function payloadTooLong(input: QrInput): ActionResult<never> | null {
+  if (input.payloadKind !== "link" && input.payload && !qrFits(input.payload, input.style)) {
+    return fail("validation", { payload: ["payloadTooLong"] });
+  }
+  return null;
+}
+
 export async function createQrCodeAction(
   values: QrFormValues,
 ): Promise<ActionResult<SavedQrCode>> {
   try {
     const context = await requireWorkspace();
-    return ok(await insertQrCode(context, toQrInput(values)));
+    const input = toQrInput(values);
+    return payloadTooLong(input) ?? ok(await insertQrCode(context, input));
   } catch (error) {
     return toActionError(error);
   }
@@ -104,6 +118,10 @@ export async function updateQrCodeAction(
   try {
     const context = await requireWorkspace();
     const input = toQrInput(values);
+    const tooLong = payloadTooLong(input);
+    if (tooLong) {
+      return tooLong;
+    }
 
     const existing = await getQrCode(context.workspace.id, id);
     if (!existing) {
