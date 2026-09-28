@@ -5,6 +5,7 @@ import { getBrandLockupSources } from "@/lib/brand-assets";
 import { BrandPreload } from "@/components/brand/brand-preload";
 import { serverEnv } from "@/lib/env";
 import type { PanelRole } from "@/lib/nav";
+import { getWorkspaceUsage } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 
 export default async function PanelLayout({ children }: { children: ReactNode }) {
@@ -17,6 +18,13 @@ export default async function PanelLayout({ children }: { children: ReactNode })
   // Superadmins keep their workspace membership but the sidebar also shows the
   // Platform group, so the effective nav role is the platform one.
   const role: PanelRole = context.isSuperadmin ? "superadmin" : context.role;
+
+  // Read-only, for the sidebar plan meter. Layouts are not re-rendered on
+  // client navigation, so this runs on full loads and refreshes only; a failure
+  // just hides the meter.
+  const usage = await getWorkspaceUsage(context.workspace.id)
+    .then((value) => ({ links: value.links, linkLimit: context.plan.limits.links }))
+    .catch(() => null);
 
   return (
     <>
@@ -48,6 +56,7 @@ export default async function PanelLayout({ children }: { children: ReactNode })
         brandHasWordmark: brandSources.hasWordmark,
         localeSwitcherEnabled: brand.localeSwitcherEnabled,
         accountRestored: context.accountRestored,
+        usage,
       }}
     >
       {children}

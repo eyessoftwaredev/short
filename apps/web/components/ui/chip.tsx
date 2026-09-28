@@ -8,12 +8,14 @@ type ChipProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   active?: boolean;
   /** Dims the chip while the filter it triggers is still resolving. */
   pending?: boolean;
+  size?: "sm" | "md";
 };
 
 export function Chip({
   children,
   active = false,
   pending = false,
+  size = "md",
   className,
   type = "button",
   ...props
@@ -25,8 +27,11 @@ export function Chip({
       // exposed, not just painted.
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill border border-border-strong bg-bg px-3 py-1.5 text-sm transition duration-200 hover:-translate-y-px hover:bg-surface disabled:pointer-events-none disabled:opacity-50",
-        active && "border-accent bg-accent-surface font-medium text-accent-on-surface",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-pill border font-medium whitespace-nowrap transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50",
+        size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3 text-[13px]",
+        active
+          ? "border-accent-border bg-accent-surface text-accent-on-surface"
+          : "border-border bg-bg text-fg-muted shadow-xs hover:border-border-strong hover:text-ink",
         pending && "pointer-events-none opacity-60",
         className,
       )}

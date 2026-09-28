@@ -15,7 +15,7 @@ import {
 const DAY_CLASS: Record<CalendarDayRole, string> = {
   outside: "cursor-default border-transparent bg-transparent text-fg-faint",
   disabled: "cursor-not-allowed border-transparent bg-transparent text-fg-disabled",
-  plain: "border-border-subtle bg-bg text-ink hover:bg-surface",
+  plain: "border-transparent bg-transparent text-ink hover:bg-surface",
   today: "border-border-strong bg-accent-tint font-medium text-accent-ink",
   inRange: "rounded-none border-accent-surface bg-accent-surface text-accent-ink",
   start: "rounded-l-sm rounded-r-none border-accent bg-accent font-medium text-on-accent",

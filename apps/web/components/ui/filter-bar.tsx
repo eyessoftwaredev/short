@@ -56,7 +56,7 @@ export function FilterBar<T extends string>({
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-3", className)}>
       {onSearchChange ? (
-        <div className="relative min-w-52 flex-1">
+        <div className="relative max-w-md min-w-52 flex-1">
           <label htmlFor={searchId} className="sr-only">
             {searchLabel ?? resolvedPlaceholder}
           </label>
@@ -73,7 +73,7 @@ export function FilterBar<T extends string>({
               }
             }}
             placeholder={resolvedPlaceholder}
-            className={cn("h-9 w-full py-2 pl-9", showClear ? "pr-9" : "pr-3")}
+            className={cn("w-full py-2 pl-9", showClear ? "pr-9" : "pr-3")}
           />
           {showClear ? (
             <button

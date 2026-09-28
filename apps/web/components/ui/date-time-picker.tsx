@@ -197,7 +197,7 @@ export function DateTimePicker({
       {open ? (
         <div
           role="dialog"
-          className="absolute top-full left-0 z-dropdown mt-1 flex w-80 min-w-0 flex-col gap-4 rounded-default border border-border bg-bg p-5 shadow-pop"
+          className="animate-pop-in absolute top-full left-0 z-dropdown mt-1 flex w-80 min-w-0 flex-col gap-4 rounded-md border border-border bg-elevated p-5 shadow-pop"
         >
           <div className="grid grid-cols-2 gap-2">
             <Select

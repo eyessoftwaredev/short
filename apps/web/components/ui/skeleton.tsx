@@ -48,11 +48,11 @@ export function SkeletonTable({
 }: SkeletonTableProps) {
   return (
     <div
-      className={cn("min-w-0 overflow-hidden rounded-default border border-border bg-bg", className)}
+      className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-bg shadow-card", className)}
       aria-hidden="true"
     >
       {header ? (
-        <div className="flex items-center gap-4 border-b border-border bg-surface-subtle px-3.5 py-3">
+        <div className="flex h-10 items-center gap-4 border-b border-border bg-surface-subtle px-4">
           {Array.from({ length: columns }, (_, index) => (
             <Skeleton key={index} className={cn("h-2.5", index === 0 ? "flex-2" : "flex-1")} />
           ))}
@@ -61,7 +61,7 @@ export function SkeletonTable({
       {Array.from({ length: rows }, (_, rowIndex) => (
         <div
           key={rowIndex}
-          className="flex items-center gap-4 border-b border-border-subtle px-3.5 py-3 last:border-b-0"
+          className="flex items-center gap-4 border-b border-border-subtle px-4 py-3.5 last:border-b-0"
         >
           {Array.from({ length: columns }, (_, columnIndex) => (
             <Skeleton
@@ -86,14 +86,14 @@ export function SkeletonCard({ delta = true, className }: SkeletonCardProps) {
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-2.5 rounded-default border border-border bg-bg p-5",
+        "flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-bg p-5 shadow-card",
         className,
       )}
       aria-hidden="true"
     >
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-8 w-32" />
-      {delta ? <Skeleton className="h-3.5 w-40" /> : null}
+      <Skeleton className="h-3.5 w-24" />
+      <Skeleton className="h-8 w-28" />
+      {delta ? <Skeleton className="h-3.5 w-36" /> : null}
     </div>
   );
 }

@@ -3,7 +3,9 @@
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { BrandLockup } from "@/components/brand/brand-mark";
+import Link from "next/link";
+import { BrandLockup, BrandMark } from "@/components/brand/brand-mark";
+import { Toaster } from "@/components/ui/toast";
 import { usePanelSession } from "@/components/providers/session-provider";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cx";
@@ -18,6 +20,13 @@ import { Topbar } from "./topbar";
 type Crumb = { label: string; href?: string };
 
 const COLLAPSE_KEY = "short-sidebar-collapsed";
+
+/*
+ * Every page renders its own PanelShell, so the shell remounts on navigation.
+ * The collapsed flag is cached at module level after the first read, so later
+ * mounts start in the right state instead of flashing open for a frame.
+ */
+let collapsedCache: boolean | null = null;
 
 type PanelShellProps = {
   title: string;
@@ -44,7 +53,7 @@ export function PanelShell({
   searchable,
   contentClassName,
 }: PanelShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(collapsedCache ?? false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -54,8 +63,12 @@ export function PanelShell({
   const t = useTranslations("common");
 
   useEffect(() => {
+    if (collapsedCache != null) {
+      return;
+    }
     try {
-      setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
+      collapsedCache = window.localStorage.getItem(COLLAPSE_KEY) === "1";
+      setCollapsed(collapsedCache);
     } catch {
       /* private mode — fall back to expanded */
     }
@@ -69,6 +82,7 @@ export function PanelShell({
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
+      collapsedCache = next;
       try {
         window.localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
       } catch {
@@ -119,8 +133,15 @@ export function PanelShell({
     />
   );
 
+  const brandCompact = (
+    <Link href="/dashboard" aria-label={session.brandName} className="flex no-underline">
+      <BrandMark logoSrc={session.brandLogoSrc} />
+    </Link>
+  );
+
   const sidebarHandlers = {
     brand,
+    brandCompact,
     onSwitchWorkspace: (id: string) => {
       void switchWorkspace(id);
     },
@@ -131,10 +152,10 @@ export function PanelShell({
   };
 
   return (
-    <div className="panel-root flex min-h-screen bg-bg">
+    <div className="panel-root flex min-h-screen bg-canvas">
       <a
         href="#panel-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-toast focus:rounded-default focus:border focus:border-border focus:bg-bg focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:no-underline focus:shadow-pop"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-toast focus:rounded-default focus:border focus:border-border focus:bg-elevated focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:no-underline focus:shadow-pop"
       >
         {t("skipToContent")}
       </a>
@@ -155,12 +176,19 @@ export function PanelShell({
           searchable={searchable}
           onMenuClick={() => setMobileNavOpen(true)}
           onOpenPalette={() => setPaletteOpen(true)}
+          onSignOut={() => {
+            void signOut();
+          }}
         />
+        {/*
+          One content column for every page: max 1280px, 16/24/32px gutters,
+          24px between blocks. Pages never set their own width or padding.
+        */}
         <main
           id="panel-content"
           tabIndex={-1}
           className={cn(
-            "flex min-w-0 flex-1 flex-col gap-4 p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:gap-6 lg:p-6 lg:pb-6",
+            "page-container flex min-w-0 flex-1 flex-col gap-6 px-4 pt-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-12",
             contentClassName,
           )}
         >
@@ -170,7 +198,8 @@ export function PanelShell({
         </main>
       </div>
 
-      <MobileTabBar />
+      <MobileTabBar onOpenMenu={() => setMobileNavOpen(true)} />
+      <Toaster />
 
       <CommandPalette
         open={paletteOpen}

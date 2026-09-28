@@ -3,18 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Icon } from "@/components/kit/icon";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dropdown, type DropdownItem } from "@/components/ui/dropdown";
-import { useTranslations } from "next-intl";
+import { QuotaMeter } from "@/components/ui/quota-meter";
 import { initials, usePanelSession } from "@/components/providers/session-provider";
 import { cn } from "@/lib/cx";
-import { getNavForRole, type NavGroup } from "@/lib/nav";
+import { createActions, getNavForRole, type NavGroup } from "@/lib/nav";
 
 type SidebarShellProps = {
+  /** Full lockup (logo + wordmark) for the expanded rail and the drawer. */
   brand: ReactNode;
+  /** Logo-only mark for the collapsed rail. Falls back to `brand`. */
+  brandCompact?: ReactNode;
   collapsed?: boolean;
   onToggle?: () => void;
   onSwitchWorkspace: (workspaceId: string) => void;
@@ -66,24 +70,201 @@ function SidebarNavItem({
       aria-current={active ? "page" : undefined}
       onClick={onNavigate}
       className={cn(
-        "relative flex min-w-0 items-center gap-2.5 rounded-default py-2 text-sm no-underline transition duration-200 hover:bg-surface hover:text-ink hover:no-underline",
-        collapsed ? "justify-center px-0" : "px-2.5",
+        "group flex h-9 min-w-0 items-center gap-2.5 rounded-default text-sm font-medium no-underline transition-colors duration-150 hover:no-underline",
+        collapsed ? "mx-auto w-9 justify-center px-0" : "px-2.5",
         active
-          ? "bg-accent-surface font-medium text-accent-on-surface before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-pill before:bg-accent"
-          : "text-fg-muted",
+          ? "bg-bg text-ink shadow-xs ring-1 ring-border"
+          : "text-fg-muted hover:bg-surface-strong hover:text-ink",
       )}
     >
-      <Icon name={icon} className="shrink-0 text-sm" />
+      <Icon
+        name={icon}
+        className={cn(
+          "text-[15px]",
+          active ? "text-accent" : "text-fg-subtle group-hover:text-fg-muted",
+        )}
+      />
       <span className={cn("min-w-0 truncate", collapsed && "sr-only")}>{label}</span>
       {count && !collapsed ? (
-        <span className="numeric ml-auto font-mono text-xs text-fg-subtle">{count}</span>
+        <span className="numeric ml-auto text-xs text-fg-subtle">{count}</span>
       ) : null}
     </Link>
   );
 }
 
+function WorkspaceSwitcher({
+  collapsed,
+  onSwitchWorkspace,
+  onCreateTeam,
+}: {
+  collapsed: boolean;
+  onSwitchWorkspace: (workspaceId: string) => void;
+  onCreateTeam: () => void;
+}) {
+  const session = usePanelSession();
+  const tc = useTranslations("common");
+  const ts = useTranslations("shell");
+
+  const personal = session.workspaces.filter((workspace) => workspace.kind === "personal");
+  const teams = session.workspaces.filter((workspace) => workspace.kind === "team");
+  const toItem = (workspace: (typeof session.workspaces)[number]): DropdownItem => ({
+    id: workspace.id,
+    label: workspace.name,
+    icon: (
+      <Avatar size="sm" shape="square" tone="neutral" className="size-5 text-[9px]">
+        {initials(workspace.name, workspace.slug)}
+      </Avatar>
+    ),
+    selected: workspace.id === session.workspace.id,
+    onSelect: () => onSwitchWorkspace(workspace.id),
+  });
+
+  const items: DropdownItem[] = [
+    { id: "hdr-personal", label: tc("personal"), heading: true },
+    ...personal.map(toItem),
+    ...(teams.length > 0
+      ? [{ id: "hdr-teams", label: tc("teams"), heading: true, separated: true }, ...teams.map(toItem)]
+      : []),
+    {
+      id: "create-team",
+      label: session.canCreateTeam ? tc("createTeam") : tc("createTeamUpgrade"),
+      icon: <Icon name="plus" className="text-xs" />,
+      onSelect: onCreateTeam,
+      disabled: !session.canCreateTeam,
+      separated: true,
+    },
+    {
+      id: "workspace-settings",
+      label: tc("workspaceSettings"),
+      href: "/settings?tab=team",
+      icon: <Icon name="gear" className="text-xs" />,
+    },
+  ];
+
+  const kindLabel = session.workspace.kind === "personal" ? tc("personal") : tc("team");
+
+  return (
+    <Dropdown
+      align="start"
+      label={tc("switchWorkspace")}
+      className="w-full"
+      items={items}
+      trigger={
+        <button
+          type="button"
+          title={collapsed ? session.workspace.name : undefined}
+          aria-label={tc("workspaceAria", { name: session.workspace.name })}
+          className={cn(
+            "flex w-full min-w-0 items-center rounded-md text-left transition-colors duration-150",
+            collapsed
+              ? "justify-center p-1 hover:bg-surface-strong"
+              : "gap-2.5 border border-border bg-bg px-2 py-1.5 shadow-xs hover:border-border-strong",
+          )}
+        >
+          <Avatar shape="square" size="md">
+            {initials(session.workspace.name, session.workspace.slug)}
+          </Avatar>
+          {collapsed ? null : (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm leading-5 font-semibold text-ink">
+                  {session.workspace.name}
+                </span>
+                <span className="truncate text-xs leading-4 text-fg-subtle">
+                  {kindLabel} · {ts("planName", { plan: session.planName })}
+                </span>
+              </span>
+              <Icon name="up-down" className="text-[11px] text-fg-subtle" />
+            </>
+          )}
+        </button>
+      }
+    />
+  );
+}
+
+/** "+ Create" with a menu of the three things a user can make. */
+export function CreateMenu({
+  collapsed = false,
+  align = "start",
+  trigger,
+}: {
+  collapsed?: boolean;
+  align?: "start" | "end";
+  /** Custom trigger (the mobile tab bar uses a round button). */
+  trigger?: ReactNode;
+}) {
+  const ts = useTranslations("shell");
+  const items: DropdownItem[] = createActions.map((action) => ({
+    id: action.id,
+    label: ts(action.label),
+    description: ts(action.description),
+    href: action.href,
+    icon: <Icon name={action.icon} className="text-sm" />,
+  }));
+
+  return (
+    <Dropdown
+      align={align}
+      label={ts("createMenu")}
+      className={trigger ? undefined : "w-full"}
+      items={items}
+      trigger={
+        trigger ??
+        (collapsed ? (
+          <Button variant="primary" icon aria-label={ts("create")} title={ts("create")} className="mx-auto">
+            <Icon name="plus" className="text-sm" />
+          </Button>
+        ) : (
+          <Button variant="primary" block leadingIcon="plus" trailingIcon="chevron-down" className="justify-between">
+            <span className="flex-1 text-left">{ts("create")}</span>
+          </Button>
+        ))
+      }
+    />
+  );
+}
+
+function PlanCard() {
+  const session = usePanelSession();
+  const ts = useTranslations("shell");
+  const tc = useTranslations("common");
+  const canManageBilling = session.role === "owner" || session.role === "superadmin";
+  const limited = session.usage != null && session.usage.linkLimit !== -1;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-md border border-border bg-bg p-3 shadow-xs">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <span className="truncate text-[13px] font-semibold text-ink">
+          {ts("planName", { plan: session.planName })}
+        </span>
+        {session.impersonatedBy ? (
+          <Badge tone="warn" size="sm" dot>
+            {tc("impersonating")}
+          </Badge>
+        ) : null}
+      </div>
+      {session.usage ? (
+        <QuotaMeter compact label={ts("linksUsage")} used={session.usage.links} limit={session.usage.linkLimit} />
+      ) : null}
+      {canManageBilling ? (
+        <Button
+          size="sm"
+          variant={limited ? "secondary" : "ghost"}
+          block
+          href="/billing"
+          leadingIcon={limited ? "rocket" : "credit-card"}
+        >
+          {limited ? ts("upgrade") : ts("managePlan")}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 function SidebarPanel({
   brand,
+  brandCompact,
   collapsed = false,
   onToggle,
   onSwitchWorkspace,
@@ -98,182 +279,110 @@ function SidebarPanel({
   const tc = useTranslations("common");
   const groups = getNavForRole(session.role);
   const current = useMemo(() => activeHref(pathname, groups), [pathname, groups]);
-
-  const personal = session.workspaces.filter((workspace) => workspace.kind === "personal");
-  const teams = session.workspaces.filter((workspace) => workspace.kind === "team");
-  const showSwitcher = teams.length > 0;
-
-  const workspaceItems: DropdownItem[] = [
-    { id: "hdr-personal", label: tc("personal"), disabled: true },
-    ...personal.map((workspace) => ({
-      id: workspace.id,
-      label: workspace.name,
-      icon:
-        workspace.id === session.workspace.id ? (
-          <Icon name="check" className="text-sm text-accent" />
-        ) : undefined,
-      onSelect: () => onSwitchWorkspace(workspace.id),
-    })),
-    { id: "hdr-teams", label: tc("teams"), disabled: true, separated: true },
-    ...teams.map((workspace) => ({
-      id: workspace.id,
-      label: workspace.name,
-      icon:
-        workspace.id === session.workspace.id ? (
-          <Icon name="check" className="text-sm text-accent" />
-        ) : undefined,
-      onSelect: () => onSwitchWorkspace(workspace.id),
-    })),
-    {
-      id: "create-team",
-      label: session.canCreateTeam ? tc("createTeam") : tc("createTeamUpgrade"),
-      icon: <Icon name="plus" className="text-sm" />,
-      onSelect: onCreateTeam,
-      disabled: !session.canCreateTeam,
-      separated: true,
-    },
-    {
-      id: "workspace-settings",
-      label: tc("workspaceSettings"),
-      href: "/settings?tab=team",
-      icon: <Icon name="user-gear" className="text-sm" />,
-    },
-  ];
+  const inDrawer = onNavigate != null && !showCollapseToggle;
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <div
         className={cn(
-          "flex min-h-14 min-w-0 items-center gap-2.5 border-b border-border px-3.5",
-          collapsed && "justify-center px-0",
+          "flex h-14 shrink-0 items-center gap-2",
+          collapsed ? "justify-center px-2" : "justify-between pr-2 pl-4",
         )}
       >
-        <div className={cn("min-w-0 flex-1", collapsed && "sr-only")}>{brand}</div>
-        {showCollapseToggle && onToggle ? (
+        <div className="flex min-w-0 items-center">{collapsed ? (brandCompact ?? brand) : brand}</div>
+        {showCollapseToggle && onToggle && !collapsed ? (
           <Button
             variant="ghost"
             icon
-            aria-label={collapsed ? tc("expandSidebar") : tc("collapseSidebar")}
-            aria-expanded={!collapsed}
+            size="sm"
+            aria-label={tc("collapseSidebar")}
+            title={tc("collapseSidebar")}
+            aria-expanded
             onClick={onToggle}
           >
-            {collapsed ? (
-              <Icon name="chevron-right" className="text-sm" />
-            ) : (
-              <Icon name="chevron-left" className="text-sm" />
-            )}
+            <Icon name="angles-left" className="text-xs" />
           </Button>
-        ) : onNavigate ? (
-          <Button variant="ghost" icon aria-label={tc("close")} onClick={onNavigate}>
+        ) : inDrawer ? (
+          <Button variant="ghost" icon size="sm" aria-label={tc("close")} onClick={onNavigate}>
             <Icon name="xmark" className="text-sm" />
           </Button>
         ) : null}
       </div>
 
-      {showSwitcher ? (
-        <div className={cn("border-b border-border p-2", collapsed && "px-2")}>
-          <Dropdown
-            align="start"
-            label={tc("switchWorkspace")}
-            className="w-full"
-            items={workspaceItems}
-            trigger={
-              <button
-                type="button"
-                title={collapsed ? session.workspace.name : undefined}
-                aria-label={tc("workspaceAria", { name: session.workspace.name })}
-                className={cn(
-                  "flex w-full min-w-0 items-center rounded-default text-left transition duration-200",
-                  collapsed
-                    ? "justify-center px-0 py-1.5 hover:bg-surface"
-                    : "gap-2.5 border border-border-strong bg-bg px-2 py-1.5 hover:bg-surface",
-                )}
-              >
-                <Avatar className="hover:translate-y-0">
-                  {initials(session.workspace.name, session.workspace.slug)}
-                </Avatar>
-                {collapsed ? null : (
-                  <>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">
-                        {session.workspace.name}
-                      </span>
-                      <Badge tone="muted" className="mt-0.5 px-1.5 py-0">
-                        {session.workspace.kind === "personal" ? tc("personal") : tc("team")}
-                        {" · "}
-                        {session.planName}
-                      </Badge>
-                    </span>
-                    <Icon name="chevron-down" className="shrink-0 text-xs text-fg-subtle" />
-                  </>
-                )}
-              </button>
-            }
-          />
-        </div>
-      ) : null}
+      <div className={cn("flex shrink-0 flex-col gap-2 pb-3", collapsed ? "items-center px-2" : "px-3")}>
+        <WorkspaceSwitcher
+          collapsed={collapsed}
+          onSwitchWorkspace={onSwitchWorkspace}
+          onCreateTeam={onCreateTeam}
+        />
+        <CreateMenu collapsed={collapsed} />
+      </div>
 
-      <nav aria-label={tc("mainNav")} className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
-        {groups.map((group, groupIndex) => (
-          <div key={group.label} className="flex flex-col gap-1">
-            {collapsed ? (
-              groupIndex > 0 ? (
-                <span className="mx-2 mb-1 h-px bg-border" aria-hidden="true" />
-              ) : null
-            ) : (
-              <div className="px-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-                {t(group.label.toLowerCase() as "overview")}
-              </div>
-            )}
-            <ul
-              className="m-0 flex list-none flex-col gap-0.5 p-0"
-              aria-label={collapsed ? t(group.label.toLowerCase() as "overview") : undefined}
-            >
-              {group.items.map((item) => (
-                <li key={item.id} className="min-w-0">
-                  <SidebarNavItem
-                    href={item.href}
-                    label={t(item.id as "dashboard")}
-                    icon={item.icon}
-                    count={item.count}
-                    collapsed={collapsed}
-                    active={current === item.href}
-                    onNavigate={onNavigate}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+      <nav
+        aria-label={tc("mainNav")}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-2",
+          collapsed ? "px-2" : "px-3",
+        )}
+      >
+        {groups.map((group, groupIndex) => {
+          const groupLabel = t(group.label.toLowerCase() as "manage");
+          return (
+            <div key={group.label} className="flex flex-col gap-1">
+              {collapsed ? (
+                groupIndex > 0 ? (
+                  <span className="mx-2 mb-1 h-px bg-border" aria-hidden="true" />
+                ) : null
+              ) : (
+                <div className="px-2.5 pb-0.5 text-xs font-medium text-fg-subtle">{groupLabel}</div>
+              )}
+              <ul className="m-0 flex list-none flex-col gap-0.5 p-0" aria-label={groupLabel}>
+                {group.items.map((item) => (
+                  <li key={item.id} className="min-w-0">
+                    <SidebarNavItem
+                      href={item.href}
+                      label={t(item.id as "dashboard")}
+                      icon={item.icon}
+                      count={item.count}
+                      collapsed={collapsed}
+                      active={current === item.href}
+                      onNavigate={onNavigate}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
-      <div className={cn("border-t border-border p-3", collapsed && "px-2")}>
-        {session.impersonatedBy && !collapsed ? (
-          <Badge tone="warn" dot className="mb-3 w-full justify-center">
-            {tc("impersonating")}
-          </Badge>
-        ) : null}
-        <div
-          className={cn(
-            "flex min-w-0 items-center gap-2.5",
-            collapsed && "flex-col justify-center gap-2",
-          )}
-        >
-          <Avatar title={collapsed ? session.user.email : undefined}>
-            {initials(session.user.name, session.user.email)}
-          </Avatar>
-          <div className={cn("min-w-0 flex-1", collapsed && "sr-only")}>
-            <div className="truncate text-sm font-medium">
-              {session.user.name || session.user.email}
-            </div>
-            <div className="truncate text-xs text-fg-subtle">{session.user.email}</div>
-          </div>
-          <Button variant="ghost" icon aria-label={tc("signOut")} onClick={onSignOut}>
-            <Icon name="right-from-bracket" className="text-sm" />
+      <div className={cn("flex shrink-0 flex-col gap-2 border-t border-border p-3", collapsed && "items-center px-2")}>
+        {collapsed ? (
+          <Button
+            variant="ghost"
+            icon
+            size="sm"
+            aria-label={tc("expandSidebar")}
+            title={tc("expandSidebar")}
+            aria-expanded={false}
+            onClick={onToggle}
+          >
+            <Icon name="angles-right" className="text-xs" />
           </Button>
-        </div>
+        ) : (
+          <PlanCard />
+        )}
+        {inDrawer ? (
+          <div className="flex min-w-0 items-center gap-2.5 px-1 pt-1">
+            <Avatar size="sm">{initials(session.user.name, session.user.email)}</Avatar>
+            <span className="min-w-0 flex-1 truncate text-[13px] text-fg-muted">{session.user.email}</span>
+            <Button variant="ghost" icon size="sm" aria-label={tc("signOut")} title={tc("signOut")} onClick={onSignOut}>
+              <Icon name="right-from-bracket" className="text-xs" />
+            </Button>
+          </div>
+        ) : null}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -283,8 +392,8 @@ export function Sidebar(props: SidebarShellProps) {
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-svh shrink-0 flex-col border-r border-border bg-surface-subtle transition-[width] duration-200 lg:flex",
-        collapsed ? "w-16" : "w-60",
+        "sticky top-0 hidden h-svh shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 lg:flex",
+        collapsed ? "w-16" : "w-64",
       )}
     >
       <SidebarPanel collapsed={collapsed} showCollapseToggle {...rest} />
@@ -298,6 +407,8 @@ type MobileNavDrawerProps = SidebarShellProps & {
 };
 
 export function MobileNavDrawer({ open, onClose, ...props }: MobileNavDrawerProps) {
+  const ts = useTranslations("shell");
+
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -329,6 +440,7 @@ export function MobileNavDrawer({ open, onClose, ...props }: MobileNavDrawerProp
         open ? "pointer-events-auto" : "pointer-events-none",
       )}
       aria-hidden={!open}
+      inert={!open}
     >
       <div
         role="presentation"
@@ -341,9 +453,9 @@ export function MobileNavDrawer({ open, onClose, ...props }: MobileNavDrawerProp
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Navigation menu"
+        aria-label={ts("navigation")}
         className={cn(
-          "absolute inset-y-0 left-0 flex w-72 max-w-[min(20rem,85vw)] flex-col border-r border-border bg-surface-subtle shadow-modal transition-transform duration-200",
+          "absolute inset-y-0 left-0 flex w-72 max-w-[min(20rem,85vw)] flex-col border-r border-border bg-sidebar shadow-modal transition-transform duration-200",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >

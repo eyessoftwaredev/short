@@ -67,7 +67,19 @@
     "apply": "Uygula",
     "seePlans": "Planları gör",
     "noDataInRange": "Bu aralıkta veri yok",
-    "discard": "Vazgeç"
+    "discard": "Vazgeç",
+    "advancedSettings": "Gelişmiş ayarlar",
+    "optional": "İsteğe bağlı",
+    "progress": "İlerleme",
+    "stepOf": "Adım {current}/{total}",
+    "completed": "tamamlandı",
+    "show": "Göster",
+    "hide": "Gizle",
+    "openInNewTab": "Yeni sekmede aç",
+    "quotaReached": "Limite ulaştın — daha fazlası için planını yükselt.",
+    "quotaLeft": "{count} kaldı.",
+    "upgrade": "Yükselt",
+    "viewAll": "Tümünü gör"
   },
   "media": {
     "upload": "Görsel yükle",
@@ -126,7 +138,10 @@
     "admin-domains": "Tüm domainler",
     "admin-plans": "Planlar",
     "admin-system": "Sistem",
-    "admin-audit": "Denetim kaydı"
+    "admin-audit": "Denetim kaydı",
+    "analyze": "Analiz",
+    "create": "Oluştur",
+    "help": "Yardım"
   },
   "palette": {
     "open": "Ara veya git…",
@@ -151,6 +166,26 @@
     "hintMove": "gez",
     "hintOpen": "aç",
     "hintToggle": "aç/kapat"
+  },
+  "shell": {
+    "create": "Oluştur",
+    "createMenu": "Yeni bir şey oluştur",
+    "createLink": "Kısa link",
+    "createLinkDesc": "Bir URL'yi kısalt, her tıklamayı takip et",
+    "createQr": "QR kod",
+    "createQrDesc": "Her taramayı sayan, baskıya hazır kod",
+    "createBio": "Bio sayfası",
+    "createBioDesc": "Tüm linklerini tek sayfada topla",
+    "planName": "{plan} planı",
+    "linksUsage": "Linkler",
+    "upgrade": "Planı yükselt",
+    "managePlan": "Plan ve faturalandırma",
+    "profile": "Hesap ayarları",
+    "help": "Yardım ve dokümanlar",
+    "userMenu": "Hesap menüsü",
+    "navigation": "Gezinme menüsü",
+    "home": "Ana sayfa",
+    "more": "Daha fazla"
   },
   "gettingStarted": {
     "title": "Başlarken",
@@ -1096,7 +1131,15 @@
     "analyticsLoadError": "Analitik yüklenemedi",
     "analyticsLoadErrorBody": "Bu rapor oluşturulamadı. Tıklamalar kaydedilmeye devam ediyor; sayfa açılınca dahil edilir.",
     "loadErrorHint": "Bu devam ederse yukarıdaki referansı destekle paylaş.",
-    "editLink": "Linki düzenle"
+    "editLink": "Linki düzenle",
+    "dashboardIntro": "Son {range} içinde linklerinin, QR kodlarının ve bio sayfalarının performansı.",
+    "dashboardIntroAll": "{range} içinde linklerinin, QR kodlarının ve bio sayfalarının performansı.",
+    "clicksInfo": "Kısa linklerin, QR kodların veya bio sayfaların üzerinden gelen her ziyaret. Botlar ve tarayıcı robotları sayılmaz.",
+    "visitorsInfo": "Farklı kişi sayısının tahmini: aynı ziyaretçinin tekrar tıklamaları bir kez sayılır.",
+    "countriesInfo": "Bu aralıkta ziyaretçilerinin geldiği farklı ülke sayısı.",
+    "linksUsedInfo": "Sahibi olduğun tüm çalışma alanlarındaki linkler plan limitine sayılır.",
+    "clickTrendInfo": "Zaman içindeki tıklamalar ve tekil ziyaretçiler. Tam sayıları görmek için grafiğin üzerine gel.",
+    "recentActivity": "Son hareketler"
   },
   "links": {
     "description": "Buradaki her kısa link, hedefleme kuralları ve tıklama toplamlarıyla.",

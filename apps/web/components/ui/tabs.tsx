@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/lib/cx";
 
@@ -9,16 +10,56 @@ export type TabItem<T extends string = string> = {
   count?: number | string;
 };
 
+/**
+ * `underline` — page and record sections (Settings: Profile / Team / API).
+ * `segmented` — compact switches inside a card (analytics breakdowns).
+ * `pill` is the old name for `segmented` and renders the same.
+ */
+type TabsVariant = "underline" | "segmented" | "pill";
+
 type TabsProps<T extends string> = {
   items: readonly TabItem<T>[];
   value: T;
   onChange: (id: T) => void;
-  /** `underline` for record editors, `pill` for analytics breakdowns. */
-  variant?: "underline" | "pill";
+  variant?: TabsVariant;
   /** Names the tablist for assistive tech, e.g. "Breakdown dimension". */
   label?: string;
   className?: string;
 };
+
+function tabClasses(variant: TabsVariant, active: boolean): string {
+  if (variant === "underline") {
+    return cn(
+      "-mb-px inline-flex h-10 shrink-0 items-center gap-2 border-b-2 px-1 text-sm whitespace-nowrap transition-colors duration-150",
+      active
+        ? "border-accent font-semibold text-ink"
+        : "border-transparent font-medium text-fg-muted hover:border-border-strong hover:text-ink",
+    );
+  }
+  return cn(
+    "inline-flex h-8 shrink-0 items-center gap-2 rounded-sm px-3 text-[13px] font-medium whitespace-nowrap transition-colors duration-150",
+    active ? "bg-bg text-ink shadow-xs ring-1 ring-border" : "text-fg-muted hover:text-ink",
+  );
+}
+
+function listClasses(variant: TabsVariant): string {
+  return variant === "underline"
+    ? "flex min-w-0 gap-6 overflow-x-auto overflow-y-hidden border-b border-border"
+    : "inline-flex max-w-full min-w-0 gap-0.5 overflow-x-auto overflow-y-hidden rounded-default border border-border bg-surface p-0.5";
+}
+
+function Count({ value, active }: { value: number | string; active: boolean }) {
+  return (
+    <span
+      className={cn(
+        "numeric inline-flex h-5 min-w-5 items-center justify-center rounded-pill px-1.5 text-[11px] font-medium",
+        active ? "bg-accent-surface text-accent-on-surface" : "bg-surface-strong text-fg-muted",
+      )}
+    >
+      {value}
+    </span>
+  );
+}
 
 export function Tabs<T extends string>({
   items,
@@ -28,7 +69,6 @@ export function Tabs<T extends string>({
   label,
   className,
 }: TabsProps<T>) {
-  const isPill = variant === "pill";
   const listRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -69,11 +109,7 @@ export function Tabs<T extends string>({
       role="tablist"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={cn(
-        "flex min-w-0 gap-1 overflow-x-auto overflow-y-hidden",
-        isPill ? "rounded-default bg-surface p-1" : "border-b border-border",
-        className,
-      )}
+      className={cn(listClasses(variant), className)}
     >
       {items.map((item) => {
         const active = item.id === value;
@@ -85,32 +121,58 @@ export function Tabs<T extends string>({
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(item.id)}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition duration-200",
-              isPill
-                ? "rounded-sm border px-3.5 py-1.5 text-sm font-medium"
-                : "-mb-px border-b-2 px-3.5 py-2.5 text-sm",
-              isPill && active && "border-border bg-bg text-ink",
-              isPill && !active && "border-transparent bg-transparent text-fg-muted hover:text-ink",
-              !isPill && active && "border-accent font-semibold text-ink",
-              !isPill && !active && "border-transparent font-medium text-fg-muted hover:text-ink",
-            )}
+            className={tabClasses(variant, active)}
           >
             {item.label}
-            {item.count != null ? (
-              <span
-                className={cn(
-                  "numeric font-mono text-xs",
-                  active ? "text-fg-muted" : "text-fg-subtle",
-                )}
-              >
-                {item.count}
-              </span>
-            ) : null}
+            {item.count != null ? <Count value={item.count} active={active} /> : null}
           </button>
         );
       })}
     </div>
+  );
+}
+
+export type TabLinkItem = {
+  id: string;
+  label: ReactNode;
+  href: string;
+  count?: number | string;
+};
+
+type TabLinksProps = {
+  items: readonly TabLinkItem[];
+  /** `id` of the current tab. */
+  value: string;
+  variant?: TabsVariant;
+  /** Names the navigation landmark, e.g. "Link sections". */
+  label?: string;
+  className?: string;
+};
+
+/**
+ * Tabs that are real links (`?tab=` or sub-routes), so each tab is
+ * shareable, survives a refresh and works without JavaScript. Use in
+ * `PageHeader tabs=…` for sectioned pages such as Settings.
+ */
+export function TabLinks({ items, value, variant = "underline", label, className }: TabLinksProps) {
+  return (
+    <nav aria-label={label} className={cn(listClasses(variant), className)}>
+      {items.map((item) => {
+        const active = item.id === value;
+        return (
+          <Link
+            key={item.id}
+            href={item.href}
+            scroll={false}
+            aria-current={active ? "page" : undefined}
+            className={cn(tabClasses(variant, active), "no-underline hover:no-underline")}
+          >
+            {item.label}
+            {item.count != null ? <Count value={item.count} active={active} /> : null}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -125,7 +187,7 @@ export function TabPanel({ active, children, className }: TabPanelProps) {
     return null;
   }
   return (
-    <div role="tabpanel" tabIndex={0} className={cn("min-w-0", className)}>
+    <div role="tabpanel" tabIndex={0} className={cn("min-w-0 focus-visible:rounded-default", className)}>
       {children}
     </div>
   );

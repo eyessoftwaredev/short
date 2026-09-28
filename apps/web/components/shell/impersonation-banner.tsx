@@ -1,11 +1,9 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
-
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { usePanelSession } from "@/components/providers/session-provider";
-import { Button } from "@/components/ui";
+import { Button, Callout } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
 /**
@@ -42,19 +40,15 @@ export function ImpersonationBanner() {
   }
 
   return (
-    <div
-      role="status"
-      className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-default border border-warn-border bg-warn-surface px-4 py-2.5 text-warn-ink"
-    >
-      <span className="flex min-w-0 items-center gap-2 text-sm">
-        <Icon name="user-gear" className="text-sm shrink-0" />
-        <span className="min-w-0 truncate">
-          {t("viewingAs", { email: session.user.email, workspace: session.workspace.name })}
-        </span>
-      </span>
-      <Button size="sm" disabled={pending} onClick={stop}>
-        {t("endSession")}
-      </Button>
-    </div>
+    <Callout
+      tone="warn"
+      icon="user-gear"
+      title={t("viewingAs", { email: session.user.email, workspace: session.workspace.name })}
+      actions={
+        <Button size="sm" loading={pending} onClick={stop}>
+          {t("endSession")}
+        </Button>
+      }
+    />
   );
 }

@@ -41,18 +41,21 @@ export function SaveBar({
   return (
     <div
       className={cn(
-        "sticky bottom-4 z-toast flex flex-wrap items-center justify-between gap-4 rounded-default border border-border-strong bg-bg px-4 py-3 shadow-toast",
+        "animate-slide-in-up sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-toast mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-elevated py-2.5 pr-2.5 pl-4 shadow-toast lg:bottom-5",
         className,
       )}
     >
-      <span className="text-sm text-fg-muted">{resolvedMessage}</span>
+      <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-ink">
+        <span className="size-2 shrink-0 rounded-pill bg-warn" aria-hidden="true" />
+        {resolvedMessage}
+      </span>
       <span className="flex shrink-0 gap-2">
         {actions ?? (
           <>
-            <Button size="sm" onClick={onReset} disabled={saving}>
+            <Button size="sm" variant="ghost" onClick={onReset} disabled={saving}>
               {resolvedReset}
             </Button>
-            <Button size="sm" variant="primary" onClick={onSave} disabled={saving}>
+            <Button size="sm" variant="primary" onClick={onSave} loading={saving}>
               {saving ? t("saving") : resolvedSave}
             </Button>
           </>

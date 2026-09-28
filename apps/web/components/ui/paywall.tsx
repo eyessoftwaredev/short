@@ -32,7 +32,7 @@ export function Paywall({
   return (
     <div
       className={cn(
-        "relative flex min-h-48 min-w-0 overflow-hidden rounded-default border border-border",
+        "relative flex min-h-48 min-w-0 overflow-hidden rounded-lg border border-border bg-bg shadow-card",
         className,
       )}
     >
@@ -44,11 +44,11 @@ export function Paywall({
         <div className="min-h-48 flex-1" />
       )}
 
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/60 p-6 text-center">
-        <span className="flex size-9 items-center justify-center rounded-default border border-warn-border bg-warn-surface text-warn-ink">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-bg/70 p-6 text-center backdrop-blur-[1px]">
+        <span className="flex size-10 items-center justify-center rounded-md bg-accent-surface text-accent ring-1 ring-accent-border ring-inset">
           <Icon name="lock" className="text-sm" />
         </span>
-        <span className="font-mono text-xs tracking-widest text-accent-ink uppercase">{plan}</span>
+        <span className="rounded-sm bg-accent-surface px-2 py-0.5 text-xs font-semibold text-accent-on-surface">{plan}</span>
         <span className="text-base font-semibold">{title}</span>
         <p className="m-0 max-w-[36ch] text-sm text-fg-muted">{description}</p>
         <Button variant="primary" size="sm" href={href} className="mt-1">

@@ -215,7 +215,7 @@ export function RangePicker({ value }: { value: RangeKey }) {
             <div
               role="dialog"
               aria-label={t("customRange")}
-              className="absolute top-full right-0 z-dropdown mt-1 flex w-80 min-w-0 flex-col gap-4 rounded-default border border-border bg-bg p-5 shadow-pop"
+              className="animate-pop-in absolute top-full right-0 z-dropdown mt-1 flex w-80 min-w-0 flex-col gap-4 rounded-md border border-border bg-elevated p-5 shadow-pop"
             >
               <Calendar
                 year={viewYear}

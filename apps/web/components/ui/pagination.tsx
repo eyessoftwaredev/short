@@ -46,11 +46,11 @@ export function Pagination({
       aria-label={t("pagination")}
       className={cn("flex flex-wrap items-center justify-between gap-4", className)}
     >
-      <p className="m-0 text-xs text-fg-subtle">
-        <span className="numeric font-mono text-fg-muted">
+      <p className="m-0 text-[13px] text-fg-subtle">
+        <span className="numeric font-medium text-ink">
           {numberFormat.format(first)}–{numberFormat.format(last)}
         </span>{" "}
-        {t("of")} <span className="numeric font-mono text-fg-muted">{numberFormat.format(total)}</span>
+        {t("of")} <span className="numeric font-medium text-ink">{numberFormat.format(total)}</span>
         {itemLabel ? ` ${itemLabel}` : null}
       </p>
       <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export function Pagination({
           <Icon name="chevron-left" className="text-sm" />
         </Button>
         {/* Live so a screen reader hears the new position after the arrows move. */}
-        <span className="numeric font-mono text-xs text-fg-muted" aria-live="polite">
+        <span className="numeric min-w-12 text-center text-[13px] text-fg-muted" aria-live="polite">
           {page} / {pageCount}
         </span>
         <Button

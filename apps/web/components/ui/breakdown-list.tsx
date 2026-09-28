@@ -47,14 +47,14 @@ export function BreakdownList({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-4 rounded-default border border-border bg-surface p-5",
+        "flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-bg p-5 shadow-card",
         className,
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{title}</span>
+        <span className="text-sm font-semibold text-ink">{title}</span>
         {meta ?? (
-          <span className="font-mono text-xs text-fg-disabled">{numberFormat.format(sum)}</span>
+          <span className="numeric text-xs text-fg-subtle">{numberFormat.format(sum)}</span>
         )}
       </div>
 
@@ -65,24 +65,24 @@ export function BreakdownList({
           {visible.map((row) => (
             <div key={row.key} className="flex items-center gap-3">
               {row.badge ? (
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-default border border-border bg-surface font-mono text-xs text-ink">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-default border border-border bg-surface-subtle font-mono text-xs text-ink">
                   {row.badge}
                 </span>
               ) : null}
               <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <span className="flex items-center justify-between gap-2.5 text-sm">
                   <span className="truncate">{row.label}</span>
-                  <span className="shrink-0 font-mono text-fg-muted">
+                  <span className="numeric shrink-0 font-medium text-ink">
                     {numberFormat.format(row.value)}
                     {sum > 0 ? (
-                      <span className="text-fg-disabled">
+                      <span className="font-normal text-fg-subtle">
                         {" · "}
                         {Math.round((row.value / sum) * 100)}%
                       </span>
                     ) : null}
                   </span>
                 </span>
-                <Progress value={row.value} max={peak || 1} className="h-1.5" />
+                <Progress value={row.value} max={peak || 1} size="sm" animate={false} />
               </span>
             </div>
           ))}

@@ -67,7 +67,19 @@
     "apply": "Apply",
     "seePlans": "See plans",
     "noDataInRange": "No data in this range",
-    "discard": "Discard"
+    "discard": "Discard",
+    "advancedSettings": "Advanced settings",
+    "optional": "Optional",
+    "progress": "Progress",
+    "stepOf": "Step {current} of {total}",
+    "completed": "completed",
+    "show": "Show",
+    "hide": "Hide",
+    "openInNewTab": "Open in new tab",
+    "quotaReached": "Limit reached — upgrade for more.",
+    "quotaLeft": "{count} left.",
+    "upgrade": "Upgrade",
+    "viewAll": "View all"
   },
   "media": {
     "upload": "Upload image",
@@ -126,7 +138,10 @@
     "admin-domains": "All domains",
     "admin-plans": "Plans",
     "admin-system": "System",
-    "admin-audit": "Audit log"
+    "admin-audit": "Audit log",
+    "analyze": "Analyze",
+    "create": "Create",
+    "help": "Help"
   },
   "palette": {
     "open": "Search or jump to…",
@@ -151,6 +166,26 @@
     "hintMove": "move",
     "hintOpen": "open",
     "hintToggle": "toggle"
+  },
+  "shell": {
+    "create": "Create",
+    "createMenu": "Create something new",
+    "createLink": "Short link",
+    "createLinkDesc": "Shorten a URL and track every click",
+    "createQr": "QR code",
+    "createQrDesc": "Printable code that counts every scan",
+    "createBio": "Bio page",
+    "createBioDesc": "One page that holds all your links",
+    "planName": "{plan} plan",
+    "linksUsage": "Links",
+    "upgrade": "Upgrade plan",
+    "managePlan": "Plan & billing",
+    "profile": "Account settings",
+    "help": "Help & docs",
+    "userMenu": "Account menu",
+    "navigation": "Navigation menu",
+    "home": "Home",
+    "more": "More"
   },
   "gettingStarted": {
     "title": "Get started",
@@ -1096,7 +1131,15 @@
     "analyticsLoadError": "Analytics could not be loaded",
     "analyticsLoadErrorBody": "We could not build this report. Clicks are still being recorded and will be included once it loads.",
     "loadErrorHint": "If this keeps happening, quote the reference above to support.",
-    "editLink": "Edit link"
+    "editLink": "Edit link",
+    "dashboardIntro": "How your links, QR codes and bio pages performed over the last {range}.",
+    "dashboardIntroAll": "How your links, QR codes and bio pages performed across {range}.",
+    "clicksInfo": "Every visit through one of your short links, QR codes or bio pages. Bots and crawlers are left out.",
+    "visitorsInfo": "An estimate of distinct people: repeat clicks from the same visitor are counted once.",
+    "countriesInfo": "How many different countries your visitors came from in this range.",
+    "linksUsedInfo": "Links in every workspace you own count toward your plan's limit.",
+    "clickTrendInfo": "Clicks and unique visitors over time. Hover the chart to see exact numbers.",
+    "recentActivity": "Recent activity"
   },
   "links": {
     "description": "Every short link here, with its targeting rules and click totals.",

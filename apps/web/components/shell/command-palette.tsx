@@ -362,7 +362,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-modal flex items-start justify-center bg-overlay p-3 pt-[8vh] sm:p-6 sm:pt-[12vh]"
+      className="animate-fade-in fixed inset-0 z-modal flex items-start justify-center bg-overlay p-3 pt-[8vh] backdrop-blur-[2px] sm:p-6 sm:pt-[12vh]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -374,17 +374,17 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="flex max-h-[min(34rem,84vh)] w-full max-w-xl flex-col overflow-hidden rounded-default border border-border bg-bg shadow-modal"
+        className="animate-pop-in flex max-h-[min(34rem,84vh)] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-elevated shadow-modal"
         onKeyDown={onDialogKeyDown}
       >
         <h2 id={titleId} className="sr-only">
           {t("title")}
         </h2>
-        <div className="flex items-center gap-2 border-b border-border p-3">
+        <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-2">
           <div className="relative min-w-0 flex-1">
             <Icon
               name={searchingLinks ? "spinner" : "search"}
-              className="pointer-events-none absolute top-1/2 left-3 text-sm -translate-y-1/2 text-fg-subtle"
+              className="pointer-events-none absolute top-1/2 left-1 -translate-y-1/2 text-sm text-fg-subtle"
             />
             <input
               ref={inputRef}
@@ -403,7 +403,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
               enterKeyHint="go"
               value={query}
               placeholder={t("placeholder")}
-              className="h-10 w-full py-2 pr-3 pl-9 text-base sm:text-sm"
+              className="h-11 w-full border-0 bg-transparent py-2 pr-3 pl-8 text-base shadow-none focus:shadow-none sm:text-[15px]"
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={onInputKeyDown}
             />
@@ -428,7 +428,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
               <div
                 id={`${listId}-${group}`}
                 role="presentation"
-                className="px-2.5 pt-2 pb-1 font-mono text-xs tracking-widest text-fg-subtle uppercase"
+                className="px-2.5 pt-2.5 pb-1 text-xs font-medium text-fg-subtle"
               >
                 {groupLabels[group]}
               </div>
@@ -442,8 +442,8 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
                     aria-selected={selected}
                     data-index={index}
                     className={cn(
-                      "flex min-w-0 cursor-pointer items-center gap-3 rounded-default px-2.5 py-2 text-sm",
-                      selected ? "bg-accent-surface text-accent-on-surface" : "text-ink",
+                      "flex min-h-10 min-w-0 cursor-pointer items-center gap-3 rounded-default px-2.5 py-2 text-sm",
+                      selected ? "bg-surface text-ink" : "text-ink",
                     )}
                     onMouseMove={() => {
                       if (!selected) {
@@ -453,10 +453,16 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => activate(item)}
                   >
-                    <Icon
-                      name={item.icon}
-                      className={cn("shrink-0 text-sm", selected ? "" : "text-fg-subtle")}
-                    />
+                    <span
+                      className={cn(
+                        "flex size-7 shrink-0 items-center justify-center rounded-sm border",
+                        selected
+                          ? "border-accent-border bg-accent-surface text-accent-on-surface"
+                          : "border-border bg-bg text-fg-subtle",
+                      )}
+                    >
+                      <Icon name={item.icon} className="text-xs" />
+                    </span>
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className={cn("truncate", item.mono && "font-mono text-[13px]")}>
                         {item.label}
@@ -474,7 +480,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
                       <span className="shrink-0 text-xs text-fg-subtle">{item.detail}</span>
                     ) : null}
                     {selected ? (
-                      <Icon name="arrow-right" className="shrink-0 text-xs" />
+                      <Icon name="arrow-right" className="shrink-0 text-xs text-fg-subtle" />
                     ) : null}
                   </div>
                 );
@@ -485,7 +491,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
 
         <div
           id={`${listId}-hint`}
-          className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border px-3 py-2 text-xs text-fg-subtle"
+          className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border-subtle bg-surface-subtle px-3 py-2 text-xs text-fg-subtle"
         >
           <span role="status" aria-live="polite" className="min-w-0 truncate">
             {status ?? t("scope")}

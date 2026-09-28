@@ -17,12 +17,12 @@ type TableProps = HTMLAttributes<HTMLTableElement> & {
   pending?: boolean;
   /** Announced by screen readers in place of a visible caption. */
   label?: string;
+  /**
+   * Drops the outer border, radius and shadow — for a table that sits inside a
+   * `<Card padding="none">`, which already draws the frame.
+   */
+  bare?: boolean;
   wrapperClassName?: string;
-};
-
-const densityCell: Record<TableDensity, string> = {
-  comfortable: "px-3.5 py-3",
-  compact: "px-3 py-2",
 };
 
 export function Table({
@@ -32,13 +32,15 @@ export function Table({
   density = "comfortable",
   pending = false,
   label,
+  bare = false,
   wrapperClassName,
   ...props
 }: TableProps) {
   return (
     <div
       className={cn(
-        "relative min-w-0 overflow-x-auto rounded-default border border-border bg-bg",
+        "relative min-w-0 overflow-x-auto bg-bg",
+        bare ? "border-t border-border-subtle" : "rounded-lg border border-border shadow-card",
         // `overflow-x` already makes this a scroll container on both axes, so
         // the header only needs a ceiling to stick against.
         stickyHeader && "table-viewport",
@@ -102,7 +104,7 @@ export function TableRow({
       data-selected={selected || undefined}
       aria-selected={selected || undefined}
       className={cn(
-        "transition-colors duration-150",
+        "transition-colors duration-100",
         // `focus-within` gives a keyboard user the same row highlight a mouse
         // user gets on hover.
         selected ? "bg-row-selected" : "hover:bg-row-hover focus-within:bg-row-hover",
@@ -142,9 +144,9 @@ export function TableHeaderCell({
     <th
       scope="col"
       className={cn(
-        // Small, uppercase and muted: column names are chrome, the figures
-        // underneath are the content.
-        "border-b border-border px-3.5 py-2.5 text-xs font-medium tracking-wide text-fg-subtle uppercase",
+        // Small and muted: column names are chrome, the figures underneath are
+        // the content. Sentence case reads faster than tracked capitals.
+        "h-10 border-b border-border px-4 py-2 text-xs leading-4 font-medium whitespace-nowrap text-fg-subtle",
         alignClasses[resolved],
         className,
       )}
@@ -175,7 +177,7 @@ export function TableCell({
   return (
     <td
       className={cn(
-        "border-b border-border-subtle px-3.5 py-3 align-middle",
+        "border-b border-border-subtle px-4 py-3 align-middle text-ink",
         alignClasses[resolved],
         numeric && "numeric font-mono whitespace-nowrap",
         truncate && "max-w-0 truncate",

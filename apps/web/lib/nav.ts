@@ -5,6 +5,20 @@ export type PanelRole = "owner" | "admin" | "member" | "superadmin";
 
 export const WORKSPACE_ROLES: PanelRole[] = ["owner", "admin", "member"];
 
+/** The three things a user can create, shared by the sidebar Create menu, the
+ *  mobile tab bar and the command palette. Labels live in `shell.*`. */
+export const createActions = [
+  { id: "link", href: "/links/new", icon: "link", label: "createLink", description: "createLinkDesc" },
+  { id: "qr", href: "/qr/new", icon: "qrcode", label: "createQr", description: "createQrDesc" },
+  { id: "bio", href: "/bio/new", icon: "address-card", label: "createBio", description: "createBioDesc" },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  href: string;
+  icon: IconName;
+  label: string;
+  description: string;
+}>;
+
 export type NavItem = {
   id: string;
   label: string;
@@ -20,14 +34,18 @@ export type NavGroup = {
 };
 
 /**
- * Grouped by what the user is doing, not by which table the data lives in:
- * the two read-only reporting surfaces sit together, the three publishable
- * asset types sit together, and everything that configures the workspace is
- * kept out of the daily path.
+ * Grouped by what the user is doing, not by which table the data lives in.
+ * `label` doubles as the i18n key (`nav.<label lowercased>`), so keep it a
+ * single English word: Analyze → nav.analyze, Create → nav.create, …
+ *
+ * - Analyze: the home screen and the reporting surface.
+ * - Create:  the three publishable asset types.
+ * - Manage:  everything that configures the workspace, kept out of the daily path.
+ * - Help:    documentation.
  */
 export const navGroups: NavGroup[] = [
   {
-    label: "Overview",
+    label: "Analyze",
     items: [
       {
         id: "dashboard",
@@ -46,7 +64,7 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Manage",
+    label: "Create",
     items: [
       {
         id: "links",
@@ -72,7 +90,7 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Configure",
+    label: "Manage",
     items: [
       {
         id: "domains",
@@ -95,6 +113,11 @@ export const navGroups: NavGroup[] = [
         icon: "credit-card",
         roles: ["owner", "superadmin"],
       },
+    ],
+  },
+  {
+    label: "Help",
+    items: [
       {
         id: "docs",
         label: "Docs",

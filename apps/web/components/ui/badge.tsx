@@ -1,7 +1,11 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cx";
 
-type BadgeTone = "accent" | "danger" | "muted" | "warn" | "inverse";
+/**
+ * `success` is for healthy states (active, verified, paid). `accent` is brand
+ * emphasis (new, recommended). `muted` and `neutral` are the same grey.
+ */
+type BadgeTone = "accent" | "success" | "info" | "warn" | "danger" | "muted" | "neutral" | "inverse";
 
 type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
   children: ReactNode;
@@ -11,31 +15,45 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
    * a grayscale or colour-blind view, where the fill alone would not.
    */
   dot?: boolean;
+  /** `sm` for dense table cells, `md` (default) everywhere else. */
+  size?: "sm" | "md";
 };
 
 const toneClasses: Record<BadgeTone, string> = {
-  // `accent-on-surface` rather than `accent-hover`: the hover colour is tuned
-  // for solid fills and drops below 4.5:1 on the tinted surface in dark mode.
-  accent: "bg-accent-surface text-accent-on-surface",
-  danger: "bg-danger-surface text-danger",
-  muted: "bg-surface text-fg-muted",
-  warn: "bg-warn-surface text-warn-ink",
-  inverse: "bg-inverse text-on-inverse",
+  accent: "border-accent-border bg-accent-surface text-accent-on-surface",
+  success: "border-success-border bg-success-surface text-success-ink",
+  info: "border-info-border bg-info-surface text-info-ink",
+  warn: "border-warn-border bg-warn-surface text-warn-ink",
+  danger: "border-danger-border bg-danger-surface text-danger-ink",
+  muted: "border-border bg-surface text-fg-muted",
+  neutral: "border-border bg-surface text-fg-muted",
+  inverse: "border-transparent bg-inverse text-on-inverse",
 };
 
 const dotClasses: Record<BadgeTone, string> = {
   accent: "bg-accent",
+  success: "bg-success",
+  info: "bg-info",
+  warn: "bg-warn",
   danger: "bg-danger",
   muted: "bg-fg-subtle",
-  warn: "bg-warn",
+  neutral: "bg-fg-subtle",
   inverse: "bg-on-inverse",
 };
 
-export function Badge({ children, tone = "accent", dot = false, className, ...props }: BadgeProps) {
+export function Badge({
+  children,
+  tone = "accent",
+  dot = false,
+  size = "md",
+  className,
+  ...props
+}: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-xs px-2 py-1 text-xs leading-tight font-medium",
+        "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-sm border font-medium whitespace-nowrap",
+        size === "sm" ? "h-5 px-1.5 text-[11px] leading-none" : "h-5.5 px-2 text-xs leading-none",
         toneClasses[tone],
         className,
       )}

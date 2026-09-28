@@ -4,7 +4,9 @@ type ProgressProps = {
   value: number;
   max?: number;
   /** `warn` / `danger` mark a quota that is nearly or fully consumed. */
-  tone?: "accent" | "warn" | "danger";
+  tone?: "accent" | "success" | "info" | "warn" | "danger";
+  /** Bar thickness: `sm` 4px, `md` 8px (default). */
+  size?: "sm" | "md";
   /**
    * Names the bar for assistive tech. Without it the bar is decorative, which
    * is the right call when an adjacent line already states the numbers.
@@ -17,6 +19,8 @@ type ProgressProps = {
 
 const toneClasses: Record<NonNullable<ProgressProps["tone"]>, string> = {
   accent: "bg-accent",
+  success: "bg-success",
+  info: "bg-info",
   warn: "bg-warn",
   danger: "bg-danger",
 };
@@ -27,6 +31,7 @@ export function Progress({
   tone = "accent",
   label,
   animate = true,
+  size = "md",
   className,
 }: ProgressProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
@@ -37,7 +42,11 @@ export function Progress({
       aria-valuenow={label ? Math.round(value) : undefined}
       aria-valuemin={label ? 0 : undefined}
       aria-valuemax={label ? max : undefined}
-      className={cn("h-2 overflow-hidden rounded-pill bg-surface", className)}
+      className={cn(
+        "overflow-hidden rounded-pill bg-surface-strong",
+        size === "sm" ? "h-1" : "h-2",
+        className,
+      )}
     >
       <span
         className={cn(

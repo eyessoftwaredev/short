@@ -34,6 +34,11 @@ export type PanelSession = {
   brandHasWordmark: boolean;
   localeSwitcherEnabled: boolean;
   accountRestored: boolean;
+  /**
+   * Link usage for the sidebar plan card. Optional: when absent (or when the
+   * read failed) the card shows the plan without a meter.
+   */
+  usage?: { links: number; linkLimit: number } | null;
 };
 
 const SessionContext = createContext<PanelSession | null>(null);

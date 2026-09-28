@@ -115,8 +115,10 @@ export function InfoTip({ label, children, className, inline = false }: InfoTipP
     };
   }, [open, updatePosition]);
 
-  const triggerClass =
-    "inline-flex size-5 cursor-help items-center justify-center rounded-pill border border-border bg-surface text-fg-muted hover:border-border-strong hover:text-ink focus-visible:outline-2";
+  const triggerClass = cn(
+    "inline-flex size-4.5 cursor-help items-center justify-center rounded-pill text-fg-subtle transition-colors duration-150 hover:text-ink",
+    open && "text-ink",
+  );
   const triggerProps = {
     "aria-label": label,
     "aria-expanded": open,
@@ -126,7 +128,7 @@ export function InfoTip({ label, children, className, inline = false }: InfoTipP
     onFocus: openNow,
     onBlur: closeSoon,
   };
-  const icon = <Icon name="circle-info" className="text-[0.65rem]" aria-hidden="true" />;
+  const icon = <Icon name="circle-info" className="text-[13px]" aria-hidden="true" />;
 
   return (
     <span className={cn("relative inline-flex shrink-0 align-middle", className)}>
@@ -169,7 +171,7 @@ export function InfoTip({ label, children, className, inline = false }: InfoTipP
               ref={panelRef}
               id={panelId}
               role="note"
-              className="fixed z-toast w-72 max-w-[calc(100vw-1rem)] rounded-default border border-border bg-bg p-3 text-sm font-normal text-fg shadow-pop"
+              className="animate-pop-in fixed z-toast w-72 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-elevated px-3.5 py-3 text-left text-[13px] leading-5 font-normal tracking-normal text-ink normal-case shadow-pop"
               style={{ top: coords.top, left: coords.left }}
               onMouseEnter={cancelClose}
               onMouseLeave={closeSoon}

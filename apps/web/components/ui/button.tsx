@@ -1,18 +1,27 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
+import { Icon, type IconName } from "@/components/kit/icon";
 
 import Link from "next/link";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cx";
 
-type ButtonVariant = "default" | "primary" | "ghost" | "danger" | "cloudflare";
+/**
+ * `default` and `secondary` are the same neutral, bordered button — `secondary`
+ * is the name the design guide uses; `default` is kept for existing call sites.
+ */
+type ButtonVariant = "default" | "secondary" | "primary" | "ghost" | "danger" | "cloudflare";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** Square, icon-only button. Always pair with `aria-label`. */
   icon?: boolean;
+  /** Glyph before the label, e.g. `leadingIcon="plus"`. Replaced by the spinner while loading. */
+  leadingIcon?: IconName;
+  /** Glyph after the label, e.g. a chevron on a menu trigger. */
+  trailingIcon?: IconName;
   /** Renders an anchor instead of a button, so server components can link without a handler. */
   href?: string;
   /** Opens in a new tab and applies the matching `rel`. Only meaningful with `href`. */
@@ -29,27 +38,38 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: ReactNode;
 };
 
+const neutral =
+  "border-border-strong bg-bg text-ink shadow-xs hover:border-border-hover hover:bg-surface-subtle active:bg-surface";
+
 const variantClasses: Record<ButtonVariant, string> = {
-  default:
-    "border-border-strong bg-bg text-ink hover:bg-surface hover:-translate-y-px",
+  default: neutral,
+  secondary: neutral,
   primary:
-    "border-accent bg-accent text-on-accent hover:border-accent-hover hover:bg-accent-hover hover:-translate-y-px",
-  ghost: "border-transparent bg-transparent hover:bg-surface hover:-translate-y-px",
+    "border-transparent bg-accent text-on-accent shadow-xs hover:bg-accent-hover active:bg-accent-hover",
+  ghost:
+    "border-transparent bg-transparent text-fg-muted hover:bg-surface hover:text-ink active:bg-surface-strong",
   danger:
-    "border-danger bg-danger-surface text-danger hover:border-danger-hover hover:bg-danger hover:text-on-accent hover:-translate-y-px",
+    "border-danger-border bg-danger-surface text-danger hover:border-danger hover:bg-danger hover:text-on-accent",
   cloudflare:
-    "border-cloudflare bg-cloudflare text-on-cloudflare hover:border-cloudflare-hover hover:bg-cloudflare-hover hover:-translate-y-px",
+    "border-transparent bg-cloudflare text-on-cloudflare shadow-xs hover:bg-cloudflare-hover",
 };
 
+/** Heights: 32 / 38 / 44px. `md` matches the text-input height. */
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
-  lg: "px-5 py-2.5 text-base",
+  sm: "h-8 gap-1.5 rounded-default px-3 text-[13px]",
+  md: "h-9.5 gap-2 rounded-default px-3.5 text-sm",
+  lg: "h-11 gap-2 rounded-md px-5 text-[15px]",
 };
 
-const spinnerSize: Record<ButtonSize, string> = {
+const iconSizeClasses: Record<ButtonSize, string> = {
+  sm: "size-8 rounded-default p-0",
+  md: "size-9.5 rounded-default p-0",
+  lg: "size-11 rounded-md p-0",
+};
+
+const glyphSize: Record<ButtonSize, string> = {
   sm: "text-xs",
-  md: "text-sm",
+  md: "text-[13px]",
   lg: "text-sm",
 };
 
@@ -57,6 +77,8 @@ export function Button({
   variant = "default",
   size = "md",
   icon = false,
+  leadingIcon,
+  trailingIcon,
   href,
   external = false,
   download,
@@ -69,16 +91,21 @@ export function Button({
   ...props
 }: ButtonProps) {
   const classes = cn(
-    "inline-flex shrink-0 items-center justify-center gap-2 rounded-default border font-medium whitespace-nowrap no-underline transition duration-200 hover:no-underline disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex shrink-0 items-center justify-center border font-medium whitespace-nowrap no-underline transition-colors duration-150 select-none hover:no-underline disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
     variantClasses[variant],
-    icon ? "size-9 p-0" : sizeClasses[size],
+    icon ? iconSizeClasses[size] : sizeClasses[size],
     block && "w-full",
-    // A pending action must not keep offering a hover lift it will not honour.
-    loading && "pointer-events-none opacity-70",
+    // A pending action must not keep offering a hover it will not honour.
+    loading && "pointer-events-none opacity-80",
     className,
   );
 
-  const spinner = <Icon name="spinner" className={spinnerSize[size]} />;
+  const spinner = <Icon name="spinner" className={glyphSize[size]} />;
+  const lead = leadingIcon ? <Icon name={leadingIcon} className={glyphSize[size]} /> : null;
+  const trail = trailingIcon ? (
+    <Icon name={trailingIcon} className={cn(glyphSize[size], "opacity-70")} />
+  ) : null;
+
   // An icon-only button has no room for a spinner beside its glyph, so the
   // spinner takes the glyph's place instead of crowding it.
   const content = loading ? (
@@ -88,10 +115,15 @@ export function Button({
       <>
         {spinner}
         {children}
+        {trail}
       </>
     )
   ) : (
-    children
+    <>
+      {lead}
+      {children}
+      {trail}
+    </>
   );
 
   if (href) {
@@ -106,7 +138,7 @@ export function Button({
           download={download}
           className={classes}
           aria-label={props["aria-label"]}
-          aria-disabled={loading || undefined}
+          aria-disabled={loading || disabled || undefined}
           title={props.title}
           {...anchorProps}
         >
@@ -120,7 +152,7 @@ export function Button({
         href={href}
         className={classes}
         aria-label={props["aria-label"]}
-        aria-disabled={loading || undefined}
+        aria-disabled={loading || disabled || undefined}
         title={props.title}
         {...anchorProps}
       >

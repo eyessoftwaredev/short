@@ -10,6 +10,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cx";
 
@@ -25,6 +26,14 @@ export type DropdownItem = {
   disabled?: boolean;
   /** Draws a divider above this item. */
   separated?: boolean;
+  /** Renders a non-interactive group label ("Teams") instead of an action. */
+  heading?: boolean;
+  /** Second, muted line under the label. */
+  description?: ReactNode;
+  /** Right-aligned hint, e.g. a keyboard shortcut or a count. */
+  shortcut?: ReactNode;
+  /** Marks the current choice (workspace switcher, sort order). */
+  selected?: boolean;
 };
 
 type DropdownProps = {
@@ -36,6 +45,14 @@ type DropdownProps = {
   className?: string;
 };
 
+/**
+ * In-app pages navigate client-side; API routes (exports, downloads) and
+ * anything absolute stay plain anchors so they are never prefetched.
+ */
+function isAppRoute(href: string): boolean {
+  return href.startsWith("/") && !href.startsWith("//") && !href.startsWith("/api/");
+}
+
 type MenuCoords = { top: number; left: number; minWidth: number };
 
 function menuCoords(
@@ -44,7 +61,7 @@ function menuCoords(
   align: "start" | "end",
 ): MenuCoords {
   const gap = 4;
-  const minWidth = Math.max(176, trigger.width);
+  const minWidth = Math.max(200, trigger.width);
   const height = menu?.height ?? 0;
   let left = align === "end" ? trigger.right - minWidth : trigger.left;
   let top = trigger.bottom + gap;
@@ -167,46 +184,108 @@ export function Dropdown({ trigger, items, align = "end", label, className }: Dr
         role="menu"
         aria-label={label}
         onKeyDown={onMenuKeyDown}
-        className="fixed z-dropdown flex min-w-44 flex-col rounded-default border border-border bg-bg p-1 shadow-pop"
+        className="animate-pop-in fixed z-dropdown flex max-h-[min(28rem,70vh)] min-w-44 flex-col overflow-y-auto rounded-md border border-border bg-elevated p-1 shadow-pop"
         style={{ top: coords.top, left: coords.left, minWidth: coords.minWidth }}
       >
         {items.map((item) => {
+          if (item.heading) {
+            return (
+              <span key={item.id} className="contents">
+                {item.separated ? <span className="-mx-1 my-1 h-px bg-border-subtle" /> : null}
+                {item.description ? (
+                  // A heading with a second line is a profile header ("Ada · ada@x.io").
+                  <span role="presentation" className="flex min-w-0 flex-col px-2.5 pt-2 pb-2">
+                    <span className="truncate text-sm font-semibold text-ink">{item.label}</span>
+                    <span className="truncate text-xs text-fg-subtle">{item.description}</span>
+                  </span>
+                ) : (
+                  <span
+                    role="presentation"
+                    className="px-2.5 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-fg-subtle uppercase"
+                  >
+                    {item.label}
+                  </span>
+                )}
+              </span>
+            );
+          }
+
           const content = (
             <>
-              {item.icon ? <span className="flex size-4 shrink-0 items-center">{item.icon}</span> : null}
-              <span className="min-w-0 truncate">{item.label}</span>
+              {item.icon ? (
+                <span
+                  className={cn(
+                    "flex w-4 shrink-0 items-center justify-center",
+                    item.danger ? "text-danger" : "text-fg-subtle",
+                  )}
+                >
+                  {item.icon}
+                </span>
+              ) : null}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate">{item.label}</span>
+                {item.description ? (
+                  <span className="truncate text-xs text-fg-subtle">{item.description}</span>
+                ) : null}
+              </span>
+              {item.shortcut ? (
+                <span className="ml-3 shrink-0 text-xs text-fg-subtle">{item.shortcut}</span>
+              ) : null}
+              {item.selected ? (
+                <span className="ml-2 shrink-0 text-accent" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              ) : null}
             </>
           );
 
           const itemClass = cn(
-            "flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-sm no-underline transition duration-150",
+            "flex w-full items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left text-sm leading-5 no-underline transition-colors duration-100 focus-visible:outline-none",
+            item.description ? "min-h-10" : "min-h-8",
             item.disabled
               ? "cursor-not-allowed text-fg-disabled"
               : item.danger
                 ? "text-danger hover:bg-danger-surface focus-visible:bg-danger-surface"
-                : "text-ink hover:bg-surface hover:no-underline focus-visible:bg-surface",
+                : "text-ink hover:bg-surface hover:text-ink hover:no-underline focus-visible:bg-surface",
           );
 
           return (
             <span key={item.id} className="contents">
-              {item.separated ? <span className="my-1 h-px bg-border" /> : null}
-              {item.href && !item.disabled ? (
+              {item.separated ? <span className="-mx-1 my-1 h-px bg-border-subtle" /> : null}
+              {item.href && !item.disabled && (item.external || !isAppRoute(item.href)) ? (
                 <a
                   href={item.href}
                   target={item.external ? "_blank" : undefined}
                   rel={item.external ? "noopener noreferrer" : undefined}
                   role="menuitem"
                   tabIndex={-1}
+                  aria-current={item.selected || undefined}
                   className={itemClass}
                   onClick={() => setOpen(false)}
                 >
                   {content}
                 </a>
+              ) : item.href && !item.disabled ? (
+                // Client-side navigation for in-app destinations.
+                <Link
+                  href={item.href}
+                  prefetch={false}
+                  role="menuitem"
+                  tabIndex={-1}
+                  aria-current={item.selected || undefined}
+                  className={itemClass}
+                  onClick={() => setOpen(false)}
+                >
+                  {content}
+                </Link>
               ) : (
                 <button
                   type="button"
                   role="menuitem"
                   tabIndex={-1}
+                  aria-current={item.selected || undefined}
                   disabled={item.disabled}
                   className={itemClass}
                   onClick={() => {
