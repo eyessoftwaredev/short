@@ -1,5 +1,3 @@
-import { lookup } from "node:dns/promises";
-import { BlockList, isIP } from "node:net";
 import type { WebhookEvent } from "@short/core";
 import {
   and,
@@ -11,7 +9,17 @@ import {
   type WebhookRow,
 } from "@short/db";
 import { cacheDelete, cacheGet, cacheSet } from "./redis";
+import { assertPublicHttpUrl, UnsafeUrlError, type UnsafeUrlReason } from "./safe-http";
 import { decryptSecret, encryptSecret } from "./secret";
+
+/**
+ * Events and where they come from:
+ * - `link.created` / `link.updated` / `link.deleted` — panel and API mutations
+ * - `link.broken` — the link-health cron (or a manual re-check) saw the destination fail
+ *   twice in a row; payload is the link resource plus a `health` object
+ * - `link.clicked` / `biopage.viewed` — relayed by the ingest worker
+ * - `domain.verified` — custom domain DNS verification succeeded
+ */
 
 export type WebhookWithStats = WebhookRow & {
   lastDeliveryAt: Date | null;
@@ -24,46 +32,6 @@ const TIMEOUT_MS = 8000;
 /** Endpoint error bodies are stored and shown in settings; keep them short. */
 const MAX_ERROR_LENGTH = 1000;
 
-/**
- * Loopback, RFC 1918, link-local (incl. cloud metadata at 169.254.169.254), CGNAT,
- * multicast/reserved and their IPv6 equivalents. IPv4-mapped IPv6 addresses are matched
- * against the IPv4 ranges by `BlockList` itself.
- */
-const PRIVATE_RANGES = (() => {
-  const list = new BlockList();
-  for (const [network, prefix] of [
-    ["0.0.0.0", 8],
-    ["10.0.0.0", 8],
-    ["100.64.0.0", 10],
-    ["127.0.0.0", 8],
-    ["169.254.0.0", 16],
-    ["172.16.0.0", 12],
-    ["192.0.0.0", 24],
-    ["192.0.2.0", 24],
-    ["192.168.0.0", 16],
-    ["198.18.0.0", 15],
-    ["198.51.100.0", 24],
-    ["203.0.113.0", 24],
-    ["224.0.0.0", 4],
-    ["240.0.0.0", 4],
-  ] as const) {
-    list.addSubnet(network, prefix, "ipv4");
-  }
-  for (const [network, prefix] of [
-    ["::", 128],
-    ["::1", 128],
-    ["64:ff9b::", 96],
-    ["100::", 64],
-    ["2001:db8::", 32],
-    ["fc00::", 7],
-    ["fe80::", 10],
-    ["ff00::", 8],
-  ] as const) {
-    list.addSubnet(network, prefix, "ipv6");
-  }
-  return list;
-})();
-
 export class WebhookUrlError extends Error {
   constructor(message: string) {
     super(message);
@@ -71,46 +39,28 @@ export class WebhookUrlError extends Error {
   }
 }
 
-function isPrivateAddress(address: string): boolean {
-  const family = isIP(address);
-  if (family === 0) {
-    return true;
-  }
-  return PRIVATE_RANGES.check(address, family === 4 ? "ipv4" : "ipv6");
-}
+const WEBHOOK_URL_MESSAGES: Record<UnsafeUrlReason, string> = {
+  invalid: "Webhook URL is not valid",
+  protocol: "Webhook URL must use http or https",
+  credentials: "Webhook URL must not contain credentials",
+  unresolvable: "Webhook host does not resolve",
+  private: "Webhook URL must point to a public address",
+};
 
 /**
  * SSRF guard for customer-supplied endpoints: http(s) only, and every address the host
- * resolves to must be public. Call it when an endpoint is saved and again before each
- * delivery, since DNS can change after the URL was accepted.
+ * resolves to must be public (see `assertPublicHttpUrl`). Call it when an endpoint is
+ * saved and again before each delivery, since DNS can change after the URL was accepted.
  */
 export async function assertPublicWebhookUrl(raw: string): Promise<URL> {
-  let url: URL;
   try {
-    url = new URL(raw);
-  } catch {
-    throw new WebhookUrlError("Webhook URL is not valid");
+    return await assertPublicHttpUrl(raw);
+  } catch (error) {
+    if (error instanceof UnsafeUrlError) {
+      throw new WebhookUrlError(WEBHOOK_URL_MESSAGES[error.reason]);
+    }
+    throw error;
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new WebhookUrlError("Webhook URL must use http or https");
-  }
-  if (url.username || url.password) {
-    throw new WebhookUrlError("Webhook URL must not contain credentials");
-  }
-
-  const host = url.hostname.replace(/^\[|\]$/g, "");
-  const addresses = isIP(host)
-    ? [host]
-    : await lookup(host, { all: true, verbatim: true })
-        .then((rows) => rows.map((row) => row.address))
-        .catch(() => {
-          throw new WebhookUrlError("Webhook host does not resolve");
-        });
-
-  if (addresses.length === 0 || addresses.some(isPrivateAddress)) {
-    throw new WebhookUrlError("Webhook URL must point to a public address");
-  }
-  return url;
 }
 
 export function generateWebhookSecret(): string {
