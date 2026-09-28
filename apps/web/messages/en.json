@@ -4428,7 +4428,7 @@
       "rangesTitle": "Time ranges",
       "rangesBody": "Choose the last 24 hours, 7, 30 or 90 days, 12 months, all time or a custom range. How far back you can go depends on the analytics history included in your plan (see Billing).",
       "exportTitle": "Export",
-      "exportBody": "Use the Export menu on Analytics or a link's Stats tab to download the time series as CSV or every breakdown as JSON. Through the API, GET /analytics and GET /links/{id}/stats return the same data."
+      "exportBody": "Use the Export menu on Analytics or a link's Stats tab to download the time series as CSV or every breakdown as JSON. Through the API, GET /analytics and GET /links/'{id}'/stats return the same data."
     },
     "api": {
       "metaTitle": "REST API",
@@ -4487,7 +4487,7 @@
       "eventsTitle": "Event types",
       "eventsBody": "Every delivery is a JSON POST. The event name is in the body and in the x-short-event header.",
       "payloadTitle": "Payload",
-      "payloadBody": "The body is always { event, createdAt, data }. For link.created and link.updated, data is the full link as the API returns it; click and view events carry the visit details below.",
+      "payloadBody": "The body is always '{ event, createdAt, data }'. For link.created and link.updated, data is the full link as the API returns it; click and view events carry the visit details below.",
       "eventsTable": {
         "event": "Event",
         "when": "Fires when",

@@ -4428,7 +4428,7 @@
       "rangesTitle": "Zaman aralıkları",
       "rangesBody": "Son 24 saat, 7, 30 veya 90 gün, 12 ay, tüm zamanlar ya da özel bir aralık seç. Ne kadar geriye gidebileceğin planındaki analitik geçmişine bağlıdır (bkz. Faturalandırma).",
       "exportTitle": "Dışa aktarma",
-      "exportBody": "Analitik’teki veya bir linkin İstatistik sekmesindeki Dışa aktar menüsüyle zaman serisini CSV, tüm kırılımları JSON olarak indir. API’de GET /analytics ve GET /links/{id}/stats aynı veriyi döner."
+      "exportBody": "Analitik’teki veya bir linkin İstatistik sekmesindeki Dışa aktar menüsüyle zaman serisini CSV, tüm kırılımları JSON olarak indir. API’de GET /analytics ve GET /links/'{id}'/stats aynı veriyi döner."
     },
     "api": {
       "metaTitle": "REST API",
@@ -4487,7 +4487,7 @@
       "eventsTitle": "Olay türleri",
       "eventsBody": "Her teslimat bir JSON POST isteğidir. Olay adı gövdede ve x-short-event başlığında gelir.",
       "payloadTitle": "Gövde",
-      "payloadBody": "Gövde her zaman { event, createdAt, data } şeklindedir. link.created ve link.updated için data, API’nin döndürdüğü haliyle linkin tamamıdır; tıklama ve görüntüleme olayları aşağıdaki ziyaret ayrıntılarını taşır.",
+      "payloadBody": "Gövde her zaman '{ event, createdAt, data }' şeklindedir. link.created ve link.updated için data, API’nin döndürdüğü haliyle linkin tamamıdır; tıklama ve görüntüleme olayları aşağıdaki ziyaret ayrıntılarını taşır.",
       "eventsTable": {
         "event": "Olay",
         "when": "Ne zaman",
