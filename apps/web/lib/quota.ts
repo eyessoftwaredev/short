@@ -23,6 +23,7 @@ import {
   sql,
   subscriptions,
   usageCounters,
+  user,
 } from "@short/db";
 import { QuotaError } from "./action-result";
 import { getWorkspaceOwnerId, listOwnedWorkspaces } from "./workspace";
@@ -185,6 +186,37 @@ export async function workspaceOverClickQuota(workspaceId: string): Promise<bool
   }
   const usage = await getOwnerUsage(ownerId);
   return usage.clicksThisMonth >= limit;
+}
+
+/**
+ * The plan that governs a workspace outside a signed-in request (public stats pages,
+ * crons): its billing owner's subscription, or Infinity when the owner is a platform
+ * superadmin — the same rule `getSessionContext` applies. Free when nothing matches.
+ */
+export async function getWorkspacePlan(workspaceId: string): Promise<PlanDefinition> {
+  const ownerId = await getWorkspaceOwnerId(workspaceId);
+  if (!ownerId) {
+    return getPlan("free");
+  }
+  const db = getDb();
+  const [owner] = await db.select({ role: user.role }).from(user).where(eq(user.id, ownerId)).limit(1);
+  // Mirrors SUPERADMIN_ROLE in lib/auth (not imported: it would pull Better Auth in here).
+  if (owner?.role === "superadmin") {
+    return getPlan("infinity");
+  }
+  const [sub] = await db
+    .select({ planKey: subscriptions.planKey, limits: plans.limits, features: plans.features, name: plans.name })
+    .from(subscriptions)
+    .leftJoin(plans, eq(subscriptions.planKey, plans.key))
+    .where(eq(subscriptions.userId, ownerId))
+    .limit(1);
+  const base = getPlan(sub?.planKey);
+  return {
+    ...base,
+    name: sub?.name ?? base.name,
+    limits: { ...base.limits, ...(sub?.limits ?? {}) },
+    features: { ...base.features, ...(sub?.features ?? {}) },
+  };
 }
 
 export async function assertQuota(
