@@ -226,9 +226,14 @@ export function DocsTable({ headers, rows, monoFirst = false }: DocsTableProps) 
                   key={cellIndex}
                   className={cn(
                     "px-4 py-3 leading-relaxed",
+                    // Phones: labels wrap so the explanation column stays readable
+                    // instead of scrolling off the right edge.
                     cellIndex === 0
-                      ? cn("font-medium whitespace-nowrap text-ink", monoFirst && "font-mono text-[13px] font-normal")
-                      : "min-w-56 text-fg-muted",
+                      ? cn(
+                          "font-medium text-ink",
+                          monoFirst ? "font-mono text-[13px] font-normal whitespace-nowrap" : "sm:whitespace-nowrap",
+                        )
+                      : "min-w-44 text-fg-muted sm:min-w-56",
                   )}
                 >
                   {cell}
