@@ -265,6 +265,9 @@ export function QrVisual({
         logoUrl: null,
         logoScale: 0.22,
         caption,
+        frame: "none",
+        frameText: "",
+        frameColor: null,
       },
       { logoHref: logoSrc, size: 180 },
     );

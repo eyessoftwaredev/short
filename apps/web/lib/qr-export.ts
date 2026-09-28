@@ -1,4 +1,5 @@
 import { isPublicHttpUrl, type QrStyle } from "@short/core";
+import { ensureExportFonts } from "./export-fonts";
 import { getMediaById, MAX_MEDIA_BYTES, parseMediaId } from "./media";
 import { parseQrLogoPreset } from "./qr-logo-presets";
 import { qrLogoPresetDataUri } from "./qr-logo-svg";
@@ -171,6 +172,7 @@ function declaredWidth(svg: string): number | null {
 }
 
 export async function renderQrPng(svg: string, width: number): Promise<Buffer> {
+  ensureExportFonts();
   const { default: sharp } = await import("sharp");
   // Rasterize at twice the target width, then downsample: smooth text and frame curves.
   // A fixed 384 dpi rendered a 2048px code at ~11,000px and a 4096px one past libvips'

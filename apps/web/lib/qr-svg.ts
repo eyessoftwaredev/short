@@ -173,12 +173,13 @@ function codeLayer(matrix: Matrix, style: QrStyle, width: number, logoHref: stri
   return { modules: `<g fill="${style.foreground}">${modules.join("")}</g>`, finders, logo };
 }
 
-const FONT_FAMILY = "ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif";
+/** Inter first: it is bundled for server-side rasterization (see lib/export-fonts.ts). */
+const FONT_FAMILY = "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif";
 
 function captionText(style: QrStyle, centerX: number, top: number, height: number): string {
   return style.caption === ""
     ? ""
-    : `<text x="${round(centerX)}" y="${round(top + height * 0.72)}" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${round(height * 0.6)}" fill="${style.foreground}">${escapeXml(style.caption)}</text>`;
+    : `<text x="${round(centerX)}" y="${round(top + height * 0.72)}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="${round(height * 0.6)}" fill="${style.foreground}">${escapeXml(style.caption)}</text>`;
 }
 
 function labelText(text: string, centerX: number, top: number, height: number, fontSize: number, color: string): string {

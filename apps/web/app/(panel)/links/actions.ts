@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clearDraftDestination } from "@/lib/draft-link";
 import { after } from "next/server";
 import { serializeLink } from "@/lib/api-serializers";
 import { recordAudit } from "@/lib/audit";
@@ -118,6 +119,9 @@ export async function createLinkAction(values: LinkFormValues): Promise<ActionRe
     });
 
     after(() => dispatchWebhook(context.workspace.id, "link.created", serializeLink(link)));
+    // The landing-page draft has done its job once a link exists. Cleared here because
+    // cookies can only change in actions/route handlers, not while a page renders.
+    await clearDraftDestination().catch(() => undefined);
 
     revalidatePath("/links");
     revalidatePath("/dashboard");

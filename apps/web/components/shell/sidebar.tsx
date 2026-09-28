@@ -136,7 +136,7 @@ function WorkspaceSwitcher({
     {
       id: "workspace-settings",
       label: tc("workspaceSettings"),
-      href: "/settings?tab=team",
+      href: "/settings?tab=general",
       icon: <Icon name="gear" className="text-xs" />,
     },
   ];

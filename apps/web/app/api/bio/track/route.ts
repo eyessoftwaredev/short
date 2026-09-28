@@ -3,6 +3,7 @@ import {
   deriveVisitorId,
   emptyEvent,
   hostnameOf,
+  isBiopageLive,
   parseAcceptLanguage,
   parseUserAgent,
   utcDayStamp,
@@ -35,7 +36,15 @@ type Payload = {
   destination?: unknown;
 };
 
-type PageMeta = { workspaceId: string; handle: string; hostname: string };
+type PageMeta = {
+  workspaceId: string;
+  handle: string;
+  hostname: string;
+  published: boolean;
+  /** ISO strings: the meta is cached, and a schedule can end while it is. */
+  publishAt: string | null;
+  unpublishAt: string | null;
+};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -47,7 +56,7 @@ async function loadPageMeta(biopageId: string): Promise<PageMeta | null> {
   const cacheKey = `bio-meta:${biopageId}`;
   const cached = await cacheGet<PageMeta>(cacheKey);
   if (cached) {
-    return cached;
+    return isBiopageLive(cached) ? cached : null;
   }
 
   const [row] = await getDb()
@@ -56,6 +65,8 @@ async function loadPageMeta(biopageId: string): Promise<PageMeta | null> {
       handle: biopages.handle,
       hostname: domains.hostname,
       published: biopages.published,
+      publishAt: biopages.publishAt,
+      unpublishAt: biopages.unpublishAt,
     })
     .from(biopages)
     .leftJoin(domains, eq(biopages.domainId, domains.id))
@@ -70,9 +81,13 @@ async function loadPageMeta(biopageId: string): Promise<PageMeta | null> {
     workspaceId: row.workspaceId,
     handle: row.handle,
     hostname: row.hostname ?? serverEnv().PLATFORM_SHORT_DOMAIN,
+    published: row.published,
+    publishAt: row.publishAt?.toISOString() ?? null,
+    unpublishAt: row.unpublishAt?.toISOString() ?? null,
   };
   await cacheSet(cacheKey, meta, 300);
-  return meta;
+  // Scheduled pages: only count clicks while the page is actually live.
+  return isBiopageLive(meta) ? meta : null;
 }
 
 export function OPTIONS() {

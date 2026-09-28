@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getDb, organization } from "@short/db";
 import { finalizeDueAccountDeletions } from "@/lib/account-deletion";
 import { syncClickUsage } from "@/lib/billing";
+import { refreshPendingDomains } from "@/lib/domains";
 import { hasBearerSecret } from "@/lib/api-auth";
 import { serverEnv } from "@/lib/env";
 import { resyncWorkspaceLinks } from "@/lib/links";
@@ -41,5 +42,20 @@ export async function POST(request: NextRequest) {
 
   const deactivated = await finalizeDueAccountDeletions();
 
-  return NextResponse.json({ period, synced, failures: failures.length, deactivated });
+  // Domains otherwise only advance (and fire `domain.verified`) while someone has
+  // their setup page or the domains list open.
+  let domainsRefreshed = 0;
+  try {
+    domainsRefreshed = await refreshPendingDomains({ limit: 50 });
+  } catch (error) {
+    console.error("pending domain refresh failed", error);
+  }
+
+  return NextResponse.json({
+    period,
+    synced,
+    failures: failures.length,
+    deactivated,
+    domainsRefreshed,
+  });
 }

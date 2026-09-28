@@ -47,6 +47,8 @@ RUN apk add --no-cache libstdc++ curl \
 COPY --from=build --chown=nextjs:nodejs /repo/apps/web/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public
+# Bundled fonts for server-side QR rendering (lib/export-fonts.ts).
+COPY --from=build --chown=nextjs:nodejs /repo/apps/web/assets ./apps/web/assets
 COPY --from=build --chown=nextjs:nodejs /repo/packages/db/drizzle ./packages/db/drizzle
 
 USER nextjs

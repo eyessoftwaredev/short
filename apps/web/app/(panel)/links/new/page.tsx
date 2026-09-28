@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { PageHeader } from "@/components/ui";
-import { clearDraftDestination, readDraftDestination } from "@/lib/draft-link";
+import { readDraftDestination } from "@/lib/draft-link";
 import { listFolders } from "@/lib/folders";
 import { emptyLinkForm } from "@/lib/link-form";
 import { listWorkspaceDomains } from "@/lib/links";
@@ -22,9 +22,6 @@ export default async function NewLinkPage() {
     getTranslations("nav"),
     readDraftDestination(),
   ]);
-  if (draft) {
-    await clearDraftDestination();
-  }
 
   const [domainRows, folderRows, workspaceDefaults] = await Promise.all([
     listWorkspaceDomains(context.workspace.id),
