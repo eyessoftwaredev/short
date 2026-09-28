@@ -90,6 +90,7 @@ export default async function EditLinkPage({ params }: { params: Promise<{ id: s
         canAbTest={context.plan.features.abTesting}
         canProtect={context.plan.features.passwordProtection}
         canCloak={context.plan.features.cloaking}
+        canShortSlug={context.plan.features.shortSlugs}
         canDelete={context.role !== "member" || context.isSuperadmin}
         aside={<LinkQrCard workspaceId={context.workspace.id} linkId={link.id} />}
       />

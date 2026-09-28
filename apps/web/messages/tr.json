@@ -1833,6 +1833,7 @@
     "destinationPlaceholder": "https://acme.com/campaign",
     "domain": "Domain",
     "slugHint": "Otomatik üretmek için boş bırak. 3–5 karakter için Pro gerekir.",
+    "slugHintPaid": "Otomatik üretmek için boş bırak.",
     "slugPlaceholder": "bahar-indirimi",
     "slugAuto": "otomatik",
     "slugPattern": "Harf, rakam, nokta, tire veya alt çizgi kullan",

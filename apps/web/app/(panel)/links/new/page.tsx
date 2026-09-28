@@ -61,6 +61,7 @@ export default async function NewLinkPage() {
         canAbTest={context.plan.features.abTesting}
         canProtect={context.plan.features.passwordProtection}
         canCloak={context.plan.features.cloaking}
+        canShortSlug={context.plan.features.shortSlugs}
       />
     </PanelShell>
   );

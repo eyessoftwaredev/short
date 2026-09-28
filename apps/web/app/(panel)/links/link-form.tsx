@@ -187,6 +187,8 @@ type LinkFormProps = {
   canAbTest: boolean;
   canProtect: boolean;
   canCloak: boolean;
+  /** 3–5 character endings; the hint only mentions the upgrade when they are locked. */
+  canShortSlug?: boolean;
   hasPassword?: boolean;
   /** Edit only: offers "Delete link" at the bottom. */
   canDelete?: boolean;
@@ -204,6 +206,7 @@ export function LinkForm({
   canAbTest,
   canProtect,
   canCloak,
+  canShortSlug = false,
   hasPassword = false,
   canDelete = false,
   aside,
@@ -740,6 +743,8 @@ export function LinkForm({
                         <Icon name="circle-check" className="text-[11px]" />
                         {t("form.slugAvailable")}
                       </span>
+                    ) : canShortSlug ? (
+                      t("slugHintPaid")
                     ) : (
                       t("slugHint")
                     )

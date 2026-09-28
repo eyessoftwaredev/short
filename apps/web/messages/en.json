@@ -1833,6 +1833,7 @@
     "destinationPlaceholder": "https://acme.com/campaign",
     "domain": "Domain",
     "slugHint": "Leave empty to generate one. 3–5 characters need Pro.",
+    "slugHintPaid": "Leave empty to generate one.",
     "slugPlaceholder": "spring-sale",
     "slugAuto": "auto-generated",
     "slugPattern": "Use letters, numbers, dot, dash or underscore",
