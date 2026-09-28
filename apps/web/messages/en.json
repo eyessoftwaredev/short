@@ -4491,7 +4491,7 @@
           "link_clicked": "A person opens a short link or scans a QR code (bots are never sent). Arrives a few seconds after the click.",
           "biopage_viewed": "A person views a published bio page.",
           "domain_verified": "A custom domain's DNS and HTTPS certificate are active.",
-          "link.broken": "Two health checks in a row found the destination down (404/410/5xx, DNS failure or timeout)."
+          "link_broken": "Two health checks in a row found the destination down (404/410/5xx, DNS failure or timeout)."
         }
       },
       "signatureTitle": "Verify signatures",

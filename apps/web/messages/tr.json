@@ -4491,7 +4491,7 @@
           "link_clicked": "Bir kişi kısa linki açtığında veya QR kodu okuttuğunda (botlar hiç gönderilmez). Tıklamadan birkaç saniye sonra ulaşır.",
           "biopage_viewed": "Bir kişi yayındaki bir bio sayfasını görüntülediğinde.",
           "domain_verified": "Özel domainin DNS kaydı ve HTTPS sertifikası aktif olduğunda.",
-          "link.broken": "Üst üste iki sağlık kontrolünde hedef çalışmıyordu (404/410/5xx, DNS hatası veya zaman aşımı)."
+          "link_broken": "Üst üste iki sağlık kontrolünde hedef çalışmıyordu (404/410/5xx, DNS hatası veya zaman aşımı)."
         }
       },
       "signatureTitle": "İmzayı doğrulayın",
