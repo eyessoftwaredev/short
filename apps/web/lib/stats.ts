@@ -1,4 +1,4 @@
-import type { Granularity } from "@short/analytics";
+import type { Granularity, SummaryResult } from "@short/analytics";
 
 export const RANGE_KEYS = ["24h", "7d", "30d", "90d", "12m", "all", "custom"] as const;
 
@@ -184,6 +184,78 @@ export function deltaPercent(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
+/**
+ * More traffic is good news, less is bad. Only for traffic counts — a figure such as
+ * "countries reached" has no inherent direction and stays neutral.
+ */
+export function trendOf(current: number, previous: number): "up" | "down" | "neutral" {
+  const delta = deltaPercent(current, previous);
+  if (delta === 0) {
+    return "neutral";
+  }
+  return delta > 0 ? "up" : "down";
+}
+
+type EventCounts = Pick<SummaryResult, "clicks" | "qrScans" | "bioViews" | "bioClicks">;
+type PreviousEventCounts = Pick<
+  SummaryResult,
+  "previousClicks" | "previousQrScans" | "previousBioViews" | "previousBioClicks"
+>;
+
+/**
+ * Every tracked visit: short-link clicks, QR scans, bio page views and bio link clicks.
+ * This is what the time-series charts plot (they count every event in scope), so the
+ * headline number has to be the same sum or the card and the chart disagree.
+ */
+export function totalEvents(summary: EventCounts): number {
+  return summary.clicks + summary.qrScans + summary.bioViews + summary.bioClicks;
+}
+
+export function previousTotalEvents(summary: PreviousEventCounts): number {
+  // `?? 0`: summaries cached before `previousQrScans` existed do not carry it.
+  return (
+    summary.previousClicks +
+    (summary.previousQrScans ?? 0) +
+    summary.previousBioViews +
+    summary.previousBioClicks
+  );
+}
+
+const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ["second", 60],
+  ["minute", 60],
+  ["hour", 24],
+  ["day", 7],
+  ["week", 4.35],
+  ["month", 12],
+  ["year", Number.POSITIVE_INFINITY],
+];
+
+/** "3 minutes ago" / "3 dakika önce" — for activity feeds, where the exact time matters less. */
+export function formatRelativeTime(value: Date, locale: string, now: Date = new Date()): string {
+  let amount = (value.getTime() - now.getTime()) / 1000;
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "short" });
+  for (const [unit, size] of RELATIVE_STEPS) {
+    if (Math.abs(amount) < size) {
+      return formatter.format(Math.round(amount), unit);
+    }
+    amount /= size;
+  }
+  return formatter.format(Math.round(amount), "year");
+}
+
+/** "42%", or one decimal under 10% ("4.5%") so small shares do not all read as 0–9%. */
+export function formatShare(value: number, total: number): string {
+  if (total <= 0 || value <= 0) {
+    return "0%";
+  }
+  const percent = (value / total) * 100;
+  if (percent >= 10) {
+    return `${Math.round(percent)}%`;
+  }
+  return `${Math.round(percent * 10) / 10}%`;
+}
+
 export function formatDelta(current: number, previous: number, noneLabel: string): string {
   const delta = deltaPercent(current, previous);
   if (delta === 0) {
@@ -212,6 +284,26 @@ export function countryName(code: string, locale: string, unknown: string): stri
     return regionNames(locale).of(code.toUpperCase()) ?? code.toUpperCase();
   } catch {
     return code.toUpperCase();
+  }
+}
+
+const languageNamesCache = new Map<string, Intl.DisplayNames>();
+
+/** "tr" / "en-US" → "Turkish" / "American English" in the viewer's language. */
+export function languageName(code: string, locale: string, unknown: string): string {
+  const trimmed = code.trim();
+  if (trimmed === "" || trimmed.toLowerCase() === "unknown") {
+    return unknown;
+  }
+  try {
+    let formatter = languageNamesCache.get(locale);
+    if (!formatter) {
+      formatter = new Intl.DisplayNames([locale], { type: "language" });
+      languageNamesCache.set(locale, formatter);
+    }
+    return formatter.of(trimmed) ?? trimmed;
+  } catch {
+    return trimmed.toUpperCase();
   }
 }
 

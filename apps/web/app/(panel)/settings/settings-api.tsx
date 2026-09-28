@@ -1,29 +1,34 @@
 "use client";
 
 import { Icon } from "@/components/kit/icon";
-
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   Badge,
   Button,
+  Callout,
   Card,
-  CopyButton,
+  CopyField,
+  Disclosure,
   EmptyState,
-  Field,
   Input,
   Paywall,
+  SectionCard,
+  SettingsRow,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeaderCell,
   TableRow,
+  toast,
 } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
-import { revokeApiKeyAction } from "./actions";
-import { DangerButton } from "./settings-dialogs";
-import type { KeyView, RequestConfirm, RunAction } from "./settings-types";
+import { createApiKeyAction, revokeApiKeyAction } from "./actions";
+import { SecretModal, useSettingsAction, useSettingsConfirm } from "./settings-dialogs";
+import type { KeyView } from "./settings-types";
 
 type SettingsApiProps = {
   apiKeys: KeyView[];
@@ -31,29 +36,19 @@ type SettingsApiProps = {
   apiRateLimit: number;
   hasFeature: boolean;
   canManage: boolean;
-  pending: boolean;
-  keyName: string;
-  onKeyNameChange: (value: string) => void;
-  onCreateKey: () => void;
-  run: RunAction;
-  requestConfirm: RequestConfirm;
 };
 
-export function SettingsApi({
-  apiKeys,
-  apiBaseUrl,
-  apiRateLimit,
-  hasFeature,
-  canManage,
-  pending,
-  keyName,
-  onKeyNameChange,
-  onCreateKey,
-  run,
-  requestConfirm,
-}: SettingsApiProps) {
+export function SettingsApi({ apiKeys, apiBaseUrl, apiRateLimit, hasFeature, canManage }: SettingsApiProps) {
   const t = useTranslations("settings");
-  const [revealHelp, setRevealHelp] = useState(false);
+  const router = useRouter();
+  const actionMessage = useActionMessage();
+  const { pending, run } = useSettingsAction();
+  const { requestConfirm, dialog } = useSettingsConfirm();
+  const [keyName, setKeyName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [issuedKey, setIssuedKey] = useState<string | null>(null);
+  const trimmed = keyName.trim();
+  const validName = trimmed.length >= 1 && trimmed.length <= 32;
 
   if (!hasFeature) {
     return (
@@ -74,149 +69,185 @@ export function SettingsApi({
     );
   }
 
+  async function createKey(): Promise<void> {
+    if (creating || !validName) {
+      return;
+    }
+    setCreating(true);
+    try {
+      const result = await createApiKeyAction(keyName);
+      if (!result.ok) {
+        toast.error(actionMessage(result.error));
+        return;
+      }
+      setIssuedKey(result.data.key);
+      setKeyName("");
+      router.refresh();
+    } catch {
+      toast.error(actionMessage("generic"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const activeKeys = apiKeys.filter((row) => row.enabled).length;
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <Card staticHover className="gap-5 bg-surface p-6">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="m-0 text-base font-semibold tracking-tight">{t("endpoint")}</h3>
-        </div>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-default border border-border bg-surface-subtle px-3 py-2">
-          <code className="min-w-0 flex-1 truncate font-mono text-sm text-ink">{apiBaseUrl}</code>
-          <CopyButton value={apiBaseUrl} />
-        </div>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-fg-muted">
-          <span className="tabular-nums">
+      <SectionCard id="api-endpoint" title={t("endpoint")} description={t("apiDescription")}>
+        <SettingsRow label={t("baseUrl")} description={t("baseUrlDesc")} info={t("baseUrlInfo")}>
+          <CopyField value={apiBaseUrl} size="sm" />
+        </SettingsRow>
+        <SettingsRow label={t("rateLimit")} description={t("rateLimitDesc")}>
+          <span className="numeric text-sm font-medium text-ink">
             {apiRateLimit === -1
               ? t("rateLimitUnlimited")
               : t("rateLimitHour", { count: formatNumber(apiRateLimit) })}
           </span>
-          <span aria-hidden="true">·</span>
-          <a
-            href={`${apiBaseUrl}/openapi.json`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5"
-          >
-            {t("openapi")}
-            <Icon name="external-link" className="text-xs" aria-hidden="true" />
-          </a>
-          <span aria-hidden="true">·</span>
-          <button
-            type="button"
-            className="border-0 bg-transparent p-0 text-sm text-accent underline-offset-2 hover:underline"
-            aria-expanded={revealHelp}
-            onClick={() => setRevealHelp((prev) => !prev)}
-          >
-            {revealHelp ? t("hideExample") : t("showExample")}
-          </button>
-        </div>
-
-        {revealHelp ? (
-          <pre className="m-0 min-w-0 overflow-x-auto rounded-default border border-border bg-surface-subtle px-3.5 py-3 font-mono text-xs leading-relaxed text-fg-muted">
-            {`curl ${apiBaseUrl}/links \\
+        </SettingsRow>
+        <SettingsRow label={t("apiDocs")} description={t("apiDocsDesc")}>
+          <span className="flex flex-wrap gap-2">
+            <Button size="sm" leadingIcon="book" href="/docs/api">
+              {t("apiGuide")}
+            </Button>
+            <Button size="sm" leadingIcon="file-code" href={`${apiBaseUrl}/openapi.json`} external>
+              {t("openapi")}
+            </Button>
+          </span>
+        </SettingsRow>
+        <div className="py-4">
+          <Disclosure variant="plain" title={t("showExample")} description={t("exampleDesc")}>
+            <pre className="m-0 min-w-0 overflow-x-auto rounded-default border border-border bg-surface-subtle px-3.5 py-3 font-mono text-xs leading-relaxed text-fg-muted">
+              {`curl ${apiBaseUrl}/links \\
   -H "Authorization: Bearer short_…" \\
   -H "Content-Type: application/json" \\
   -d '{"url":"https://acme.com/pricing","slug":"pricing"}'`}
-          </pre>
-        ) : null}
-      </Card>
+            </pre>
+          </Disclosure>
+        </div>
+      </SectionCard>
 
       {canManage ? (
-        <Card staticHover className="gap-5 bg-surface p-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <h3 className="m-0 text-base font-semibold tracking-tight">{t("createKeyHeading")}</h3>
-            <p className="m-0 text-sm text-fg-muted">{t("keyOnceHint")}</p>
-          </div>
-          <div className="flex min-w-0 flex-wrap items-end gap-3">
-            <Field
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createKey();
+          }}
+        >
+          <SectionCard
+            id="create-key"
+            title={t("createKeyHeading")}
+            description={t("keyOnceHint")}
+            footer={
+              <Button
+                type="submit"
+                variant="primary"
+                leadingIcon="key"
+                loading={creating}
+                disabled={!validName}
+              >
+                {t("createKey")}
+              </Button>
+            }
+          >
+            <SettingsRow
               label={t("keyName")}
+              description={t("keyNameHint")}
               info={t("keyNameInfo")}
-              className="min-w-56 flex-1"
-              hint={t("keyNameHint")}
+              htmlFor="api-key-name"
             >
               <Input
+                id="api-key-name"
                 placeholder={t("keyNamePlaceholder")}
                 value={keyName}
-                onChange={(event) => onKeyNameChange(event.target.value)}
+                maxLength={32}
+                autoComplete="off"
+                onChange={(event) => setKeyName(event.target.value)}
               />
-            </Field>
-            <Button
-              variant="primary"
-              className="shrink-0"
-              disabled={pending || keyName.trim() === ""}
-              onClick={onCreateKey}
-            >
-              <Icon name="key" className="text-sm" aria-hidden="true" />
-              {pending ? t("creating") : t("createKey")}
-            </Button>
-          </div>
-        </Card>
-      ) : null}
-
-      {apiKeys.length === 0 ? (
-        <EmptyState
-          icon={<Icon name="key" className="text-lg" />}
-          eyebrow={t("apiEmptyEyebrow")}
-          title={t("apiEmptyTitle")}
-          description={t("apiEmptyBody")}
-        />
+            </SettingsRow>
+          </SectionCard>
+        </form>
       ) : (
-        <Table>
-          <caption className="sr-only">{t("apiTableCaption")}</caption>
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell scope="col">{t("colName")}</TableHeaderCell>
-              <TableHeaderCell scope="col">{t("colKey")}</TableHeaderCell>
-              <TableHeaderCell scope="col" className="text-right">
-                {t("colRequests")}
-              </TableHeaderCell>
-              <TableHeaderCell scope="col">{t("colLastUsed")}</TableHeaderCell>
-              <TableHeaderCell scope="col">{t("colCreated")}</TableHeaderCell>
-              <TableHeaderCell scope="col" className="text-right">
-                {t("colActions")}
-              </TableHeaderCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {apiKeys.map((row) => {
-              const displayName = row.name ?? t("thisKey");
-              return (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <span className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className="min-w-0 truncate text-sm font-medium">
-                        {row.name ?? t("unnamedKey")}
+        <Callout tone="info">{t("apiReadOnly")}</Callout>
+      )}
+
+      <Card
+        id="api-keys"
+        padding={apiKeys.length === 0 ? "md" : "none"}
+        title={
+          <span className="inline-flex items-center gap-2">
+            {t("apiKeysList")}
+            <Badge tone="neutral" size="sm">
+              {activeKeys}
+            </Badge>
+          </span>
+        }
+        description={t("apiKeysListDesc")}
+      >
+        {apiKeys.length === 0 ? (
+          <EmptyState
+            bare
+            size="sm"
+            tone="first-run"
+            icon="key"
+            title={t("apiEmptyTitle")}
+            description={t("apiEmptyBody")}
+          />
+        ) : (
+          <Table bare label={t("apiTableCaption")}>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>{t("colName")}</TableHeaderCell>
+                <TableHeaderCell>{t("colKey")}</TableHeaderCell>
+                <TableHeaderCell numeric>{t("colRequests")}</TableHeaderCell>
+                <TableHeaderCell>{t("colLastUsed")}</TableHeaderCell>
+                <TableHeaderCell>{t("colCreated")}</TableHeaderCell>
+                <TableHeaderCell align="right">
+                  <span className="sr-only">{t("colActions")}</span>
+                </TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {apiKeys.map((row) => {
+                const displayName = row.name ?? t("thisKey");
+                return (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <span className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="min-w-0 truncate text-sm font-medium">
+                          {row.name ?? t("unnamedKey")}
+                        </span>
+                        {row.enabled ? null : (
+                          <Badge tone="muted" size="sm">
+                            {t("revoked")}
+                          </Badge>
+                        )}
                       </span>
-                      {row.enabled ? null : <Badge tone="muted">{t("revoked")}</Badge>}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <code className="font-mono text-xs whitespace-nowrap text-fg-muted">
-                      {row.start ? `${row.start}••••••••` : t("hidden")}
-                    </code>
-                  </TableCell>
-                  <TableCell className="text-right font-mono whitespace-nowrap tabular-nums">
-                    {formatNumber(row.requestCount)}
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
-                    {row.lastRequest ? (
-                      formatDateTime(row.lastRequest)
-                    ) : (
-                      <span className="text-fg-disabled">{t("neverUsed")}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
-                    {formatDate(row.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <span className="flex justify-end">
+                    </TableCell>
+                    <TableCell>
+                      <code className="font-mono text-xs whitespace-nowrap text-fg-muted">
+                        {row.start ? `${row.start}••••••••` : t("hidden")}
+                      </code>
+                    </TableCell>
+                    <TableCell numeric>{formatNumber(row.requestCount)}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
+                      {row.lastRequest ? (
+                        formatDateTime(row.lastRequest)
+                      ) : (
+                        <span className="text-fg-subtle">{t("neverUsed")}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
+                      {formatDate(row.createdAt)}
+                    </TableCell>
+                    <TableCell align="right">
                       {canManage && row.enabled ? (
-                        <DangerButton
+                        <Button
                           size="sm"
+                          variant="ghost"
                           icon
                           aria-label={t("revokeAria", { name: displayName })}
+                          title={t("revokeConfirm")}
                           disabled={pending}
                           onClick={() =>
                             requestConfirm({
@@ -227,24 +258,33 @@ export function SettingsApi({
                                 t("revokeUsage", { count: formatNumber(row.requestCount) }),
                               ],
                               confirmLabel: t("revokeConfirm"),
-                              onConfirm: () =>
-                                run(() => revokeApiKeyAction(row.id), t("keyRevoked")),
+                              onConfirm: () => run(() => revokeApiKeyAction(row.id), t("keyRevoked")),
                             })
                           }
                         >
-                          <Icon name="trash" className="text-sm" aria-hidden="true" />
-                        </DangerButton>
-                      ) : (
-                        <span className="text-xs text-fg-disabled">—</span>
-                      )}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
+                          <Icon name="trash" className="text-sm text-danger" aria-hidden="true" />
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      <SecretModal
+        open={issuedKey !== null}
+        kind="apiKey"
+        secret={issuedKey ?? ""}
+        usage={t("apiKeyUsage", { url: apiBaseUrl })}
+        onDismiss={() => {
+          setIssuedKey(null);
+          toast.success(t("keyCreated"));
+        }}
+      />
+      {dialog}
     </div>
   );
 }

@@ -24,9 +24,12 @@ export async function GET(request: NextRequest) {
   const rawType = params.get("type");
   const eventType = EVENT_TYPES.find((type) => type === rawType);
   const rawLinkId = params.get("linkId");
+  // Only narrows the workspace's own events, so an unknown hostname just exports nothing.
+  const rawDomain = params.get("domain")?.trim().toLowerCase();
   const scope = {
     workspaceId: context.workspace.id,
     linkId: rawLinkId && UUID.test(rawLinkId) ? rawLinkId : undefined,
+    hostname: rawDomain && rawDomain.length <= 253 ? rawDomain : undefined,
     from: range.from,
     to: range.to,
     includeBots,

@@ -30,7 +30,7 @@ export default function DashboardError({
   return (
     <PanelShell title={t("dashboard")}>
       <EmptyState
-        icon={<Icon name="warning" className="text-lg" />}
+        icon="warning"
         eyebrow={error.digest ? tc("errorRef", { digest: error.digest }) : undefined}
         title={t("dashboardLoadError")}
         description={t("dashboardLoadErrorBody")}

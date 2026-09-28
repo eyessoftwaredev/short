@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
-import { Button, Field, Input, Modal } from "@/components/ui";
+import { Button, Field, Input, Modal, toast } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import { createTeamAction } from "@/app/(panel)/settings/actions";
 
@@ -46,6 +46,7 @@ export function CreateTeamDialog({
         }
         setName("");
         onClose();
+        toast.success(t("teamCreated"));
         onCreated(result.data.workspaceId);
       } catch (caught) {
         console.error("failed to create team", caught);
@@ -59,20 +60,24 @@ export function CreateTeamDialog({
       open={open}
       title={t("createTeam")}
       description={t("createTeamDescription")}
+      icon="users"
       onClose={close}
       footer={
         <>
           <Button variant="ghost" disabled={pending} onClick={close}>
             {tc("cancel")}
           </Button>
-          <Button variant="primary" disabled={pending || name.trim().length < 2} onClick={submit}>
+          <Button variant="primary" loading={pending} disabled={name.trim().length < 2} onClick={submit}>
             {t("createTeam")}
           </Button>
         </>
       }
     >
-      <Field label={t("teamName")} info={t("teamNameInfo")}>
+      <Field label={t("teamName")} info={t("teamNameInfo")} hint={t("teamNameHint")} error={error ?? undefined}>
         <Input
+          autoFocus
+          placeholder={t("teamNamePlaceholder")}
+          aria-invalid={error ? true : undefined}
           value={name}
           minLength={2}
           maxLength={80}
@@ -86,7 +91,6 @@ export function CreateTeamDialog({
           }}
         />
       </Field>
-      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
     </Modal>
   );
 }

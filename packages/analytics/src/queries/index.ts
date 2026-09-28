@@ -15,6 +15,8 @@ export type StatsScope = {
   country?: string;
   device?: string;
   referrerDomain?: string;
+  /** Narrow to one short-link domain (the event's `hostname`). */
+  hostname?: string;
 };
 
 export type Granularity = "hour" | "day";
@@ -83,6 +85,10 @@ function buildFilters(scope: StatsScope): Filters {
     clauses.push("referrer_domain = {referrerDomain:String}");
     params.referrerDomain = scope.referrerDomain;
   }
+  if (scope.hostname) {
+    clauses.push("hostname = {hostname:String}");
+    params.hostname = scope.hostname;
+  }
   if (scope.qrId) {
     clauses.push("qr_id = {qrId:String}");
     params.qrId = scope.qrId;
@@ -104,6 +110,7 @@ export type SummaryResult = {
   countries: number;
   /** Same-length window immediately before `from`, for delta badges. */
   previousClicks: number;
+  previousQrScans: number;
   previousVisitors: number;
   previousBioViews: number;
   previousBioClicks: number;
@@ -130,7 +137,8 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
         countIf(type = 'bio_view') AS bio_views,
         countIf(type = 'bio_click') AS bio_clicks,
         uniq(visitor_id) AS visitors,
-        uniq(country) AS countries
+        -- A blank country is "we could not tell", not another country reached.
+        uniqIf(country, country != '') AS countries
      FROM events WHERE ${where}`,
     params,
   );
@@ -144,6 +152,7 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
       visitors: Number(current?.visitors ?? 0),
       countries: Number(current?.countries ?? 0),
       previousClicks: 0,
+      previousQrScans: 0,
       previousVisitors: 0,
       previousBioViews: 0,
       previousBioClicks: 0,
@@ -158,12 +167,14 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
 
   const [prior] = await chQuery<{
     clicks: string;
+    qr_scans: string;
     bio_views: string;
     bio_clicks: string;
     visitors: string;
   }>(
     `SELECT
         countIf(type = 'click') AS clicks,
+        countIf(type = 'qr_scan') AS qr_scans,
         countIf(type = 'bio_view') AS bio_views,
         countIf(type = 'bio_click') AS bio_clicks,
         uniq(visitor_id) AS visitors
@@ -179,6 +190,7 @@ export async function getSummary(scope: StatsScope): Promise<SummaryResult> {
     visitors: Number(current?.visitors ?? 0),
     countries: Number(current?.countries ?? 0),
     previousClicks: Number(prior?.clicks ?? 0),
+    previousQrScans: Number(prior?.qr_scans ?? 0),
     previousVisitors: Number(prior?.visitors ?? 0),
     previousBioViews: Number(prior?.bio_views ?? 0),
     previousBioClicks: Number(prior?.bio_clicks ?? 0),

@@ -177,15 +177,15 @@ export function RangePicker({ value }: { value: RangeKey }) {
         align="end"
         label={t("customRange")}
         trigger={
-          <Button size="sm" type="button">
-            <Icon name="calendar" className="text-xs" />
+          <Button size="sm" type="button" leadingIcon="calendar" trailingIcon="chevron-down" loading={pending}>
             {triggerLabel}
-            <Icon name="chevron-down" className="text-xs text-fg-subtle" />
           </Button>
         }
         items={RANGE_OPTIONS.map((option) => ({
           id: option.value,
           label: t(RANGE_LABEL_KEYS[option.value]),
+          selected: option.value === value,
+          separated: option.value === "custom",
           onSelect: () => select(option.value),
         }))}
       />

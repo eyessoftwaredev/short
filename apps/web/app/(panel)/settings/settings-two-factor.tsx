@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/kit/icon";
-import { Badge, Button, Card, CopyButton, Field, Input } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, CopyButton, Field, Input, SectionCard, toast } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cx";
 import { useTranslations } from "next-intl";
@@ -34,13 +34,7 @@ function stringList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function SettingsTwoFactor({
-  twoFactorEnabled,
-  embedded = false,
-}: {
-  twoFactorEnabled: boolean;
-  embedded?: boolean;
-}) {
+export function SettingsTwoFactor({ twoFactorEnabled }: { twoFactorEnabled: boolean }) {
   const t = useTranslations("settings");
   const te = useTranslations("errors");
   const router = useRouter();
@@ -50,13 +44,23 @@ export function SettingsTwoFactor({
   const [qr, setQr] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [confirmOff, setConfirmOff] = useState(false);
   const [pending, start] = useTransition();
+
+  // Errors and confirmations are toasts like everywhere else in settings.
+  const setError = (message: string | null): void => {
+    if (message) {
+      toast.error(message);
+    }
+  };
+  const setNotice = (message: string | null): void => {
+    if (message) {
+      toast.success(message);
+    }
+  };
 
   function fail(message?: string | null): void {
     setError(message && message.trim() !== "" ? message : te("generic"));
-    setNotice(null);
   }
 
   function resetSetup(): void {
@@ -168,6 +172,7 @@ export function SettingsTwoFactor({
         setBackupCodes([]);
         setPassword("");
         resetSetup();
+        setConfirmOff(false);
         setNotice(t("twoFactorDisabledNotice"));
         router.refresh();
       } catch {
@@ -176,21 +181,18 @@ export function SettingsTwoFactor({
     });
   }
 
-  const body = (
-    <div className={cn("flex min-w-0 flex-col gap-4", embedded && "border-t border-border pt-5")}>
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <Icon name="shield" className="text-fg-subtle" />
-          <span className="min-w-0 truncate">{t("twoFactor")}</span>
-        </span>
-        <Badge tone={twoFactorEnabled ? "accent" : "muted"} dot>
+  return (
+    <SectionCard
+      id="two-factor"
+      title={t("twoFactor")}
+      description={t("twoFactorDesc")}
+      divided={false}
+      actions={
+        <Badge tone={twoFactorEnabled ? "success" : "muted"} dot>
           {twoFactorEnabled ? t("twoFactorOn") : t("twoFactorOff")}
         </Badge>
-      </div>
-      <p className="m-0 text-sm text-fg-muted">{t("twoFactorDesc")}</p>
-      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
-      {notice ? <p className="m-0 text-sm text-fg-muted">{notice}</p> : null}
-
+      }
+    >
       {twoFactorEnabled ? (
         <EnabledPanel
           password={password}
@@ -198,7 +200,13 @@ export function SettingsTwoFactor({
           backupCodes={backupCodes}
           onPasswordChange={setPassword}
           onRefreshCodes={refreshBackupCodes}
-          onDisable={turnOff}
+          onDisable={() => {
+            if (password === "") {
+              fail(t("twoFactorNeedPassword"));
+              return;
+            }
+            setConfirmOff(true);
+          }}
         />
       ) : (
         <SetupPanel
@@ -212,25 +220,21 @@ export function SettingsTwoFactor({
           onTotpChange={setTotp}
           onBegin={beginEnable}
           onScanContinue={() => setStep("verify")}
-          onBackToScan={() => {
-            setError(null);
-            setStep("scan");
-          }}
+          onBackToScan={() => setStep("scan")}
           onCancel={resetSetup}
           onConfirm={confirmTotp}
         />
       )}
-    </div>
-  );
-
-  if (embedded) {
-    return body;
-  }
-
-  return (
-    <Card staticHover className="gap-4 bg-surface p-6">
-      {body}
-    </Card>
+      <ConfirmDialog
+        open={confirmOff}
+        title={t("disable2faTitle")}
+        description={t("disable2faBody")}
+        confirmLabel={t("disable2fa")}
+        loading={pending}
+        onConfirm={turnOff}
+        onClose={() => setConfirmOff(false)}
+      />
+    </SectionCard>
   );
 }
 

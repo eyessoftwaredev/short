@@ -1,77 +1,142 @@
 "use client";
 
-import { Icon, type IconName } from "@/components/kit/icon";
-
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Button, CopyButton, Field, InfoTip, Input, Modal, Switch } from "@/components/ui";
-import { cn } from "@/lib/cx";
-import type { ConfirmRequest } from "./settings-types";
-
-type BannerTone = "danger" | "accent" | "info";
-
-const BANNER_TONES: Record<BannerTone, { box: string; icon: string }> = {
-  danger: { box: "border-danger bg-danger-surface", icon: "text-danger" },
-  accent: { box: "border-accent bg-accent-tint", icon: "text-accent-ink" },
-  info: { box: "border-border-strong bg-surface-subtle", icon: "text-fg-muted" },
-};
-
-const BANNER_ICONS: Record<BannerTone, IconName> = {
-  danger: "warning",
-  accent: "circle-check",
-  info: "circle-info",
-};
-
-export function SettingsBanner({
-  tone,
-  children,
-  onDismiss,
-}: {
-  tone: BannerTone;
-  children: ReactNode;
-  onDismiss?: () => void;
-}) {
-  const tc = useTranslations("common");
-  return (
-    <div
-      role={tone === "danger" ? "alert" : "status"}
-      className={cn(
-        "flex min-w-0 items-start gap-3 rounded-default border px-4 py-3",
-        BANNER_TONES[tone].box,
-      )}
-    >
-      <Icon name={BANNER_ICONS[tone]} className={cn("mt-0.5 shrink-0 text-sm", BANNER_TONES[tone].icon)} />
-      <p className="m-0 min-w-0 flex-1 text-sm text-fg-muted">{children}</p>
-      {onDismiss ? (
-        <Button variant="ghost" size="sm" aria-label={tc("dismiss")} onClick={onDismiss}>
-          {tc("dismiss")}
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-type DangerButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  size?: "sm" | "md" | "lg";
-  icon?: boolean;
-  children?: ReactNode;
-};
+import { useCallback, useState, type ReactNode } from "react";
+import {
+  Button,
+  Callout,
+  ConfirmDialog,
+  CopyButton,
+  Field,
+  InfoTip,
+  Input,
+  Modal,
+  Switch,
+  toast,
+} from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
+import type { ActionOutcome, ConfirmRequest, RequestConfirm, RunAction } from "./settings-types";
 
 /**
- * The Button primitive has no destructive variant, so the danger tone is applied here
- * rather than duplicated at every call site.
+ * One way to run a settings action everywhere: failures become an error toast with the
+ * mapped message, successes an optional success toast and a server refresh.
  */
-export function DangerButton({ className, children, ...props }: DangerButtonProps) {
+export function useSettingsAction(): { pending: boolean; run: RunAction } {
+  const router = useRouter();
+  const t = useTranslations("settings");
+  const actionMessage = useActionMessage();
+  const [pending, setPending] = useState(false);
+
+  const run = useCallback<RunAction>(
+    async (action, message) => {
+      setPending(true);
+      try {
+        const result: ActionOutcome = await action();
+        if (!result.ok) {
+          toast.error(result.fieldErrors?.url?.length ? t("webhookUrlPrivate") : actionMessage(result.error));
+          return false;
+        }
+        if (message) {
+          toast.success(message);
+        }
+        router.refresh();
+        return true;
+      } catch (error) {
+        console.error("settings action failed", error);
+        toast.error(actionMessage("generic"));
+        return false;
+      } finally {
+        setPending(false);
+      }
+    },
+    [actionMessage, router, t],
+  );
+
+  return { pending, run };
+}
+
+/** Confirmation state + the dialog that renders it. Drop `dialog` anywhere in the tree. */
+export function useSettingsConfirm(): { requestConfirm: RequestConfirm; dialog: ReactNode } {
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  const requestConfirm = useCallback<RequestConfirm>((next) => setRequest(next), []);
+  return {
+    requestConfirm,
+    dialog: <SettingsConfirm request={request} onClose={() => setRequest(null)} />,
+  };
+}
+
+function SettingsConfirm({ request, onClose }: { request: ConfirmRequest | null; onClose: () => void }) {
+  const t = useTranslations("settings");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const needsPassword = Boolean(request?.requirePassword);
+
+  function close(): void {
+    if (busy) {
+      return;
+    }
+    setPassword("");
+    onClose();
+  }
+
+  async function confirm(): Promise<void> {
+    if (!request) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await request.onConfirm(needsPassword ? password : undefined);
+      if (result !== false) {
+        setPassword("");
+        onClose();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Button
-      {...props}
-      className={cn(
-        "border-danger text-danger hover:bg-danger-surface hover:text-danger",
-        className,
-      )}
+    <ConfirmDialog
+      open={request !== null}
+      title={request?.title ?? ""}
+      description={request?.description}
+      confirmLabel={request?.confirmLabel ?? t("confirm")}
+      loading={busy}
+      confirmDisabled={needsPassword && password.trim() === ""}
+      onConfirm={() => void confirm()}
+      onClose={close}
     >
-      {children}
-    </Button>
+      {request?.consequences?.length || needsPassword ? (
+        <div className="flex min-w-0 flex-col gap-4">
+          {request?.consequences?.length ? (
+            <ul className="m-0 flex min-w-0 list-disc flex-col gap-1.5 pl-5 text-sm text-fg-muted">
+              {request.consequences.map((line) => (
+                <li key={line} className="min-w-0">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {needsPassword ? (
+            <Field label={t("deleteAccountPassword")} info={t("deleteAccountPasswordInfo")}>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && password.trim() !== "") {
+                    event.preventDefault();
+                    void confirm();
+                  }
+                }}
+              />
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
+    </ConfirmDialog>
   );
 }
 
@@ -111,6 +176,7 @@ export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModa
       open={open}
       title={title}
       description={t("secretDescription")}
+      icon="key"
       onClose={close}
       footer={
         <>
@@ -122,13 +188,10 @@ export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModa
       }
     >
       <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-w-0 items-start gap-3 rounded-default border border-warn bg-warn-surface px-3.5 py-3">
-          <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-warn-ink" aria-hidden="true" />
-          <p className="m-0 min-w-0 text-sm text-fg-muted">{t("secretStoreHint")}</p>
-        </div>
+        <Callout tone="warn">{t("secretStoreHint")}</Callout>
 
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{kindLabel}</span>
+          <span className="text-[13px] font-medium text-fg-subtle">{kindLabel}</span>
           <code className="block min-w-0 rounded-default border border-border-strong bg-surface-subtle px-3.5 py-3 font-mono text-sm break-all text-ink select-all">
             {secret}
           </code>
@@ -136,90 +199,11 @@ export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModa
 
         <p className="m-0 text-sm text-fg-muted">{usage}</p>
 
-        <label className="flex min-w-0 cursor-pointer items-center gap-3 rounded-default border border-border bg-surface-subtle px-3.5 py-3">
-          <Switch
-            checked={acknowledged}
-            onCheckedChange={setAcknowledged}
-            aria-label={t("secretAck")}
-          />
-          <span className="min-w-0 text-sm">{t("secretAck")}</span>
-          <InfoTip inline label={t("secretAck")}>
-            {t("secretAckInfo")}
-          </InfoTip>
-        </label>
-      </div>
-    </Modal>
-  );
-}
-
-type ConfirmDialogProps = {
-  request: ConfirmRequest | null;
-  pending: boolean;
-  onCancel: () => void;
-};
-
-export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps) {
-  const t = useTranslations("settings");
-  const tc = useTranslations("common");
-  const [password, setPassword] = useState("");
-  const needsPassword = Boolean(request?.requirePassword);
-  const canConfirm = !needsPassword || password.trim() !== "";
-
-  return (
-    <Modal
-      open={request !== null}
-      title={request?.title ?? ""}
-      description={request?.description}
-      onClose={() => {
-        setPassword("");
-        onCancel();
-      }}
-      footer={
-        <>
-          <Button
-            disabled={pending}
-            onClick={() => {
-              setPassword("");
-              onCancel();
-            }}
-          >
-            {tc("cancel")}
-          </Button>
-          <DangerButton
-            disabled={pending || !canConfirm}
-            onClick={() => {
-              request?.onConfirm(needsPassword ? password : undefined);
-              setPassword("");
-            }}
-          >
-            {pending ? tc("working") : (request?.confirmLabel ?? t("confirm"))}
-          </DangerButton>
-        </>
-      }
-    >
-      <div className="flex min-w-0 flex-col gap-4">
-        {request?.consequences && request.consequences.length > 0 ? (
-          <div className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3">
-            <Icon name="warning" className="mt-0.5 text-sm shrink-0 text-danger" aria-hidden="true" />
-            <ul className="m-0 flex min-w-0 list-none flex-col gap-1.5 p-0 text-sm text-fg-muted">
-              {request.consequences.map((line) => (
-                <li key={line} className="min-w-0">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {needsPassword ? (
-          <Field label={t("deleteAccountPassword")} info={t("deleteAccountPasswordInfo")}>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </Field>
-        ) : null}
+        <div className="flex min-w-0 items-center gap-3 rounded-default border border-border bg-surface-subtle px-3.5 py-3">
+          <Switch checked={acknowledged} onCheckedChange={setAcknowledged} aria-label={t("secretAck")} />
+          <span className="min-w-0 flex-1 text-sm">{t("secretAck")}</span>
+          <InfoTip label={t("secretAck")}>{t("secretAckInfo")}</InfoTip>
+        </div>
       </div>
     </Modal>
   );

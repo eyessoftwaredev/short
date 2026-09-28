@@ -1,14 +1,32 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
-import { BreakdownList, EmptyState, type BreakdownListRow } from "@/components/ui";
+import { Icon } from "@/components/kit/icon";
+import {
+  BreakdownList,
+  Card,
+  EmptyState,
+  Grid,
+  InfoTip,
+  PageHeader,
+  StatCard,
+  TabLinks,
+  type BreakdownListRow,
+} from "@/components/ui";
 import { clientIp } from "@/lib/abuse";
-import { cn } from "@/lib/cx";
 import { formatNumber } from "@/lib/format";
-import { countryName, deltaPercent, firstParam, titleCase } from "@/lib/stats";
+import { browserIcon, countryFlag, deviceIcon } from "@/lib/stats-icons";
+import {
+  countryName,
+  deltaPercent,
+  firstParam,
+  formatRelativeTime,
+  formatShare,
+  titleCase,
+  trendOf,
+} from "@/lib/stats";
 import { getSharedStats, SHARE_RANGE_KEYS, type SharedStats } from "@/lib/stats-shares";
 import { ShareChrome } from "./share-chrome";
 
@@ -31,8 +49,14 @@ export async function generateMetadata(): Promise<Metadata> {
 function toRows(
   rows: SharedStats["devices"],
   label: (key: string) => string,
+  badge?: (key: string) => BreakdownListRow["badge"],
 ): BreakdownListRow[] {
-  return rows.map((row) => ({ key: row.key, label: label(row.key), value: row.clicks }));
+  return rows.map((row) => ({
+    key: row.key,
+    label: label(row.key),
+    value: row.clicks,
+    badge: badge ? badge(row.key) : undefined,
+  }));
 }
 
 export default async function SharedStatsPage({
@@ -42,11 +66,12 @@ export default async function SharedStatsPage({
   params: Params;
   searchParams: SearchParams;
 }) {
-  const [{ token }, query, headerList, t, locale] = await Promise.all([
+  const [{ token }, query, headerList, t, ts, locale] = await Promise.all([
     params,
     searchParams,
     headers(),
     getTranslations("share"),
+    getTranslations("stats"),
     getLocale(),
   ]);
 
@@ -59,6 +84,7 @@ export default async function SharedStatsPage({
       <ShareChrome>
         <EmptyState
           className="mx-auto w-full max-w-lg"
+          icon="clock"
           title={t("rateLimitedTitle")}
           description={t("rateLimitedBody")}
         />
@@ -68,94 +94,184 @@ export default async function SharedStatsPage({
 
   const { stats } = result;
   const unknown = t("unknown");
-  const delta = deltaPercent(stats.totals.clicks, stats.totals.previousClicks);
+  // The chart counts every visit to the link, QR scans included, so the headline does too.
+  const clicks = stats.totals.clicks + stats.totals.qrScans;
+  const previousClicks = stats.totals.previousClicks + (stats.totals.previousQrScans ?? 0);
+  const compare = stats.range.key !== "all";
+  const deltaText = (current: number, previous: number): string => {
+    const delta = deltaPercent(current, previous);
+    return delta === 0 ? ts("deltaNone") : `${Math.abs(delta)}%`;
+  };
   const heading = stats.link.title ?? stats.link.shortUrl.replace(/^https:\/\//, "");
+  const rangeName = t(`ranges.${stats.range.key}`);
+  const hasTraffic = clicks > 0;
+  const iconBadge = (node: BreakdownListRow["badge"], fallback: "laptop" | "compass") =>
+    node ?? <Icon name={fallback} className="text-xs text-fg-subtle" />;
 
   return (
     <ShareChrome>
-      <section className="flex min-w-0 flex-col gap-2">
-        <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{t("eyebrow")}</span>
-        <h1 className="text-2xl font-semibold tracking-tight break-words text-fg">{heading}</h1>
-        <p className="text-sm break-all text-fg-muted">
-          {stats.link.shortUrl}
-          {stats.link.destinationHost ? ` → ${stats.link.destinationHost}` : ""}
-        </p>
-      </section>
-
-      <nav aria-label={t("rangeLabel")} className="flex min-w-0 flex-wrap gap-2">
-        {SHARE_RANGE_KEYS.map((key) => (
-          <Link
-            key={key}
-            href={`?range=${key}`}
-            prefetch={false}
-            aria-current={stats.range.key === key ? "page" : undefined}
-            className={cn(
-              "rounded-default border px-3 py-1.5 text-sm",
-              stats.range.key === key
-                ? "border-accent bg-accent text-on-accent"
-                : "border-border text-fg-muted hover:text-fg",
-            )}
-          >
-            {t(`ranges.${key}`)}
-          </Link>
-        ))}
-      </nav>
-
-      <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-1 rounded-default border border-border bg-surface p-5">
-          <span className="text-sm text-fg-muted">{t("clicks")}</span>
-          <span className="text-3xl font-semibold tabular-nums text-fg">{formatNumber(stats.totals.clicks)}</span>
-          {stats.range.key !== "all" ? (
-            <span className="text-xs text-fg-subtle">
-              {delta === 0 ? t("noChange") : t("change", { delta: `${delta > 0 ? "+" : ""}${delta}` })}
+      <PageHeader
+        eyebrow={t("eyebrow")}
+        title={heading}
+        description={
+          <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 break-all">
+            <span className="font-mono text-[13px] text-ink">
+              {stats.link.shortUrl.replace(/^https:\/\//, "")}
             </span>
+            {stats.link.destinationHost ? (
+              <>
+                <Icon name="arrow-right" className="text-[10px] text-fg-subtle" />
+                <span className="font-mono text-[13px]">{stats.link.destinationHost}</span>
+              </>
+            ) : null}
+          </span>
+        }
+        tabs={
+          <TabLinks
+            variant="segmented"
+            label={t("rangeLabel")}
+            value={stats.range.key}
+            items={SHARE_RANGE_KEYS.map((key) => ({
+              id: key,
+              label: t(`ranges.${key}`),
+              href: `?range=${key}`,
+            }))}
+          />
+        }
+      />
+
+      <Grid columns={3}>
+        <StatCard
+          icon="arrow-pointer"
+          label={t("clicks")}
+          info={t("clicksInfo")}
+          value={formatNumber(clicks)}
+          delta={compare ? deltaText(clicks, previousClicks) : undefined}
+          trend={compare ? trendOf(clicks, previousClicks) : "neutral"}
+          deltaLabel={compare ? t("vsPrevious") : rangeName}
+        />
+        <StatCard
+          icon="users"
+          label={t("visitors")}
+          info={t("visitorsInfo")}
+          value={formatNumber(stats.totals.visitors)}
+          delta={compare ? deltaText(stats.totals.visitors, stats.totals.previousVisitors) : undefined}
+          trend={compare ? trendOf(stats.totals.visitors, stats.totals.previousVisitors) : "neutral"}
+          deltaLabel={compare ? t("vsPrevious") : rangeName}
+        />
+        <StatCard
+          icon="qrcode"
+          label={t("qrScans")}
+          info={t("qrScansInfo")}
+          value={formatNumber(stats.totals.qrScans)}
+          deltaLabel={t("qrShare", { share: formatShare(stats.totals.qrScans, clicks) })}
+        />
+      </Grid>
+
+      <Card
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            {t("overTime")}
+            <InfoTip label={t("overTime")}>{t("overTimeInfo")}</InfoTip>
+          </span>
+        }
+        description={stats.range.granularity === "hour" ? t("overTimeHour") : t("overTimeDay")}
+      >
+        {hasTraffic ? (
+          <>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-pill bg-chart-1" aria-hidden="true" />
+                {t("clicks")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-pill bg-chart-2" aria-hidden="true" />
+                {t("visitors")}
+              </span>
+            </div>
+            <TimeseriesChart
+              data={stats.timeseries}
+              granularity={stats.range.granularity}
+              clicksLabel={t("clicks")}
+              visitorsLabel={t("visitors")}
+            />
+          </>
+        ) : (
+          <EmptyState bare size="sm" icon="chart-line" title={t("emptyTitle")} description={t("emptyBody")} />
+        )}
+      </Card>
+
+      {hasTraffic ? (
+        <Grid columns={2}>
+          {stats.countries ? (
+            <BreakdownList
+              title={t("countries")}
+              rows={toRows(
+                stats.countries,
+                (key) => countryName(key, locale, unknown),
+                (key) => countryFlag(key) || <Icon name="earth" className="text-xs text-fg-subtle" />,
+              )}
+              total={clicks}
+              limit={10}
+            />
           ) : null}
-        </div>
-        <div className="flex min-w-0 flex-col gap-1 rounded-default border border-border bg-surface p-5">
-          <span className="text-sm text-fg-muted">{t("visitors")}</span>
-          <span className="text-3xl font-semibold tabular-nums text-fg">{formatNumber(stats.totals.visitors)}</span>
-        </div>
-        <div className="flex min-w-0 flex-col gap-1 rounded-default border border-border bg-surface p-5">
-          <span className="text-sm text-fg-muted">{t("qrScans")}</span>
-          <span className="text-3xl font-semibold tabular-nums text-fg">{formatNumber(stats.totals.qrScans)}</span>
-        </div>
-      </section>
-
-      <section className="flex min-w-0 flex-col gap-3 rounded-default border border-border bg-surface p-5">
-        <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">{t("overTime")}</span>
-        <TimeseriesChart data={stats.timeseries} granularity={stats.range.granularity} />
-      </section>
-
-      <section className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
-        {stats.countries ? (
+          {stats.referrers ? (
+            <BreakdownList
+              title={t("referrers")}
+              rows={toRows(
+                stats.referrers,
+                (key) => (key === "unknown" ? t("direct") : key),
+                (key) => (
+                  <Icon
+                    name={key === "unknown" ? "arrow-pointer" : "share-nodes"}
+                    className="text-xs text-fg-subtle"
+                  />
+                ),
+              )}
+              total={clicks}
+              limit={10}
+            />
+          ) : null}
           <BreakdownList
-            title={t("countries")}
-            rows={toRows(stats.countries, (key) => countryName(key, locale, unknown))}
-            limit={10}
+            title={t("devices")}
+            rows={toRows(
+              stats.devices,
+              (key) => titleCase(key, unknown),
+              (key) => iconBadge(deviceIcon(key), "laptop"),
+            )}
+            total={clicks}
+            limit={8}
           />
-        ) : null}
-        {stats.referrers ? (
           <BreakdownList
-            title={t("referrers")}
-            rows={toRows(stats.referrers, (key) => (key === "unknown" ? t("direct") : key))}
-            limit={10}
+            title={t("browsers")}
+            rows={toRows(
+              stats.browsers,
+              (key) => titleCase(key, unknown),
+              (key) => iconBadge(browserIcon(key), "compass"),
+            )}
+            total={clicks}
+            limit={8}
           />
-        ) : null}
-        <BreakdownList title={t("devices")} rows={toRows(stats.devices, (key) => titleCase(key, unknown))} limit={8} />
-        <BreakdownList title={t("browsers")} rows={toRows(stats.browsers, (key) => titleCase(key, unknown))} limit={8} />
-      </section>
+        </Grid>
+      ) : null}
 
-      <footer className="flex min-w-0 flex-col gap-1 text-xs text-fg-subtle">
-        <p>{t("footnote")}</p>
-        {stats.range.clamped ? <p>{t("clampedNote")}</p> : null}
+      <div className="flex min-w-0 flex-col gap-1 text-[13px] text-fg-subtle">
+        <p className="m-0 flex items-center gap-1.5">
+          <Icon name="shield" className="text-xs" />
+          {t("footnote")}
+        </p>
+        {stats.range.clamped && stats.range.key !== "all" ? <p className="m-0">{t("clampedNote")}</p> : null}
         {stats.share.expiresAt ? (
-          <p>
+          <p className="m-0">
             {t("expiresNote", {
               date: new Date(stats.share.expiresAt).toLocaleDateString(locale, { dateStyle: "medium" }),
             })}
           </p>
         ) : null}
-      </footer>
+        <p className="m-0">
+          {t("updatedNote", { time: formatRelativeTime(new Date(stats.generatedAt), locale) })}
+        </p>
+      </div>
     </ShareChrome>
   );
 }

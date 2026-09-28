@@ -6,8 +6,8 @@ import type { BreakdownRow } from "@short/analytics";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { BreakdownList, Grid, TabPanel, Tabs, type TabItem } from "@/components/ui";
-import { browserIcon, countryBadge, deviceIcon, osIcon } from "@/lib/stats-icons";
-import { countryName, titleCase } from "@/lib/stats";
+import { browserIcon, countryFlag, deviceIcon, osIcon } from "@/lib/stats-icons";
+import { countryName, languageName, titleCase } from "@/lib/stats";
 
 export type BreakdownSet = {
   country: BreakdownRow[];
@@ -32,7 +32,13 @@ function toRows(
   return rows.map((row) => ({ key: row.key, label: format(row.key), value: row.clicks }));
 }
 
-export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
+type StatsBreakdownsProps = {
+  data: BreakdownSet;
+  /** When bot traffic is included the "bots are filtered" note would be wrong, so it is hidden. */
+  includeBots?: boolean;
+};
+
+export function StatsBreakdowns({ data, includeBots = false }: StatsBreakdownsProps) {
   const t = useTranslations("stats");
   const locale = useLocale();
   const unknown = t("unknown");
@@ -48,7 +54,8 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
     key: row.key,
     label: countryName(row.key, locale, unknown),
     value: row.clicks,
-    badge: countryBadge(row.key),
+    // Unknown locations get a globe rather than a "??" placeholder.
+    badge: countryFlag(row.key) || <Icon name="earth" className="text-xs text-fg-subtle" />,
   }));
 
   const deviceRows = data.device.map((row) => ({
@@ -74,7 +81,14 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs items={tabs} value={group} onChange={setGroup} variant="pill" className="self-start" />
+      <Tabs
+        items={tabs}
+        value={group}
+        onChange={setGroup}
+        variant="segmented"
+        label={t("breakdown")}
+        className="self-start"
+      />
 
       <TabPanel active={group === "geography"}>
         <Grid columns={3}>
@@ -99,10 +113,12 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
             title={t("device")}
             rows={deviceRows}
             footer={
-              <>
-                <Icon name="shield" className="text-sm text-accent-ink" />
-                {t("botsFiltered")}
-              </>
+              includeBots ? undefined : (
+                <>
+                  <Icon name="shield" className="text-sm text-accent-ink" />
+                  {t("botsFiltered")}
+                </>
+              )
             }
           />
           <BreakdownList
@@ -116,7 +132,10 @@ export function StatsBreakdowns({ data }: { data: BreakdownSet }) {
             }
           />
           <BreakdownList title={t("browser")} rows={browserRows} />
-          <BreakdownList title={t("language")} rows={toRows(data.language, (key) => key.toUpperCase())} />
+          <BreakdownList
+            title={t("language")}
+            rows={toRows(data.language, (key) => languageName(key, locale, unknown))}
+          />
         </Grid>
       </TabPanel>
 

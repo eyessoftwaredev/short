@@ -1,7 +1,6 @@
 "use client";
 
 import { Icon } from "@/components/kit/icon";
-
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { initials } from "@/components/providers/session-provider";
@@ -9,12 +8,15 @@ import {
   Avatar,
   Badge,
   Button,
+  Callout,
+  Card,
   EmptyState,
-  Field,
-  InfoTip,
   Input,
+  InfoTip,
   QuotaMeter,
+  SectionCard,
   Select,
+  SettingsRow,
   Table,
   TableBody,
   TableCell,
@@ -23,18 +25,14 @@ import {
   TableRow,
 } from "@/components/ui";
 import { formatDate } from "@/lib/format";
-import { cancelInviteAction, inviteMemberAction, removeMemberAction, updateMemberRoleAction } from "./actions";
-import { SettingsCard } from "./settings-card";
-import { DangerButton } from "./settings-dialogs";
 import {
-  ROLE_COPY,
-  isRoleId,
-  type InviteView,
-  type MemberView,
-  type RequestConfirm,
-  type RoleId,
-  type RunAction,
-} from "./settings-types";
+  cancelInviteAction,
+  inviteMemberAction,
+  removeMemberAction,
+  updateMemberRoleAction,
+} from "./actions";
+import { useSettingsAction, useSettingsConfirm } from "./settings-dialogs";
+import { ROLE_COPY, isRoleId, type InviteView, type MemberView, type RoleId } from "./settings-types";
 
 type SettingsMembersProps = {
   currentUserId: string;
@@ -44,12 +42,9 @@ type SettingsMembersProps = {
   isOwner: boolean;
   memberLimit: number;
   memberUsed: number;
-  pending: boolean;
-  run: RunAction;
-  requestConfirm: RequestConfirm;
 };
 
-function RoleGuide() {
+function RoleTip() {
   const t = useTranslations("settings");
   return (
     <InfoTip label={t("rolesHint")}>
@@ -73,44 +68,109 @@ export function SettingsMembers({
   isOwner,
   memberLimit,
   memberUsed,
-  pending,
-  run,
-  requestConfirm,
 }: SettingsMembersProps) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
+  const { pending, run } = useSettingsAction();
+  const { requestConfirm, dialog } = useSettingsConfirm();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<RoleId>("member");
 
   const seatsFull = memberLimit !== -1 && memberUsed >= memberLimit;
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim());
+
+  async function sendInvite(): Promise<void> {
+    if (pending || seatsFull || !emailLooksValid) {
+      return;
+    }
+    const email = inviteEmail;
+    const ok = await run(
+      () => inviteMemberAction(email, inviteRole),
+      t("inviteSentTo", { email: email.trim() }),
+    );
+    if (ok) {
+      setInviteEmail("");
+    }
+  }
 
   return (
-    <div className="flex min-w-0 flex-col gap-8">
-      <SettingsCard
-        title={t("inviteHeading")}
-        description={
-          invites.length > 0 ? t("pendingInvites", { count: invites.length }) : t("membersDescription")
-        }
-      >
-        <QuotaMeter label={t("seats")} used={memberUsed} limit={memberLimit} />
-        {canManage ? (
-          <div className="flex min-w-0 flex-wrap items-end gap-3">
-            <Field label={t("inviteEmail")} info={t("inviteEmailInfo")} className="min-w-56 flex-1">
+    <>
+      {canManage ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void sendInvite();
+          }}
+        >
+          <SectionCard
+            id="invite"
+            title={t("inviteHeading")}
+            description={t("inviteDescription")}
+            actions={
+              <QuotaMeter
+                label={t("seats")}
+                used={memberUsed}
+                limit={memberLimit}
+                info={t("seatsInfo")}
+                compact
+                className="w-48"
+              />
+            }
+            footer={
+              <Button
+                type="submit"
+                variant="primary"
+                leadingIcon="envelope"
+                loading={pending}
+                disabled={seatsFull || !emailLooksValid}
+              >
+                {t("sendInvite")}
+              </Button>
+            }
+          >
+            {seatsFull ? (
+              <div className="py-5">
+                <Callout
+                  tone="warn"
+                  title={t("seatsFull")}
+                  actions={
+                    isOwner ? (
+                      <Button size="sm" href="/billing" leadingIcon="rocket">
+                        {t("comparePlans")}
+                      </Button>
+                    ) : null
+                  }
+                >
+                  {invites.length > 0 ? t("pendingInvites", { count: invites.length }) : null}
+                </Callout>
+              </div>
+            ) : null}
+            <SettingsRow
+              label={t("inviteEmail")}
+              description={t("inviteEmailDesc")}
+              info={t("inviteEmailInfo")}
+              htmlFor="invite-email"
+            >
               <Input
+                id="invite-email"
                 type="email"
                 autoComplete="off"
                 placeholder={t("inviteEmailPlaceholder")}
                 value={inviteEmail}
+                disabled={seatsFull}
                 onChange={(event) => setInviteEmail(event.target.value)}
               />
-            </Field>
-            <div className="flex min-w-40 flex-col gap-1.5">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium">
-                {t("inviteRole")}
-                <RoleGuide />
-              </span>
+            </SettingsRow>
+            <SettingsRow
+              label={t("inviteRole")}
+              description={t(ROLE_COPY[inviteRole].summary)}
+              info={t("inviteRoleInfo")}
+              htmlFor="invite-role"
+            >
               <Select
+                id="invite-role"
                 value={inviteRole}
+                disabled={seatsFull}
                 onChange={(event) => {
                   if (isRoleId(event.target.value)) {
                     setInviteRole(event.target.value);
@@ -121,51 +181,39 @@ export function SettingsMembers({
                 <option value="admin">{t("roleAdmin")}</option>
                 {isOwner ? <option value="owner">{t("roleOwner")}</option> : null}
               </Select>
-            </div>
-            <Button
-              variant="primary"
-              className="shrink-0"
-              disabled={pending || seatsFull || inviteEmail.trim() === ""}
-              onClick={() => {
-                const email = inviteEmail;
-                run(async () => {
-                  const result = await inviteMemberAction(email, inviteRole);
-                  if (result.ok) {
-                    setInviteEmail("");
-                  }
-                  return result;
-                }, t("inviteSent"));
-              }}
-            >
-              <Icon name="envelope" className="text-sm" aria-hidden="true" />
-              {t("sendInvite")}
-            </Button>
-          </div>
-        ) : null}
-        {seatsFull ? <p className="m-0 text-sm text-warn-ink">{t("seatsFull")}</p> : null}
-      </SettingsCard>
+            </SettingsRow>
+          </SectionCard>
+        </form>
+      ) : (
+        <Callout tone="info">{t("membersReadOnly")}</Callout>
+      )}
 
-      <div className="flex min-w-0 flex-col gap-3">
-        <h3 className="m-0 flex items-center gap-2 text-sm font-semibold">
-          {t("members")}
-          <span className="font-mono text-xs font-normal text-fg-subtle tabular-nums">
-            {members.length}
+      <Card
+        id="members"
+        padding="none"
+        title={
+          <span className="inline-flex items-center gap-2">
+            {t("members")}
+            <Badge tone="neutral" size="sm">
+              {members.length}
+            </Badge>
           </span>
-        </h3>
-        <Table>
-          <caption className="sr-only">{t("membersTableCaption")}</caption>
+        }
+        description={t("membersDescription")}
+      >
+        <Table bare label={t("membersTableCaption")}>
           <TableHead>
             <TableRow>
               <TableHeaderCell scope="col">{t("colMember")}</TableHeaderCell>
               <TableHeaderCell scope="col">
                 <span className="inline-flex items-center gap-1.5">
                   {t("colRole")}
-                  <RoleGuide />
+                  <RoleTip />
                 </span>
               </TableHeaderCell>
               <TableHeaderCell scope="col">{t("colJoined")}</TableHeaderCell>
-              <TableHeaderCell scope="col" className="text-right">
-                {t("colActions")}
+              <TableHeaderCell scope="col" align="right">
+                <span className="sr-only">{t("colActions")}</span>
               </TableHeaderCell>
             </TableRow>
           </TableHead>
@@ -185,7 +233,11 @@ export function SettingsMembers({
                       <span className="flex min-w-0 flex-col">
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">{row.name}</span>
-                          {isSelf ? <Badge tone="muted">{t("you")}</Badge> : null}
+                          {isSelf ? (
+                            <Badge tone="muted" size="sm">
+                              {t("you")}
+                            </Badge>
+                          ) : null}
                         </span>
                         <span className="truncate font-mono text-xs text-fg-muted">{row.email}</span>
                       </span>
@@ -197,11 +249,9 @@ export function SettingsMembers({
                         aria-label={t("roleFor", { email: row.email })}
                         value={row.role}
                         disabled={pending}
+                        className="w-32"
                         onChange={(event) =>
-                          run(
-                            () => updateMemberRoleAction(row.id, event.target.value),
-                            t("roleUpdated"),
-                          )
+                          void run(() => updateMemberRoleAction(row.id, event.target.value), t("roleUpdated"))
                         }
                       >
                         <option value="member">{t("roleMember")}</option>
@@ -217,97 +267,100 @@ export function SettingsMembers({
                   <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
                     {formatDate(row.joinedAt)}
                   </TableCell>
-                  <TableCell>
-                    <span className="flex justify-end">
-                      {removable ? (
-                        <DangerButton
-                          size="sm"
-                          icon
-                          aria-label={t("removeMemberAria", { email: row.email })}
-                          disabled={pending}
-                          onClick={() =>
-                            requestConfirm({
-                              title: t("removeMemberTitle", { name: row.name }),
-                              description: t("removeMemberBody", { email: row.email }),
-                              consequences: [
-                                t("removeMemberKeepAssets"),
-                                t("removeMemberKeepKeys"),
-                                t("removeMemberReinvite"),
-                              ],
-                              confirmLabel: t("removeMemberConfirm"),
-                              onConfirm: () =>
-                                run(() => removeMemberAction(row.id), t("memberRemoved")),
-                            })
-                          }
-                        >
-                          <Icon name="trash" className="text-sm" aria-hidden="true" />
-                        </DangerButton>
-                      ) : (
-                        <span className="text-xs text-fg-disabled">
-                          {isSelf ? "—" : row.role === "owner" ? t("protected") : "—"}
-                        </span>
-                      )}
-                    </span>
+                  <TableCell align="right">
+                    {removable ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon
+                        aria-label={t("removeMemberAria", { email: row.email })}
+                        title={t("removeMemberConfirm")}
+                        disabled={pending}
+                        onClick={() =>
+                          requestConfirm({
+                            title: t("removeMemberTitle", { name: row.name }),
+                            description: t("removeMemberBody", { email: row.email }),
+                            consequences: [
+                              t("removeMemberKeepAssets"),
+                              t("removeMemberKeepKeys"),
+                              t("removeMemberReinvite"),
+                            ],
+                            confirmLabel: t("removeMemberConfirm"),
+                            onConfirm: () => run(() => removeMemberAction(row.id), t("memberRemoved")),
+                          })
+                        }
+                      >
+                        <Icon name="trash" className="text-sm text-danger" aria-hidden="true" />
+                      </Button>
+                    ) : row.role === "owner" && !isSelf ? (
+                      <span className="text-xs text-fg-subtle">{t("protected")}</span>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
-      </div>
+      </Card>
 
-      <div className="flex min-w-0 flex-col gap-3">
-        <h3 className="m-0 text-sm font-semibold">
-          {t("pendingInvitations")}{" "}
-          <span className="font-mono text-xs font-normal text-fg-subtle tabular-nums">
-            {invites.length}
+      <Card
+        id="invitations"
+        padding={invites.length === 0 ? "md" : "none"}
+        title={
+          <span className="inline-flex items-center gap-2">
+            {t("pendingInvitations")}
+            <Badge tone="neutral" size="sm">
+              {invites.length}
+            </Badge>
           </span>
-        </h3>
+        }
+        description={t("pendingInvitationsDesc")}
+      >
         {invites.length === 0 ? (
           <EmptyState
-            icon={<Icon name="envelope" className="text-lg" />}
-            eyebrow={t("invitesEmptyEyebrow")}
+            bare
+            size="sm"
+            icon="envelope"
             title={t("invitesEmptyTitle")}
             description={t("invitesEmptyBody")}
-            className="py-10"
           />
         ) : (
-          <ul className="m-0 flex min-w-0 list-none flex-col gap-2 p-0">
+          <ul className="m-0 flex min-w-0 list-none flex-col divide-y divide-border-subtle border-t border-border-subtle p-0">
             {invites.map((invite) => {
               const inviteRoleCopy = isRoleId(invite.role) ? ROLE_COPY[invite.role] : null;
               return (
-                <li
-                  key={invite.id}
-                  className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-default border border-dashed border-border bg-surface px-4 py-3"
-                >
+                <li key={invite.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3">
+                  <Icon name="envelope" className="shrink-0 text-sm text-fg-subtle" aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{invite.email}</span>
                   <Badge tone="muted">{inviteRoleCopy ? t(inviteRoleCopy.label) : invite.role}</Badge>
                   <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
                     {t("inviteExpires", { date: formatDate(invite.expiresAt) })}
                   </span>
                   {canManage ? (
-                    <DangerButton
+                    <Button
                       size="sm"
+                      variant="ghost"
                       disabled={pending}
                       onClick={() =>
                         requestConfirm({
                           title: t("cancelInviteTitle"),
                           description: t("cancelInviteBody", { email: invite.email }),
                           confirmLabel: t("cancelInviteConfirm"),
-                          onConfirm: () =>
-                            run(() => cancelInviteAction(invite.id), t("inviteCancelled")),
+                          onConfirm: () => run(() => cancelInviteAction(invite.id), t("inviteCancelled")),
                         })
                       }
                     >
                       {tc("cancel")}
-                    </DangerButton>
+                    </Button>
                   ) : null}
                 </li>
               );
             })}
           </ul>
         )}
-      </div>
-    </div>
+      </Card>
+
+      {dialog}
+    </>
   );
 }

@@ -18,6 +18,8 @@ import { countryName, titleCase } from "@/lib/stats";
 type RecentEventsTableProps = {
   events: RecentEventRow[];
   showLink?: boolean;
+  /** Inside a `<Card padding="none">`: drops the table frame and the empty state box. */
+  bare?: boolean;
 };
 
 function typeLabel(
@@ -30,7 +32,7 @@ function typeLabel(
   return type;
 }
 
-export async function RecentEventsTable({ events, showLink = false }: RecentEventsTableProps) {
+export async function RecentEventsTable({ events, showLink = false, bare = false }: RecentEventsTableProps) {
   const [locale, ts] = await Promise.all([getLocale(), getTranslations("stats")]);
   const unknown = ts("unknown");
 
@@ -38,7 +40,8 @@ export async function RecentEventsTable({ events, showLink = false }: RecentEven
     return (
       <EmptyState
         size="sm"
-        icon={<Icon name="arrow-pointer" className="text-sm" />}
+        bare={bare}
+        icon="arrow-pointer"
         title={ts("nothingRecorded")}
         description={ts("nothingRecordedBody")}
       />
@@ -46,7 +49,7 @@ export async function RecentEventsTable({ events, showLink = false }: RecentEven
   }
 
   return (
-    <Table stickyHeader density="compact" label={ts("recentEventsTable")} wrapperClassName="bg-surface">
+    <Table stickyHeader bare={bare} density="compact" label={ts("recentEventsTable")}>
       <TableHead sticky>
         <TableRow>
           <TableHeaderCell className="w-40">{ts("when")}</TableHeaderCell>
@@ -87,8 +90,8 @@ export async function RecentEventsTable({ events, showLink = false }: RecentEven
               ) : null}
               <TableCell>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className="w-5 shrink-0 text-center" aria-hidden="true">
-                    {flag || "??"}
+                  <span className="flex w-5 shrink-0 justify-center" aria-hidden="true">
+                    {flag || <Icon name="earth" className="text-xs text-fg-subtle" />}
                   </span>
                   <span className="min-w-0 truncate">
                     {countryName(event.country, locale, unknown)}

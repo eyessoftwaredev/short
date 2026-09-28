@@ -191,6 +191,8 @@ export type SharedStats = {
     qrScans: number;
     visitors: number;
     previousClicks: number;
+    /** Missing from payloads cached before it was added; read it as 0. */
+    previousQrScans?: number;
     previousVisitors: number;
   };
   timeseries: TimeseriesPoint[];
@@ -294,6 +296,7 @@ export async function getSharedStats(
       qrScans: summary.qrScans,
       visitors: summary.visitors,
       previousClicks: summary.previousClicks,
+      previousQrScans: summary.previousQrScans,
       previousVisitors: summary.previousVisitors,
     },
     timeseries,

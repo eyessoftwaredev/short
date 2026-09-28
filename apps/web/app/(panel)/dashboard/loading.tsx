@@ -43,6 +43,27 @@ export default async function DashboardLoading() {
         <SkeletonTable rows={6} columns={3} />
         <SkeletonTable rows={6} columns={2} header={false} />
       </Grid>
+
+      <Grid columns={3}>
+        {Array.from({ length: 3 }, (_, index) => (
+          <div
+            key={index}
+            className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-bg p-5 shadow-card"
+            aria-hidden="true"
+          >
+            <Skeleton className="h-4 w-28" />
+            {Array.from({ length: 4 }, (_, row) => (
+              <div key={row} className="flex items-center gap-3">
+                <Skeleton className="size-8 shrink-0 rounded-default" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-full" />
+                  <Skeleton className="h-1.5 w-full rounded-pill" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </Grid>
     </PanelShell>
   );
 }

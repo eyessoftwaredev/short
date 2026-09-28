@@ -32,6 +32,7 @@ import {
   assertPublicWebhookUrl,
   generateWebhookSecret,
   invalidateRelaySubscribers,
+  listWebhookDeliveries,
   replayWebhookDelivery,
   sealWebhookSecret,
   testWebhook,
@@ -443,7 +444,15 @@ export async function deleteWebhookAction(webhookId: string): Promise<ActionResu
   }
 }
 
-export async function testWebhookAction(webhookId: string): Promise<ActionResult<null>> {
+/** What the endpoint answered to the last attempt, so the panel can say "it worked" or why not. */
+export type WebhookAttemptResult = { status: number | null; error: string | null };
+
+async function lastAttempt(webhookId: string): Promise<WebhookAttemptResult> {
+  const [latest] = await listWebhookDeliveries(webhookId, 1);
+  return { status: latest?.responseStatus ?? null, error: latest?.error ?? null };
+}
+
+export async function testWebhookAction(webhookId: string): Promise<ActionResult<WebhookAttemptResult>> {
   try {
     const context = await requireWorkspaceRole("admin");
     const [row] = await getDb()
@@ -460,13 +469,13 @@ export async function testWebhookAction(webhookId: string): Promise<ActionResult
     }
     await testWebhook(row);
     revalidatePath("/settings");
-    return ok(null);
+    return ok(await lastAttempt(row.id));
   } catch (error) {
     return toActionError(error);
   }
 }
 
-export async function replayWebhookAction(webhookId: string): Promise<ActionResult<null>> {
+export async function replayWebhookAction(webhookId: string): Promise<ActionResult<WebhookAttemptResult>> {
   try {
     const context = await requireWorkspaceRole("admin");
     const [row] = await getDb()
@@ -480,9 +489,14 @@ export async function replayWebhookAction(webhookId: string): Promise<ActionResu
     if (!(await isPublicWebhookUrl(row.url))) {
       return fail("validation", { url: ["webhookUrlPrivate"] });
     }
+    // Replaying with no delivery on record used to surface as a generic failure.
+    const [previous] = await listWebhookDeliveries(webhookId, 1);
+    if (!previous) {
+      return fail("not_found");
+    }
     await replayWebhookDelivery(webhookId);
     revalidatePath("/settings");
-    return ok(null);
+    return ok(await lastAttempt(row.id));
   } catch (error) {
     return toActionError(error);
   }

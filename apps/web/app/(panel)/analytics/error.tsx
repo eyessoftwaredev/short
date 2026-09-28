@@ -25,7 +25,7 @@ export default function AnalyticsError({
   return (
     <PanelShell title={tn("analytics")}>
       <EmptyState
-        icon={<Icon name="warning" className="text-lg" />}
+        icon="warning"
         eyebrow={error.digest ? tc("errorRef", { digest: error.digest }) : undefined}
         title={t("analyticsLoadError")}
         description={t("analyticsLoadErrorBody")}

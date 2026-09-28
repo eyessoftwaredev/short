@@ -1,29 +1,38 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
 import { Button, Dropdown } from "@/components/ui";
 import { useTranslations } from "next-intl";
 
 type ExportButtonsProps = {
+  /** Export endpoint with the current range and filters, e.g. `/api/analytics/export?range=7d`. */
   href: string;
 };
 
 export function ExportButtons({ href }: ExportButtonsProps) {
   const t = useTranslations("stats");
+  const join = href.includes("?") ? "&" : "?";
   return (
     <Dropdown
       align="end"
       label={t("export")}
       trigger={
-        <Button size="sm" type="button">
-          <Icon name="export" className="text-xs" />
+        <Button size="sm" type="button" leadingIcon="download" trailingIcon="chevron-down">
           {t("export")}
-          <Icon name="chevron-down" className="text-xs text-fg-subtle" />
         </Button>
       }
       items={[
-        { id: "csv", label: t("exportCsv"), href: `${href}&format=csv` },
-        { id: "json", label: t("exportJson"), href: `${href}&format=json` },
+        {
+          id: "csv",
+          label: t("exportCsv"),
+          description: t("exportCsvDesc"),
+          href: `${href}${join}format=csv`,
+        },
+        {
+          id: "json",
+          label: t("exportJson"),
+          description: t("exportJsonDesc"),
+          href: `${href}${join}format=json`,
+        },
       ]}
     />
   );

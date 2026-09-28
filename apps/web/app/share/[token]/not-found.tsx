@@ -1,5 +1,4 @@
 import { getTranslations } from "next-intl/server";
-import { Icon } from "@/components/kit/icon";
 import { EmptyState } from "@/components/ui";
 import { ShareChrome } from "./share-chrome";
 
@@ -10,8 +9,7 @@ export default async function ShareNotFound() {
     <ShareChrome>
       <EmptyState
         className="mx-auto w-full max-w-lg"
-        icon={<Icon name="compass" className="text-lg" />}
-        eyebrow="404"
+        icon="compass"
         title={t("notFoundTitle")}
         description={t("notFoundBody")}
       />
