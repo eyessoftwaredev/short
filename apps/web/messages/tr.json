@@ -4307,7 +4307,7 @@
           "url": "URL",
           "urlDesc": "Sabit URL kodlayan tek seferlik kod.",
           "vcard": "Kişi",
-          "vcardDesc": "Taranınca ad, telefon ve e-posta paylaşın.",
+          "vcardDesc": "Taranınca adını, telefonunu ve e-postanı paylaşır.",
           "wifi": "Wi‑Fi",
           "wifiDesc": "Poster veya menüden ağa katılım."
         }
