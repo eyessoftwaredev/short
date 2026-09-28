@@ -258,8 +258,8 @@ export function LinksTable({ rows, total, page, pageSize, filtered, canDelete }:
       >
         {/* The host is the same on most rows, so it gives way first and the slug that
             tells links apart stays readable. */}
-        <span className="min-w-[5ch] shrink-10 truncate text-fg-subtle">{row.hostname}/</span>
-        <span className="min-w-0 truncate font-medium">{row.slug}</span>
+        <span className="min-w-0 truncate text-fg-subtle">{row.hostname}/</span>
+        <span className="max-w-[80%] shrink-0 truncate font-medium">{row.slug}</span>
       </Link>
       <CopyButton value={`https://${row.hostname}/${row.slug}`} label={t("copyShortLink")} iconOnly className="size-7" />
     </span>

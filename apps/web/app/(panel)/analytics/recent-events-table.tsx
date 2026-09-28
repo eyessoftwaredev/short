@@ -79,15 +79,15 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
                       className="flex min-w-0 font-mono text-sm text-ink no-underline hover:text-accent-ink"
                     >
                       {/* The host repeats on every row; it gives way before the slug does. */}
-                      <span className="min-w-[5ch] shrink-10 truncate text-fg-subtle">{event.hostname}/</span>
-                      <span className="min-w-0 truncate font-medium">{event.slug}</span>
+                      <span className="min-w-0 truncate text-fg-subtle">{event.hostname}/</span>
+                      <span className="max-w-[80%] shrink-0 truncate font-medium">{event.slug}</span>
                     </Link>
                   ) : (
                     <span className="flex min-w-0 font-mono text-sm text-fg-muted">
                       {event.hostname ? (
-                        <span className="min-w-[5ch] shrink-10 truncate">{event.hostname}/</span>
+                        <span className="min-w-0 truncate">{event.hostname}/</span>
                       ) : null}
-                      <span className="min-w-0 truncate">{event.slug || "—"}</span>
+                      <span className="max-w-[80%] shrink-0 truncate">{event.slug || "—"}</span>
                     </span>
                   )}
                 </TableCell>

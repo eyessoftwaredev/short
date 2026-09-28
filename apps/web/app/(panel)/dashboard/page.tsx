@@ -428,8 +428,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         href={`/links/${row.linkId}/stats`}
                         className="flex min-w-0 font-mono text-[13px] text-ink no-underline hover:text-accent-ink"
                       >
-                        <span className="min-w-[5ch] shrink-10 truncate text-fg-subtle">{row.hostname}/</span>
-                        <span className="min-w-0 truncate">{row.slug}</span>
+                        <span className="min-w-0 truncate text-fg-subtle">{row.hostname}/</span>
+                        <span className="max-w-[80%] shrink-0 truncate">{row.slug}</span>
                       </Link>
                     </TableCell>
                     <TableCell numeric>{formatNumber(row.clicks, locale)}</TableCell>
