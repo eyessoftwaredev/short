@@ -61,9 +61,10 @@ export const chartTooltipCursor = {
 
 /**
  * Left is pulled in because the Y axis reserves its own width; the small top
- * gap stops the highest point's stroke from being clipped.
+ * gap stops the highest point's stroke from being clipped. The right gap fits half
+ * of the last date label, which is centred on the final bucket ("28 Eyl", "Sep 28").
  */
-export const chartMargin = { top: 8, right: 8, bottom: 0, left: -16 } as const;
+export const chartMargin = { top: 8, right: 24, bottom: 0, left: -16 } as const;
 
 /**
  * A series with one bucket draws no line, so the point has to be rendered as a
