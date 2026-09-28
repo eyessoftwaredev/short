@@ -1,16 +1,17 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
+import { Icon, type IconName } from "@/components/kit/icon";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { StatusBadge } from "@/components/shell/status-badge";
 import {
   Badge,
   Button,
+  Callout,
   Card,
   EmptyState,
-  Grid,
-  Hero,
+  InfoTip,
+  KeyValue,
+  PageHeader,
   QuotaMeter,
   Section,
   Table,
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui";
 import { loadMonthlyClicks } from "@/lib/analytics";
 import { getBillingAccount, getSubscription, listPlans } from "@/lib/billing";
-import { cn } from "@/lib/cx";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { currentPeriod, getWorkspaceUsage } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
@@ -35,76 +35,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-type NoticeTone = "danger" | "warn" | "accent" | "info";
-
-const NOTICE_TONES: Record<NoticeTone, { box: string; icon: string }> = {
-  danger: { box: "border-danger bg-danger-surface", icon: "text-danger" },
-  warn: { box: "border-warn bg-warn-surface", icon: "text-warn-ink" },
-  accent: { box: "border-accent bg-accent-tint", icon: "text-accent-ink" },
-  info: { box: "border-border-strong bg-surface-subtle", icon: "text-fg-muted" },
-};
-
-function Notice({
-  tone,
-  icon,
-  title,
-  children,
-  action,
-}: {
-  tone: NoticeTone;
-  icon: ReactNode;
-  title: string;
-  children: ReactNode;
-  action?: ReactNode;
-}) {
-  return (
-    <div
-      role={tone === "danger" ? "alert" : undefined}
-      className={cn(
-        "flex min-w-0 flex-wrap items-start gap-x-3.5 gap-y-3 rounded-default border px-4 py-3.5",
-        NOTICE_TONES[tone].box,
-      )}
-    >
-      <span className={cn("mt-0.5 shrink-0", NOTICE_TONES[tone].icon)} aria-hidden="true">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="m-0 text-sm font-medium text-ink">{title}</p>
-        <p className="m-0 mt-0.5 text-sm leading-relaxed text-fg-muted">{children}</p>
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
-function CardEyebrow({ children, accent = false }: { children: ReactNode; accent?: boolean }) {
-  return (
-    <span
-      className={cn(
-        "font-mono text-xs tracking-widest uppercase",
-        accent ? "text-accent-ink" : "text-fg-subtle",
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 type SearchParams = Promise<{ checkout?: string }>;
 
 export default async function BillingPage({ searchParams }: { searchParams: SearchParams }) {
   const context = await requireWorkspace();
   const { checkout } = await searchParams;
-  const [t, tc, tp] = await Promise.all([
-    getTranslations("billing"),
-    getTranslations("common"),
-    getTranslations("panel"),
-  ]);
+  const [t, tc] = await Promise.all([getTranslations("billing"), getTranslations("common")]);
 
   const billedUserId = context.billingOwner?.id ?? context.user.id;
-  const [subscription, planRows, usage] = await Promise.all([
+  // Stripe actions (checkout, portal) act on the signed-in user's own customer record,
+  // so only the billing owner gets them — a platform admin looking at someone else's
+  // team would otherwise open their own portal.
+  const canManage = context.isBillingOwner;
+  // Invoices carry the billing owner's address and payment details, so team members
+  // never load them; platform admins can read them for support.
+  const canSeeInvoices = context.isBillingOwner || context.isSuperadmin;
+
+  const [subscription, allPlanRows, usage] = await Promise.all([
     getSubscription(billedUserId),
-    listPlans(),
+    // Hidden plans included: a subscriber on a retired plan keeps it, and the page must
+    // still show its price and renewal instead of "No charge".
+    listPlans(true),
     getWorkspaceUsage(context.workspace.id),
   ]);
 
@@ -112,15 +63,13 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
   // number live for someone deciding whether to upgrade.
   const [clicks, account, billingConfigured] = await Promise.all([
     loadMonthlyClicks(context.workspace.id, currentPeriod(), usage.clicksThisMonth),
-    // Invoices carry the billing owner's address and payment details, so team members
-    // who cannot manage billing never load them.
-    getBillingAccount(
-      context.isBillingOwner || context.isSuperadmin ? (subscription?.stripeCustomerId ?? null) : null,
-    ),
+    getBillingAccount(canSeeInvoices ? (subscription?.stripeCustomerId ?? null) : null),
     stripeEnabled(),
   ]);
 
   const plan = context.plan;
+  const activePlanKey = context.isSuperadmin ? "infinity" : (subscription?.planKey ?? "free");
+  const planRows = allPlanRows.filter((row) => row.visible || row.key === activePlanKey);
   const cards: PlanCardView[] = planRows.map((row) => ({
     key: row.key,
     name: row.name,
@@ -141,41 +90,46 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
     hasPrice: Boolean(row.stripePriceMonthlyId ?? row.stripePriceYearlyId),
   }));
 
-  const activePlanKey = context.isSuperadmin ? "infinity" : (subscription?.planKey ?? "free");
   const activeRow = planRows.find((row) => row.key === activePlanKey);
   const yearly = subscription?.interval === "year";
   const priceNow = yearly ? activeRow?.priceYearly : activeRow?.priceMonthly;
   const pastDue = subscription?.status === "past_due";
-  const canManage = context.isBillingOwner || context.isSuperadmin;
   const hasBillingAccount = Boolean(subscription?.stripeCustomerId);
   const cancelling = Boolean(subscription?.cancelAtPeriodEnd);
   const periodEnd = subscription?.currentPeriodEnd ?? null;
+  const ownerName = context.billingOwner?.name ?? "";
 
-  const quotas = [
-    { key: "links", label: t("limitLinks"), used: usage.links, limit: plan.limits.links },
+  const quotas: Array<{ key: string; label: string; info: string; used: number; limit: number }> = [
+    { key: "links", label: t("limitLinks"), info: t("infoLinks"), used: usage.links, limit: plan.limits.links },
     {
       key: "clicks",
       label: t("clicksThisMonth"),
+      info: t("infoClicks"),
       used: clicks,
       limit: plan.limits.clicksPerMonth,
     },
     {
       key: "domains",
       label: t("customDomains"),
+      info: t("infoDomains"),
       used: usage.customDomains,
       limit: plan.limits.customDomains,
     },
-    { key: "bio", label: t("limitBio"), used: usage.biopages, limit: plan.limits.biopages },
-    { key: "qr", label: t("limitQr"), used: usage.qrCodes, limit: plan.limits.qrCodes },
-    { key: "members", label: t("teamMembers"), used: usage.members, limit: plan.limits.members },
-    { key: "teams", label: t("limitTeams"), used: usage.teams, limit: plan.limits.teams },
+    { key: "bio", label: t("limitBio"), info: t("infoBio"), used: usage.biopages, limit: plan.limits.biopages },
+    { key: "qr", label: t("limitQr"), info: t("infoQr"), used: usage.qrCodes, limit: plan.limits.qrCodes },
+    {
+      key: "members",
+      label: t("teamMembers"),
+      info: t("infoMembers"),
+      used: usage.members,
+      limit: plan.limits.members,
+    },
+    { key: "teams", label: t("limitTeams"), info: t("infoTeams"), used: usage.teams, limit: plan.limits.teams },
   ];
 
   const metered = quotas.filter((quota) => quota.limit !== -1 && quota.limit > 0);
   const reached = metered.filter((quota) => quota.used >= quota.limit);
-  const nearing = metered.filter(
-    (quota) => quota.used < quota.limit && quota.used / quota.limit >= 0.85,
-  );
+  const nearing = metered.filter((quota) => quota.used < quota.limit && quota.used / quota.limit >= 0.85);
 
   // Only escalate when the numbers actually justify it — a permanent warning teaches
   // people to ignore the banner.
@@ -186,65 +140,86 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
         ? t("limitsNearSummary", { nearing: nearing.length, total: metered.length })
         : t("usageHealthy");
 
+  let nextPaymentLabel = t("kvNextPayment");
+  let nextPaymentValue: string;
+  if (cancelling && periodEnd) {
+    nextPaymentLabel = t("kvAccessUntil");
+    nextPaymentValue = formatDate(periodEnd);
+  } else if (priceNow && periodEnd) {
+    nextPaymentValue = t("kvNextPaymentValue", {
+      amount: formatCurrency(priceNow, plan.currency),
+      date: formatDate(periodEnd),
+    });
+  } else if (priceNow) {
+    nextPaymentValue = t("noRenewalDate");
+  } else {
+    nextPaymentValue = t("kvNone");
+  }
+
+  const how: Array<{ icon: IconName; title: string; body: string }> = [
+    { icon: "arrow-trend-up", title: t("howUpgradeTitle"), body: t("howUpgradeBody") },
+    { icon: "arrow-down", title: t("howDowngradeTitle"), body: t("howDowngradeBody") },
+    { icon: "calendar", title: t("howCancelTitle"), body: t("howCancelBody") },
+    { icon: "credit-card", title: t("howFailedTitle"), body: t("howFailedBody") },
+  ];
+
+  const headerAction =
+    canManage && hasBillingAccount ? (
+      <ManageBillingButton size="md" variant="primary" label={t("manageBilling")} />
+    ) : canManage && !context.isSuperadmin && activePlanKey === "free" ? (
+      <Button variant="primary" leadingIcon="rocket" href="#plans">
+        {t("seeUpgrades")}
+      </Button>
+    ) : null;
+
   return (
     <PanelShell title={t("title")} crumbs={[{ label: context.workspace.name }]}>
-      <Hero
-        eyebrow={tp("planLabel", { name: plan.name })}
-        title={t("heroTitle")}
-        description={t("heroDescription")}
-        actions={
-          canManage && hasBillingAccount ? (
-            <ManageBillingButton size="md" label={t("manageBilling")} />
-          ) : null
-        }
+      <PageHeader
+        title={t("title")}
+        meta={<Badge tone="accent">{plan.name}</Badge>}
+        description={t("pageDesc")}
+        actions={headerAction}
       />
 
-      {!canManage && context.billingOwner ? (
-        <Notice
-          tone="info"
-          icon={<Icon name="circle-info" className="text-sm" />}
-          title={t("billedToTitle")}
-        >
-          {t("billedToBody", { name: context.billingOwner.name })}
-        </Notice>
+      {!canManage && context.billingOwner && !context.isBillingOwner ? (
+        <Callout tone="info" title={t("billedToTitle")}>
+          {t("billedToBody", { name: ownerName })}
+        </Callout>
       ) : null}
 
       {checkout === "success" ? (
-        <Notice
-          tone="accent"
-          icon={<Icon name="circle-check" className="text-sm" />}
+        <Callout
+          tone="success"
           title={t("paymentReceived")}
-          action={
+          actions={
             <Button size="sm" href="/links">
               {t("backToLinks")}
             </Button>
           }
         >
           {t("planActive")}
-        </Notice>
+        </Callout>
       ) : null}
 
       {checkout === "cancelled" ? (
-        <Notice
+        <Callout
           tone="info"
-          icon={<Icon name="circle-info" className="text-sm" />}
           title={t("checkoutCancelled")}
-          action={
+          actions={
             <Button size="sm" href="#plans">
               {t("seePlansAgain")}
             </Button>
           }
         >
           {t("nothingCharged")}
-        </Notice>
+        </Callout>
       ) : null}
 
       {pastDue ? (
-        <Notice
+        <Callout
           tone="danger"
-          icon={<Icon name="warning" className="text-sm" />}
           title={t("paymentFailed")}
-          action={
+          actions={
             canManage ? (
               <ManageBillingButton variant="primary" label={t("updateCard")} />
             ) : (
@@ -253,130 +228,153 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
           }
         >
           {t("paymentFailedBody")}
-        </Notice>
+        </Callout>
       ) : null}
 
       {cancelling && periodEnd ? (
-        <Notice
+        <Callout
           tone="warn"
-          icon={<Icon name="calendar" className="text-sm" />}
+          icon="calendar"
           title={t("planEnds", { name: plan.name, date: formatDate(periodEnd) })}
-          action={canManage ? <ManageBillingButton label={t("resumePlan")} /> : null}
+          actions={canManage ? <ManageBillingButton label={t("resumePlan")} /> : null}
         >
           {t("planEndsBody")}
-        </Notice>
+        </Callout>
       ) : null}
 
       {reached.length > 0 ? (
-        <Notice
+        <Callout
           tone="danger"
-          icon={<Icon name="gauge-high" className="text-sm" />}
+          icon="gauge-high"
           title={reached.length === 1 ? t("oneLimitReached") : t("limitsReached", { count: reached.length })}
-          action={
-            <Button size="sm" variant="primary" href="#plans">
-              <Icon name="arrow-trend-up" className="text-sm" />
-              {t("comparePlans")}
-            </Button>
+          actions={
+            canManage && !context.isSuperadmin ? (
+              <Button size="sm" variant="primary" leadingIcon="arrow-trend-up" href="#plans">
+                {t("comparePlans")}
+              </Button>
+            ) : null
           }
         >
           {t("cannotAddMore", {
             labels: reached.map((quota) => quota.label).join(", "),
             plan: plan.name,
           })}
-        </Notice>
+        </Callout>
       ) : null}
 
-      <Grid columns={2}>
-        <Card staticHover className="gap-3 border-accent bg-accent-tint">
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <CardEyebrow accent>{t("currentPlan")}</CardEyebrow>
-            <StatusBadge status={subscription?.status ?? "active"} />
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-start">
+        <Card
+          title={t("currentPlanTitle")}
+          actions={<StatusBadge status={subscription?.status ?? "active"} />}
+          className={pastDue ? undefined : "border-accent-border"}
+          footer={
+            canManage && hasBillingAccount ? (
+              <>
+                <span className="min-w-0 text-[13px] text-fg-subtle">{t("opensStripe")}</span>
+                <ManageBillingButton label={t("manageBilling")} />
+              </>
+            ) : canManage && !context.isSuperadmin ? (
+              <>
+                <span className="min-w-0 text-[13px] text-fg-subtle">{t("changeAnytime")}</span>
+                <Button size="sm" href="#plans" trailingIcon="arrow-right">
+                  {t("comparePlans")}
+                </Button>
+              </>
+            ) : null
+          }
+        >
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-[28px] leading-9 font-semibold tracking-[-0.02em] text-ink">{plan.name}</span>
+            <span className="numeric text-sm text-fg-muted">
+              {priceNow
+                ? `${formatCurrency(priceNow, plan.currency)} ${yearly ? t("perYear") : t("perMonth")}`
+                : t("noCharge")}
+            </span>
           </div>
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-3xl leading-tight font-semibold tracking-tight">{plan.name}</span>
-            <span className="text-sm text-fg-muted tabular-nums">
-              {priceNow ? (
-                <>
-                  {formatCurrency(priceNow, plan.currency)} {yearly ? t("perYear") : t("perMonth")}
-                </>
+          {cancelling ? (
+            <span>
+              <Badge tone="warn">{t("cancelsAtEnd")}</Badge>
+            </span>
+          ) : null}
+          <KeyValue
+            className="mt-2"
+            items={[
+              {
+                id: "cycle",
+                label: t("kvCycle"),
+                value: priceNow ? (yearly ? tc("yearly") : tc("monthly")) : "—",
+              },
+              { id: "next", label: nextPaymentLabel, value: nextPaymentValue },
+              {
+                id: "history",
+                label: t("kvHistory"),
+                info: t("kvHistoryInfo"),
+                value:
+                  plan.limits.retentionDays === -1
+                    ? tc("unlimited")
+                    : tc("days", { count: plan.limits.retentionDays }),
+              },
+            ]}
+          />
+        </Card>
+
+        <Card
+          title={t("usageThisPeriod")}
+          description={usageSummary}
+          actions={
+            reached.length > 0 ? (
+              <Badge tone="danger" dot>
+                {t("atLimit", { count: reached.length })}
+              </Badge>
+            ) : nearing.length > 0 ? (
+              <Badge tone="warn" dot>
+                {t("nearLimit", { count: nearing.length })}
+              </Badge>
+            ) : (
+              <Badge tone="success" dot>
+                {t("healthy")}
+              </Badge>
+            )
+          }
+        >
+          <div className="grid min-w-0 gap-x-8 gap-y-5 pt-1 sm:grid-cols-2">
+            {quotas.map((quota) =>
+              quota.limit === 0 ? (
+                // Not part of the plan at all: a red "limit reached" bar would read as a problem.
+                <div key={quota.key} className="flex min-w-0 flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm text-fg-muted">
+                      <span className="truncate">{quota.label}</span>
+                      <InfoTip label={quota.label}>{quota.info}</InfoTip>
+                    </span>
+                    <Badge tone="neutral" size="sm">
+                      {t("notIncluded")}
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-fg-subtle">
+                    {canManage && !context.isSuperadmin ? t("notIncludedHint") : t("notIncludedOwner")}
+                  </span>
+                </div>
               ) : (
-                t("noCharge")
-              )}
-            </span>
+                <QuotaMeter
+                  key={quota.key}
+                  label={quota.label}
+                  info={quota.info}
+                  used={quota.used}
+                  limit={quota.limit}
+                  upgradeHref={canManage && !context.isSuperadmin ? "#plans" : undefined}
+                />
+              ),
+            )}
           </div>
-          {cancelling ? <Badge tone="warn">{t("cancelsAtEnd")}</Badge> : null}
-          <p className="m-0 text-sm text-fg-muted">
-            {plan.limits.retentionDays === -1
-              ? t("analyticsHistoryUnlimited")
-              : t("analyticsHistoryDays", { days: plan.limits.retentionDays })}
-          </p>
         </Card>
+      </div>
 
-        <Card staticHover className="gap-3">
-          <CardEyebrow>{t("nextInvoice")}</CardEyebrow>
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-3xl leading-tight font-semibold tracking-tight tabular-nums">
-              {cancelling || !priceNow ? "—" : formatCurrency(priceNow, plan.currency)}
-            </span>
-            {!cancelling && priceNow ? (
-              <span className="text-sm text-fg-muted">{yearly ? tc("yearly") : tc("monthly")}</span>
-            ) : null}
-          </div>
-          <p className="m-0 text-sm text-fg-muted">
-            {cancelling && periodEnd
-              ? t("noFurtherCharges", { date: formatDate(periodEnd) })
-              : periodEnd
-                ? t("chargedOn", { date: formatDate(periodEnd) })
-                : priceNow
-                  ? t("noRenewalDate")
-                  : context.isSuperadmin
-                    ? t("infinityNeverCharges")
-                    : t("freeNeverCharges")}
-          </p>
-          <p className="m-0 text-sm text-fg-muted">
-            {yearly
-              ? t("billingPeriodAnnual", { period: currentPeriod() })
-              : t("billingPeriodMonthly", { period: currentPeriod() })}
-          </p>
-        </Card>
-      </Grid>
-
-      <Section
-        title={t("usageThisPeriod")}
-        description={usageSummary}
-        actions={
-          reached.length > 0 ? (
-            <Badge tone="danger">{t("atLimit", { count: reached.length })}</Badge>
-          ) : nearing.length > 0 ? (
-            <Badge tone="warn">{t("nearLimit", { count: nearing.length })}</Badge>
-          ) : (
-            <Badge tone="muted">{t("healthy")}</Badge>
-          )
-        }
-      >
-        <Card staticHover className="gap-6 p-6">
-          <Grid columns={3} className="gap-x-8 gap-y-6">
-            {quotas.map((quota) => (
-              <QuotaMeter
-                key={quota.key}
-                label={quota.label}
-                used={quota.used}
-                limit={quota.limit}
-              />
-            ))}
-          </Grid>
-        </Card>
-      </Section>
-
-      <div id="plans" className="min-w-0 scroll-mt-6">
+      <div id="plans" className="flex min-w-0 scroll-mt-20 flex-col gap-6">
         {context.isSuperadmin ? (
-          <Notice
-            tone="info"
-            icon={<Icon name="sparkles" className="text-sm" />}
-            title={t("infinityStaff")}
-          >
+          <Callout tone="accent" icon="sparkles" title={t("infinityStaff")}>
             {t("infinityStaffBody")}
-          </Notice>
+          </Callout>
         ) : (
           <Section title={t("plans")} description={t("plansDescription")}>
             <PlanPicker
@@ -391,61 +389,92 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
         )}
       </div>
 
-      <Section
+      {context.isSuperadmin ? null : (
+        <Card title={t("howTitle")} description={t("howDesc")}>
+          <div className="grid min-w-0 gap-x-8 gap-y-5 pt-1 sm:grid-cols-2">
+            {how.map((item) => (
+              <div key={item.title} className="flex min-w-0 items-start gap-3">
+                <span
+                  className="flex size-8 shrink-0 items-center justify-center rounded-default bg-surface text-fg-muted"
+                  aria-hidden="true"
+                >
+                  <Icon name={item.icon} className="text-xs" />
+                </span>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-sm font-medium text-ink">{item.title}</span>
+                  <p className="m-0 text-[13px] leading-5 text-fg-muted">{item.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card
+        padding="none"
         title={t("invoices")}
         description={
-          account.invoices.length > 0
+          canSeeInvoices && account.invoices.length > 0
             ? t("invoicesFromStripe", { count: account.invoices.length })
-            : undefined
+            : t("invoicesDesc")
+        }
+        actions={
+          canManage && hasBillingAccount && account.invoices.length > 0 ? (
+            <ManageBillingButton variant="ghost" withIcon={false} label={t("billingDetails")} />
+          ) : null
         }
       >
-        {account.invoices.length === 0 ? (
+        {!canSeeInvoices ? (
           <EmptyState
-            icon={<Icon name="download" className="text-lg" />}
-            eyebrow={t("invoices")}
+            bare
+            size="sm"
+            icon="lock"
+            title={t("invoicesOwnerTitle")}
+            description={t("invoicesOwnerBody", { name: ownerName })}
+          />
+        ) : account.invoices.length === 0 ? (
+          <EmptyState
+            bare
+            size="sm"
+            icon="file-lines"
             title={t("noInvoicesTitle")}
             description={t("noInvoicesBody")}
           />
         ) : (
-          <Table>
+          <Table bare label={t("invoices")}>
             <TableHead>
               <TableRow>
-                <TableHeaderCell scope="col">{t("colInvoice")}</TableHeaderCell>
-                <TableHeaderCell scope="col">{t("colDate")}</TableHeaderCell>
-                <TableHeaderCell scope="col" className="text-right">
-                  {t("colAmount")}
-                </TableHeaderCell>
-                <TableHeaderCell scope="col">{t("colStatus")}</TableHeaderCell>
-                <TableHeaderCell scope="col" className="text-right">
-                  {t("colReceipt")}
-                </TableHeaderCell>
+                <TableHeaderCell>{t("colInvoice")}</TableHeaderCell>
+                <TableHeaderCell>{t("colDate")}</TableHeaderCell>
+                <TableHeaderCell numeric>{t("colAmount")}</TableHeaderCell>
+                <TableHeaderCell>{t("colStatus")}</TableHeaderCell>
+                <TableHeaderCell align="right">{t("colReceipt")}</TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {account.invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell className="font-mono text-xs">
+                  <TableCell className="font-mono text-[13px]">
                     <span className="block max-w-40 truncate">{invoice.number}</span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-fg-muted tabular-nums">
+                  <TableCell className="numeric whitespace-nowrap text-fg-muted">
                     {formatDate(invoice.created)}
                   </TableCell>
-                  <TableCell className="text-right font-mono whitespace-nowrap tabular-nums">
-                    {formatCurrency(invoice.amountPaid, invoice.currency)}
-                  </TableCell>
+                  <TableCell numeric>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
                   <TableCell>
                     <StatusBadge status={invoice.status} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell align="right">
                     <span className="flex justify-end gap-1">
                       {invoice.hostedUrl ? (
                         <Button
                           size="sm"
                           variant="ghost"
+                          leadingIcon="external-link"
                           href={invoice.hostedUrl}
+                          external
                           aria-label={t("viewInvoice", { number: invoice.number })}
                         >
-                          <Icon name="external-link" className="text-sm" aria-hidden="true" />
                           {t("view")}
                         </Button>
                       ) : null}
@@ -453,10 +482,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
                         <Button
                           size="sm"
                           variant="ghost"
+                          leadingIcon="download"
                           href={invoice.pdfUrl}
+                          external
                           aria-label={t("downloadInvoice", { number: invoice.number })}
                         >
-                          <Icon name="download" className="text-sm" aria-hidden="true" />
                           {t("pdf")}
                         </Button>
                       ) : null}
@@ -470,7 +500,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
             </TableBody>
           </Table>
         )}
-      </Section>
+      </Card>
     </PanelShell>
   );
 }

@@ -2,7 +2,7 @@
 
 import { domainInputSchema, hostnameSchema } from "@short/core";
 import { revalidatePath } from "next/cache";
-import { fail, ok, toActionError, type ActionResult } from "@/lib/action-result";
+import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { recordAudit } from "@/lib/audit";
 import { CloudflareError, type HostnameHealth } from "@/lib/cloudflare";
 import {
@@ -18,6 +18,7 @@ import {
   cnameTarget,
   DomainHasBiopagesError,
   getDomain,
+  getDomainByHostname,
   hostnameExists,
   isPlatformOwnedHostname,
   refreshDomain,
@@ -27,6 +28,7 @@ import {
 import { resyncWorkspaceLinks } from "@/lib/links";
 import { assertQuota } from "@/lib/quota";
 import { requireWorkspaceRole } from "@/lib/session";
+import { cleanHostnameInput, withScheme } from "./dns-names";
 
 export type AddedDomain = { id: string; hostname: string; health: HostnameHealth | null };
 
@@ -34,10 +36,17 @@ export async function addDomainAction(hostname: string): Promise<ActionResult<Ad
   try {
     const context = await requireWorkspaceRole("admin");
 
-    const parsed = hostnameSchema.safeParse(hostname);
+    const parsed = hostnameSchema.safeParse(cleanHostnameInput(hostname));
     if (!parsed.success) {
       const www = parsed.error.issues.some((issue) => issue.message.toLowerCase().includes("www"));
       return fail(www ? "domain_www" : "domain_invalid");
+    }
+
+    // Adding a hostname this workspace already has (e.g. a second tab, or coming back
+    // to finish setup) should land on its setup page, not fail as "taken" or "over quota".
+    const own = await getDomainByHostname(parsed.data);
+    if (own && own.workspaceId === context.workspace.id && !own.isPlatform) {
+      return ok({ id: own.id, hostname: own.hostname, health: null });
     }
 
     await assertQuota(context.workspace.id, context.plan, "customDomains");
@@ -95,14 +104,18 @@ export async function updateDomainAction(
   try {
     const context = await requireWorkspaceRole("admin");
 
+    // People type `acme.com`; the schema wants a full URL.
+    const root = withScheme(values.rootDestination);
+    const notFound = withScheme(values.notFoundDestination);
     const parsed = settingsSchema.safeParse({
-      rootDestination: values.rootDestination === "" ? null : values.rootDestination,
-      notFoundDestination: values.notFoundDestination === "" ? null : values.notFoundDestination,
+      rootDestination: root === "" ? null : root,
+      notFoundDestination: notFound === "" ? null : notFound,
       isDefault: values.isDefault,
     });
 
     if (!parsed.success) {
-      return fail("validation");
+      // Field-level errors so the form can point at the input that is wrong.
+      return fromZodError(parsed.error);
     }
 
     await updateDomainSettings(context.workspace.id, id, parsed.data);

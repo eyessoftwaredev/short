@@ -89,6 +89,13 @@ async function probeCname(hostname: string, target: string): Promise<DnsRecordCh
     return { type: "CNAME", name: hostname, expected, found: cnameFound, status: "mismatch" };
   }
 
+  // No CNAME but the name already answers with other addresses: an old A/AAAA record
+  // (or a proxied record) is in the way. Reporting "not added" here sent people looking
+  // for a record they had in fact added, so name what is actually there.
+  if (hostIps.length > 0) {
+    return { type: "CNAME", name: hostname, expected, found: hostIps, status: "mismatch" };
+  }
+
   return { type: "CNAME", name: hostname, expected, found: [], status: "waiting" };
 }
 

@@ -27,7 +27,8 @@ const planUpdateSchema = z.object({
     qrCodes: limitSchema,
     members: limitSchema,
     teams: limitSchema,
-    retentionDays: z.number().int().min(1),
+    // -1 (unlimited) is what the Infinity plan ships with; `min(1)` made it unsaveable.
+    retentionDays: z.number().int().refine((value) => value === -1 || value >= 1),
     apiRequestsPerHour: limitSchema,
   }),
   features: z.object({

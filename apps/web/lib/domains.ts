@@ -1,6 +1,7 @@
 import { KV_SCHEMA_VERSION, type DomainInput, type DomainKvRecord } from "@short/core";
 import {
   and,
+  asc,
   biopages,
   count,
   desc,
@@ -8,8 +9,13 @@ import {
   ensurePlatformDomain,
   eq,
   getDb,
+  inArray,
+  isNotNull,
+  isNull,
   links,
+  lt,
   ne,
+  or,
   type DomainRow,
 } from "@short/db";
 import { platformHostname } from "./biopages";
@@ -75,6 +81,12 @@ export async function getDomain(workspaceId: string, id: string): Promise<Domain
     .where(and(eq(domains.workspaceId, workspaceId), eq(domains.id, id)))
     .limit(1);
   return row ?? null;
+}
+
+/** Short links on one domain — shown before removal, which deletes them. */
+export async function countDomainLinks(domainId: string): Promise<number> {
+  const [row] = await getDb().select({ value: count() }).from(links).where(eq(links.domainId, domainId));
+  return row?.value ?? 0;
 }
 
 export async function getDomainByHostname(hostname: string): Promise<DomainRow | null> {
@@ -326,6 +338,47 @@ export async function refreshDomain(
   }
 
   return { domain: updated, health };
+}
+
+/** Hostnames that were checked this recently are left alone by the background refresh. */
+const STALE_CHECK_MS = 2 * 60 * 1000;
+
+/**
+ * Re-reads Cloudflare for hostnames still in setup. Without it a domain only moved to
+ * "live" while someone kept its setup page open, so the list (and the `domain.verified`
+ * webhook) lagged until the next visit. Called from the domains list for one workspace;
+ * safe to call from a cron without a workspace to sweep everything.
+ */
+export async function refreshPendingDomains(
+  options: { workspaceId?: string; limit?: number } = {},
+): Promise<number> {
+  if (!cloudflareEnabled()) {
+    return 0;
+  }
+  const cutoff = new Date(Date.now() - STALE_CHECK_MS);
+  const filters = [
+    eq(domains.isPlatform, false),
+    inArray(domains.status, ["pending", "provisioning", "error"]),
+    isNotNull(domains.cfHostnameId),
+    or(isNull(domains.lastCheckedAt), lt(domains.lastCheckedAt, cutoff)),
+  ];
+  if (options.workspaceId) {
+    filters.push(eq(domains.workspaceId, options.workspaceId));
+  }
+  const rows = await getDb()
+    .select({ id: domains.id, workspaceId: domains.workspaceId })
+    .from(domains)
+    .where(and(...filters))
+    .orderBy(asc(domains.lastCheckedAt))
+    .limit(options.limit ?? 5);
+
+  const results = await Promise.allSettled(rows.map((row) => refreshDomain(row.workspaceId, row.id)));
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("domain refresh failed", result.reason);
+    }
+  }
+  return results.filter((result) => result.status === "fulfilled").length;
 }
 
 /** Removing the domain would drop these bio pages into the shared platform handle space. */

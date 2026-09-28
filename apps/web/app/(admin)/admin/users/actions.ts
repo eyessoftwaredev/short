@@ -8,7 +8,7 @@ import { and, eq, getDb, ne, user } from "@short/db";
 import { auth, SUPERADMIN_ROLE } from "@/lib/auth";
 import { fail, fromZodError, ok, toActionError, type ActionResult } from "@/lib/action-result";
 import { recordAudit } from "@/lib/audit";
-import { assignWorkspacePlan, grantInfinityToUser } from "@/lib/billing";
+import { assignWorkspacePlan, grantInfinityToUser, revokeInfinityFromUser } from "@/lib/billing";
 import { requireSuperadmin } from "@/lib/session";
 
 function refreshUser(userId: string): void {
@@ -147,6 +147,8 @@ export async function setSuperadminAction(
 
     if (enabled) {
       await grantInfinityToUser(userId);
+    } else {
+      await revokeInfinityFromUser(userId);
     }
 
     await recordAudit({
@@ -219,6 +221,10 @@ export async function updateUserAction(values: UserUpdateInput): Promise<ActionR
     if (taken) {
       return fail("email_taken");
     }
+    // Checked before any write: failing after the profile update left a half-saved edit.
+    if (!input.banned && existing.banned && existing.deactivatedAt) {
+      return fail("self_deactivated");
+    }
 
     await getDb()
       .update(user)
@@ -240,9 +246,6 @@ export async function updateUserAction(values: UserUpdateInput): Promise<ActionR
         headers: await forwardedHeaders(),
       });
     } else if (!input.banned && existing.banned) {
-      if (existing.deactivatedAt) {
-        return fail("self_deactivated");
-      }
       await auth.api.unbanUser({
         body: { userId: input.userId },
         headers: await forwardedHeaders(),
@@ -256,6 +259,8 @@ export async function updateUserAction(values: UserUpdateInput): Promise<ActionR
 
     if (input.role === SUPERADMIN_ROLE && existing.role !== SUPERADMIN_ROLE) {
       await grantInfinityToUser(input.userId);
+    } else if (input.role !== SUPERADMIN_ROLE && existing.role === SUPERADMIN_ROLE) {
+      await revokeInfinityFromUser(input.userId);
     }
 
     await recordAudit({

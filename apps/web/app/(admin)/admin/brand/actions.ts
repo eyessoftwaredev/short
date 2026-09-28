@@ -136,3 +136,30 @@ export async function uploadBrandAssetAction(formData: FormData): Promise<Action
     return toActionError(error);
   }
 }
+
+/** Drops an uploaded asset so the built-in fallback (initial or brand name) shows again. */
+export async function removeBrandAssetAction(kindRaw: string): Promise<ActionResult<null>> {
+  try {
+    const context = await requireSuperadmin();
+    if (!(PLATFORM_ASSET_KINDS as readonly string[]).includes(kindRaw)) {
+      return { ok: false, error: "errorUnknownAsset" };
+    }
+    const kind = kindRaw as PlatformAssetKind;
+
+    await getDb().delete(platformAssets).where(eq(platformAssets.kind, kind));
+
+    await recordAudit({
+      workspaceId: null,
+      actorId: context.user.id,
+      action: "admin.brand.asset_removed",
+      targetType: "platform_asset",
+      targetId: kind,
+    });
+
+    revalidatePath("/admin/brand");
+    revalidatePath("/", "layout");
+    return ok(null);
+  } catch (error) {
+    return toActionError(error);
+  }
+}

@@ -1,10 +1,9 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { EmptyState, Hero, type FilterOption } from "@/components/ui";
+import { Badge, Button, EmptyState, PageHeader, type FilterOption } from "@/components/ui";
 import { ADMIN_PAGE_SIZE, listUsers } from "@/lib/admin";
 import { formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
@@ -20,9 +19,11 @@ type SearchParams = Promise<{ q?: string; status?: string; page?: string }>;
 export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
   const context = await requireSuperadmin();
   const { q, status, page } = await searchParams;
-  const t = await getTranslations("admin.users");
-  const tNav = await getTranslations("admin.nav");
-  const tn = await getTranslations("nav");
+  const [t, tNav, tn] = await Promise.all([
+    getTranslations("admin.users"),
+    getTranslations("admin.nav"),
+    getTranslations("nav"),
+  ]);
 
   const statusOptions: readonly FilterOption[] = [
     { id: "all", label: tNav("all") },
@@ -33,6 +34,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
 
   const current = Math.max(1, Number(page ?? 1) || 1);
   const statusValue = statusOptions.some((option) => option.id === status) ? status : "all";
+  const filtered = statusValue !== "all" || Boolean(q?.trim());
 
   const { items, total } = await listUsers({
     search: q,
@@ -55,11 +57,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
   return (
     <PanelShell
       title={tn("admin-users")}
-      crumbs={[{ label: tNav("admin") }, { label: tn("admin-users") }]}
+      crumbs={[{ label: tNav("admin"), href: "/admin" }]}
+      searchable={false}
     >
-      <Hero
-        eyebrow={t("accounts", { count: formatNumber(total) })}
+      <PageHeader
         title={tn("admin-users")}
+        meta={<Badge tone="neutral">{t("accounts", { count: formatNumber(total) })}</Badge>}
         description={t("description")}
       />
 
@@ -72,10 +75,16 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
 
       {rows.length === 0 ? (
         <EmptyState
-          icon={<Icon name="users" className="text-lg" />}
-          eyebrow={tn("admin-users")}
-          title={t("emptyTitle")}
-          description={t("emptyDesc")}
+          icon="users"
+          title={filtered ? t("emptyTitle") : t("noUsersTitle")}
+          description={filtered ? t("emptyDesc") : t("noUsersDesc")}
+          actions={
+            filtered ? (
+              <Button href="/admin/users" leadingIcon="xmark">
+                {tNav("clearFilters")}
+              </Button>
+            ) : null
+          }
         />
       ) : (
         <>

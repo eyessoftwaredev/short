@@ -4,10 +4,14 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { PlanKey } from "@short/core";
-import { Select } from "@/components/ui";
+import { ConfirmDialog, Select, toast } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import { setWorkspacePlanAction } from "./actions";
 
+/**
+ * Plan changes here bypass Stripe and apply to everything the owner has, so the new
+ * plan is confirmed before it is written rather than on the first change event.
+ */
 export function WorkspacePlanSelect({
   userId,
   workspaceId,
@@ -23,25 +27,37 @@ export function WorkspacePlanSelect({
   const t = useTranslations("admin.users");
   const actionMessage = useActionMessage();
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [next, setNext] = useState<PlanKey | null>(null);
+  const nextName = options.find((option) => option.key === next)?.name ?? "";
+
+  function apply(): void {
+    if (!next) {
+      return;
+    }
+    startTransition(async () => {
+      const result = await setWorkspacePlanAction(userId, workspaceId, next);
+      setNext(null);
+      if (!result.ok) {
+        toast.error(t("planChangeFailed"), actionMessage(result.error));
+        return;
+      }
+      toast.success(t("planChanged", { plan: nextName }));
+      router.refresh();
+    });
+  }
 
   return (
-    <span className="flex min-w-0 flex-col gap-1">
+    <>
       <Select
         aria-label={t("workspacePlan")}
         value={planKey}
         disabled={pending}
+        className="min-w-32"
         onChange={(event) => {
-          const next = event.target.value;
-          setError(null);
-          startTransition(async () => {
-            const result = await setWorkspacePlanAction(userId, workspaceId, next);
-            if (!result.ok) {
-              setError(actionMessage(result.error));
-              return;
-            }
-            router.refresh();
-          });
+          const value = event.target.value as PlanKey;
+          if (value !== planKey) {
+            setNext(value);
+          }
         }}
       >
         {options.map((option) => (
@@ -50,7 +66,16 @@ export function WorkspacePlanSelect({
           </option>
         ))}
       </Select>
-      {error ? <span className="text-xs text-danger">{error}</span> : null}
-    </span>
+      <ConfirmDialog
+        open={next !== null}
+        tone="default"
+        title={t("planChangeTitle", { plan: nextName })}
+        description={t("planChangeDesc")}
+        confirmLabel={t("planChangeConfirm", { plan: nextName })}
+        loading={pending}
+        onConfirm={apply}
+        onClose={() => setNext(null)}
+      />
+    </>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
-import { useActionMessage } from "@/lib/action-message";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, Field, InfoTip, Input, Switch } from "@/components/ui";
-import { refreshDomainAction, removeDomainAction, updateDomainAction } from "./actions";
+import { Button, Field, Input, SectionCard, SettingsRow, Switch, toast } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
+import { updateDomainAction } from "./actions";
+import { withScheme } from "./dns-names";
 import { domainActionError } from "./errors";
 import type { DomainRowView } from "./types";
 
@@ -14,6 +14,8 @@ type DomainSettingsProps = {
   domain: DomainRowView;
   canManage: boolean;
 };
+
+type FieldErrors = { root?: string; notFound?: string };
 
 export function DomainSettings({ domain, canManage }: DomainSettingsProps) {
   const t = useTranslations("domains");
@@ -25,103 +27,120 @@ export function DomainSettings({ domain, canManage }: DomainSettingsProps) {
   const [root, setRoot] = useState(domain.rootDestination ?? "");
   const [notFound, setNotFound] = useState(domain.notFoundDestination ?? "");
   const [isDefault, setIsDefault] = useState(domain.isDefault);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const readOnly = !canManage || domain.isPlatform;
 
-  async function save(): Promise<void> {
-    setError(null);
-    setNotice(null);
-    const result = await updateDomainAction(domain.id, {
-      rootDestination: root,
-      notFoundDestination: notFound,
-      isDefault,
+  const dirty =
+    root !== (domain.rootDestination ?? "") ||
+    notFound !== (domain.notFoundDestination ?? "") ||
+    isDefault !== domain.isDefault;
+
+  function reset(): void {
+    setRoot(domain.rootDestination ?? "");
+    setNotFound(domain.notFoundDestination ?? "");
+    setIsDefault(domain.isDefault);
+    setErrors({});
+  }
+
+  function save(): void {
+    setErrors({});
+    startTransition(async () => {
+      const result = await updateDomainAction(domain.id, {
+        rootDestination: root,
+        notFoundDestination: notFound,
+        isDefault,
+      });
+      if (!result.ok) {
+        if (result.error === "validation" && result.fieldErrors) {
+          setErrors({
+            root: result.fieldErrors.rootDestination ? t("urlInvalid") : undefined,
+            notFound: result.fieldErrors.notFoundDestination ? t("urlInvalid") : undefined,
+          });
+          return;
+        }
+        toast.error(domainActionError(result.error, result.fieldErrors, domain.hostname, t, te, actionMessage));
+        return;
+      }
+      // Mirror the server's `https://` completion so the form is not left "dirty".
+      setRoot(withScheme(root));
+      setNotFound(withScheme(notFound));
+      toast.success(t("settingsSaved"));
+      router.refresh();
     });
-    if (!result.ok) {
-      setError(domainActionError(result.error, result.fieldErrors, domain.hostname, t, te, actionMessage));
-      return;
-    }
-    setNotice(t("saved"));
-    router.refresh();
-  }
-
-  async function recheck(): Promise<void> {
-    setError(null);
-    const result = await refreshDomainAction(domain.id);
-    if (!result.ok) {
-      setError(domainActionError(result.error, result.fieldErrors, domain.hostname, t, te, actionMessage));
-      return;
-    }
-    router.refresh();
-  }
-
-  async function remove(): Promise<void> {
-    if (!window.confirm(t("removeConfirm", { host: domain.hostname }))) {
-      return;
-    }
-    const result = await removeDomainAction(domain.id);
-    if (!result.ok) {
-      setError(domainActionError(result.error, result.fieldErrors, domain.hostname, t, te, actionMessage));
-      return;
-    }
-    router.push("/domains");
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <Field label={t("rootDestination")} info={t("rootDestinationInfo")} hint={t("rootHint")}>
-        <Input
-          placeholder="https://acme.com"
-          value={root}
-          disabled={readOnly}
-          onChange={(event) => setRoot(event.target.value)}
-        />
-      </Field>
-
-      <Field label={t("notFoundDestination")} info={t("notFoundDestinationInfo")} hint={t("notFoundHint")}>
-        <Input
-          placeholder="https://acme.com/404"
-          value={notFound}
-          disabled={readOnly}
-          onChange={(event) => setNotFound(event.target.value)}
-        />
-      </Field>
-
-      <Card staticHover className="flex-row items-center justify-between gap-4">
-        <span className="min-w-0">
-          <span className="flex items-center gap-1.5 text-sm font-medium">
-            <span className="min-w-0">{t("defaultForNew")}</span>
-            <InfoTip inline label={t("defaultForNew")}>
-              {t("defaultForNewInfo")}
-            </InfoTip>
-          </span>
-          <span className="block text-sm text-fg-muted">{t("defaultForNewHint")}</span>
-        </span>
-        <Switch checked={isDefault} disabled={readOnly} onCheckedChange={setIsDefault} />
-      </Card>
-
-      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
-      {notice ? <p className="m-0 text-sm text-accent-ink">{notice}</p> : null}
-
-      <div className="flex min-w-0 flex-wrap gap-2">
-        {readOnly ? null : (
-          <Button variant="primary" disabled={pending} onClick={() => startTransition(async () => { await save(); })}>
-            {pending ? t("saving") : tc("save")}
-          </Button>
-        )}
-        {canManage && !domain.isPlatform ? (
+    <SectionCard
+      id="domain-settings"
+      title={t("settingsTitle")}
+      description={t("settingsDesc")}
+      footer={
+        readOnly ? (
+          <span className="mr-auto text-[13px] text-fg-subtle">{t("settingsReadOnly")}</span>
+        ) : (
           <>
-            <Button disabled={pending} onClick={() => startTransition(async () => { await recheck(); })}>
-              <Icon name="rotate-right" className="text-base" />
-              {t("recheck")}
+            <Button variant="ghost" onClick={reset} disabled={!dirty || pending}>
+              {tc("discard")}
             </Button>
-            <Button variant="danger" disabled={pending} onClick={() => startTransition(async () => { await remove(); })}>
-              <Icon name="trash" className="text-base" />
-              {t("remove")}
+            <Button variant="primary" onClick={save} loading={pending} disabled={!dirty}>
+              {tc("save")}
             </Button>
           </>
-        ) : null}
-      </div>
-    </div>
+        )
+      }
+    >
+      <SettingsRow
+        label={t("rootLabel")}
+        description={t("rootDesc", { host: domain.hostname })}
+        info={t("rootDestinationInfo")}
+        htmlFor="domain-root"
+      >
+        <Field error={errors.root}>
+          <Input
+            id="domain-root"
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            placeholder={t("urlPlaceholder")}
+            value={root}
+            disabled={readOnly}
+            aria-invalid={errors.root ? true : undefined}
+            onChange={(event) => setRoot(event.target.value)}
+          />
+        </Field>
+      </SettingsRow>
+
+      <SettingsRow
+        label={t("notFoundLabel")}
+        description={t("notFoundDesc")}
+        info={t("notFoundDestinationInfo")}
+        htmlFor="domain-not-found"
+      >
+        <Field error={errors.notFound}>
+          <Input
+            id="domain-not-found"
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            placeholder={t("urlPlaceholder")}
+            value={notFound}
+            disabled={readOnly}
+            aria-invalid={errors.notFound ? true : undefined}
+            onChange={(event) => setNotFound(event.target.value)}
+          />
+        </Field>
+      </SettingsRow>
+
+      <SettingsRow label={t("defaultLabel")} description={t("defaultDesc")} info={t("defaultForNewInfo")}>
+        <div className="flex md:justify-end">
+          <Switch
+            checked={isDefault}
+            disabled={readOnly}
+            onCheckedChange={setIsDefault}
+            aria-label={t("defaultLabel")}
+          />
+        </div>
+      </SettingsRow>
+    </SectionCard>
   );
 }

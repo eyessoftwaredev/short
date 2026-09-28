@@ -1,16 +1,15 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { StatusBadge } from "@/components/shell/status-badge";
 import {
   Badge,
+  Button,
   EmptyState,
   Grid,
-  Hero,
-  Card,
+  PageHeader,
+  StatCard,
   Table,
   TableBody,
   TableCell,
@@ -22,6 +21,8 @@ import {
 import { ADMIN_PAGE_SIZE, getPlatformCounts, listAllDomains } from "@/lib/admin";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
+import { DomainStatusBadge } from "@/app/(panel)/domains/domain-status-badge";
+import { domainState } from "@/app/(panel)/domains/types";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("admin.domains");
@@ -33,9 +34,11 @@ type SearchParams = Promise<{ status?: string; page?: string }>;
 export default async function AdminDomainsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSuperadmin();
   const { status, page } = await searchParams;
-  const t = await getTranslations("admin.domains");
-  const tNav = await getTranslations("admin.nav");
-  const tn = await getTranslations("nav");
+  const [t, tNav, tn] = await Promise.all([
+    getTranslations("admin.domains"),
+    getTranslations("admin.nav"),
+    getTranslations("nav"),
+  ]);
 
   const statusOptions: readonly FilterOption[] = [
     { id: "all", label: tNav("all") },
@@ -54,70 +57,105 @@ export default async function AdminDomainsPage({ searchParams }: { searchParams:
   ]);
 
   return (
-    <PanelShell
-      title={tn("admin-domains")}
-      crumbs={[{ label: tNav("admin") }, { label: tn("admin-domains") }]}
-    >
-      <Hero
-        eyebrow={t("hostnames", { count: formatNumber(total) })}
+    <PanelShell title={t("title")} crumbs={[{ label: tNav("admin"), href: "/admin" }]}>
+      <PageHeader
         title={t("title")}
+        meta={<Badge tone="neutral">{t("hostnames", { count: formatNumber(total) })}</Badge>}
         description={t("description")}
       />
 
       <Grid columns={3}>
-        <Card label={t("customDomains")} value={formatNumber(counts.customDomains)} staticHover />
-        <Card
-          label={t("awaitingDns")}
-          value={formatNumber(counts.pendingDomains)}
-          delta={counts.pendingDomains > 0 ? t("customerAction") : t("allClear")}
-          staticHover
+        <StatCard
+          icon="globe"
+          label={t("customDomains")}
+          info={t("customDomainsInfo")}
+          value={formatNumber(counts.customDomains)}
         />
-        <Card label={tn("admin-workspaces")} value={formatNumber(counts.workspaces)} staticHover />
+        <StatCard
+          icon="clock"
+          label={t("awaitingDns")}
+          info={t("awaitingDnsInfo")}
+          value={formatNumber(counts.pendingDomains)}
+          deltaLabel={counts.pendingDomains > 0 ? t("customerAction") : t("allClear")}
+          href={counts.pendingDomains > 0 ? "/admin/domains?status=pending" : undefined}
+        />
+        <StatCard
+          icon="building"
+          label={tn("admin-workspaces")}
+          value={formatNumber(counts.workspaces)}
+          href="/admin/workspaces"
+        />
       </Grid>
 
       <QueryFilterBar options={statusOptions} value={statusValue} searchable={false} />
 
       {items.length === 0 ? (
         <EmptyState
-          icon={<Icon name="globe" className="text-lg" />}
-          eyebrow={tn("admin-domains")}
+          icon="globe"
           title={t("emptyTitle")}
           description={t("emptyDesc")}
+          actions={
+            statusValue !== "all" ? (
+              <Button href="/admin/domains" leadingIcon="xmark">
+                {tNav("clearFilters")}
+              </Button>
+            ) : null
+          }
         />
       ) : (
         <>
-          <Table>
+          <Table label={t("title")}>
             <TableHead>
               <TableRow>
                 <TableHeaderCell>{tNav("hostname")}</TableHeaderCell>
-                <TableHeaderCell>{tNav("workspace")}</TableHeaderCell>
                 <TableHeaderCell>{tNav("status")}</TableHeaderCell>
-                <TableHeaderCell>{tNav("ssl")}</TableHeaderCell>
-                <TableHeaderCell className="text-right">{tn("links")}</TableHeaderCell>
-                <TableHeaderCell>{t("lastCheck")}</TableHeaderCell>
+                <TableHeaderCell className="hidden md:table-cell">{tNav("ssl")}</TableHeaderCell>
+                <TableHeaderCell numeric className="hidden sm:table-cell">
+                  {tn("links")}
+                </TableHeaderCell>
+                <TableHeaderCell className="hidden lg:table-cell">{t("lastCheck")}</TableHeaderCell>
+                <TableHeaderCell className="w-px">
+                  <span className="sr-only">{tNav("actions")}</span>
+                </TableHeaderCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {items.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-sm">{row.hostname}</span>
-                      {row.isPlatform ? <Badge tone="muted">{t("platform")}</Badge> : null}
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="truncate font-mono text-[13px] text-ink">{row.hostname}</span>
+                        {row.isPlatform ? (
+                          <Badge tone="neutral" size="sm">
+                            {t("platform")}
+                          </Badge>
+                        ) : null}
+                      </span>
+                      <span className="truncate text-xs text-fg-muted">{row.workspaceName}</span>
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-fg-muted">{row.workspaceName}</TableCell>
                   <TableCell>
-                    <StatusBadge status={row.isPlatform ? "active" : row.status} />
+                    <DomainStatusBadge state={domainState(row)} />
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-fg-muted">
+                  <TableCell className="hidden font-mono text-xs text-fg-muted md:table-cell">
                     {row.isPlatform ? t("sslManaged") : row.sslStatus}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+                  <TableCell numeric className="hidden sm:table-cell">
                     {formatNumber(row.linkCount)}
                   </TableCell>
-                  <TableCell className="text-sm text-fg-muted">
+                  <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted lg:table-cell">
                     {row.lastCheckedAt ? formatDateTime(row.lastCheckedAt) : "—"}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      trailingIcon="chevron-right"
+                      href={`/admin/links?workspace=${encodeURIComponent(row.workspaceId)}&q=${encodeURIComponent(row.hostname)}`}
+                    >
+                      {t("viewLinks")}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

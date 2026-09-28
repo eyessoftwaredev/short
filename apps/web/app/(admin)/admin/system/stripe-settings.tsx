@@ -3,7 +3,16 @@
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Badge, Button, Field, Input, Section } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  SecretInput,
+  SectionCard,
+  SettingsRow,
+  Input,
+  toast,
+} from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import type { StripeStatus } from "@/lib/stripe";
 import { clearStripeCredentialsAction, saveStripeCredentialsAction } from "./actions";
@@ -19,9 +28,9 @@ export function StripeSettings({ status }: StripeSettingsProps) {
   const [secretKey, setSecretKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [publishableKey, setPublishableKey] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [saving, startSave] = useTransition();
+  const [clearing, startClear] = useTransition();
 
   const sourceLabel =
     status.source === "database"
@@ -31,113 +40,136 @@ export function StripeSettings({ status }: StripeSettingsProps) {
         : t("stripeMissing");
   const modeLabel =
     status.livemode === true ? t("stripeLive") : status.livemode === false ? t("stripeTest") : null;
+  // A first-time setup needs both secrets; after that, blank fields keep what is stored.
+  const needsBoth = !status.configured || status.source !== "database";
+  const canSave = needsBoth
+    ? secretKey.trim() !== "" && webhookSecret.trim() !== ""
+    : secretKey.trim() !== "" || webhookSecret.trim() !== "" || publishableKey.trim() !== "";
 
-  const save = (): void => {
-    startTransition(async () => {
-      setError(null);
-      setNotice(null);
-      const result = await saveStripeCredentialsAction({
-        secretKey,
-        webhookSecret,
-        publishableKey,
-      });
+  function reset(): void {
+    setSecretKey("");
+    setWebhookSecret("");
+    setPublishableKey("");
+  }
+
+  function save(): void {
+    startSave(async () => {
+      const result = await saveStripeCredentialsAction({ secretKey, webhookSecret, publishableKey });
       if (!result.ok) {
-        setError(actionMessage(result.error));
+        toast.error(t("stripeSaveFailed"), actionMessage(result.error));
         return;
       }
-      setSecretKey("");
-      setWebhookSecret("");
-      setPublishableKey("");
-      setNotice(t("stripeSaved"));
+      reset();
+      toast.success(t("stripeSaved"));
       router.refresh();
     });
-  };
+  }
 
-  const clear = (): void => {
-    if (!window.confirm(t("stripeClearConfirm"))) {
-      return;
-    }
-    startTransition(async () => {
-      setError(null);
-      setNotice(null);
+  function clear(): void {
+    startClear(async () => {
       const result = await clearStripeCredentialsAction();
+      setConfirmClear(false);
       if (!result.ok) {
-        setError(actionMessage(result.error));
+        toast.error(t("stripeSaveFailed"), actionMessage(result.error));
         return;
       }
-      setSecretKey("");
-      setWebhookSecret("");
-      setPublishableKey("");
-      setNotice(t("stripeCleared"));
+      reset();
+      toast.success(t("stripeCleared"));
       router.refresh();
     });
-  };
+  }
 
   return (
-    <Section title={t("stripeTitle")} description={t("stripeDesc")}>
-      <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge tone={status.configured ? "accent" : "muted"} dot>
-            {sourceLabel}
-          </Badge>
-          {modeLabel ? (
-            <Badge tone={status.livemode ? "accent" : "muted"}>{modeLabel}</Badge>
-          ) : null}
-        </div>
-
-        {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
-        {notice ? <p className="m-0 text-sm text-accent-ink">{notice}</p> : null}
-
-        <div className="grid min-w-0 gap-4 md:grid-cols-2">
-          <Field label={t("stripeSecret")} info={t("stripeSecretInfo")} hint={t("stripeSecretHint")}>
-            <Input
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={secretKey}
-              onChange={(event) => setSecretKey(event.target.value)}
-            />
-          </Field>
-          <Field label={t("stripeWebhook")} info={t("stripeWebhookInfo")} hint={t("stripeWebhookHint")}>
-            <Input
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={webhookSecret}
-              onChange={(event) => setWebhookSecret(event.target.value)}
-            />
-          </Field>
-        </div>
-
-        <Field
+    <>
+      <SectionCard
+        id="stripe"
+        title={t("stripeTitle")}
+        description={t("stripeDesc")}
+        actions={
+          <span className="flex flex-wrap items-center gap-1.5">
+            <Badge tone={status.configured ? "success" : "warn"} dot>
+              {sourceLabel}
+            </Badge>
+            {modeLabel ? <Badge tone={status.livemode ? "accent" : "neutral"}>{modeLabel}</Badge> : null}
+          </span>
+        }
+        footer={
+          <>
+            {status.source === "database" ? (
+              <Button variant="ghost" className="mr-auto text-danger" onClick={() => setConfirmClear(true)} disabled={saving}>
+                {t("stripeClear")}
+              </Button>
+            ) : null}
+            <Button variant="primary" loading={saving} disabled={!canSave} onClick={save}>
+              {t("stripeSave")}
+            </Button>
+          </>
+        }
+      >
+        <SettingsRow
+          label={t("stripeSecret")}
+          description={t("stripeSecretHint")}
+          info={t("stripeSecretInfo")}
+          htmlFor="stripe-secret"
+        >
+          <SecretInput
+            id="stripe-secret"
+            domName="stripe-secret"
+            spellCheck={false}
+            className="font-mono"
+            placeholder={status.source === "database" ? t("stripeKeepCurrent") : "sk_live_…"}
+            value={secretKey}
+            onChange={(event) => setSecretKey(event.target.value)}
+          />
+        </SettingsRow>
+        <SettingsRow
+          label={t("stripeWebhook")}
+          description={t("stripeWebhookHint")}
+          info={t("stripeWebhookInfo")}
+          htmlFor="stripe-webhook"
+        >
+          <SecretInput
+            id="stripe-webhook"
+            domName="stripe-webhook"
+            spellCheck={false}
+            className="font-mono"
+            placeholder={status.source === "database" ? t("stripeKeepCurrent") : "whsec_…"}
+            value={webhookSecret}
+            onChange={(event) => setWebhookSecret(event.target.value)}
+          />
+        </SettingsRow>
+        <SettingsRow
           label={t("stripePublishable")}
-          info={t("stripePublishableInfo")}
-          hint={
+          description={
             status.publishableLast4
               ? t("stripePublishableSet", { last4: status.publishableLast4 })
               : t("stripePublishableHint")
           }
+          info={t("stripePublishableInfo")}
+          htmlFor="stripe-publishable"
         >
           <Input
+            id="stripe-publishable"
             type="text"
             autoComplete="off"
             spellCheck={false}
+            className="font-mono"
+            placeholder="pk_live_…"
             value={publishableKey}
             onChange={(event) => setPublishableKey(event.target.value)}
           />
-        </Field>
+        </SettingsRow>
+      </SectionCard>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Button type="button" variant="primary" loading={pending} onClick={save}>
-            {t("stripeSave")}
-          </Button>
-          {status.source === "database" ? (
-            <Button type="button" variant="danger" disabled={pending} onClick={clear}>
-              {t("stripeClear")}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-    </Section>
+      <ConfirmDialog
+        open={confirmClear}
+        title={t("stripeClearTitle")}
+        description={t("stripeClearConfirm")}
+        confirmLabel={t("stripeClear")}
+        loading={clearing}
+        onConfirm={clear}
+        onClose={() => setConfirmClear(false)}
+      />
+    </>
   );
 }

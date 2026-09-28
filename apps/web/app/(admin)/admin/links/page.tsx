@@ -1,10 +1,9 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { EmptyState, Hero, type FilterOption } from "@/components/ui";
+import { Badge, Button, Callout, EmptyState, PageHeader, type FilterOption } from "@/components/ui";
 import { ADMIN_PAGE_SIZE, searchLinks } from "@/lib/admin";
 import { formatNumber } from "@/lib/format";
 import { requireSuperadmin } from "@/lib/session";
@@ -25,9 +24,7 @@ type SearchParams = Promise<{
 export default async function AdminLinksPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSuperadmin();
   const { q, status, workspace, page } = await searchParams;
-  const t = await getTranslations("admin.links");
-  const tNav = await getTranslations("admin.nav");
-  const tn = await getTranslations("nav");
+  const [t, tNav] = await Promise.all([getTranslations("admin.links"), getTranslations("admin.nav")]);
 
   const statusOptions: readonly FilterOption[] = [
     { id: "all", label: tNav("all") },
@@ -37,11 +34,13 @@ export default async function AdminLinksPage({ searchParams }: { searchParams: S
 
   const current = Math.max(1, Number(page ?? 1) || 1);
   const statusValue = statusOptions.some((option) => option.id === status) ? status : "all";
+  const workspaceId = workspace?.trim() || undefined;
+  const filtered = statusValue !== "all" || Boolean(q?.trim()) || Boolean(workspaceId);
 
   const { items, total } = await searchLinks({
     search: q,
     status: statusValue as "all" | "flagged" | "disabled",
-    workspaceId: workspace,
+    workspaceId,
     page: current,
   });
 
@@ -57,16 +56,41 @@ export default async function AdminLinksPage({ searchParams }: { searchParams: S
     disabled: row.disabledAt !== null,
   }));
 
+  // "View links" on an account lands here with ?workspace=; say so, and offer a way out.
+  const withoutWorkspace = new URLSearchParams();
+  if (q) {
+    withoutWorkspace.set("q", q);
+  }
+  if (statusValue && statusValue !== "all") {
+    withoutWorkspace.set("status", statusValue);
+  }
+  const clearQuery = withoutWorkspace.toString();
+  const clearWorkspaceHref = clearQuery === "" ? "/admin/links" : `/admin/links?${clearQuery}`;
+
   return (
-    <PanelShell
-      title={tn("admin-links")}
-      crumbs={[{ label: tNav("admin") }, { label: tn("links") }]}
-    >
-      <Hero
-        eyebrow={t("count", { count: formatNumber(total) })}
+    <PanelShell title={t("title")} crumbs={[{ label: tNav("admin"), href: "/admin" }]} searchable={false}>
+      <PageHeader
         title={t("title")}
+        meta={<Badge tone="neutral">{t("count", { count: formatNumber(total) })}</Badge>}
         description={t("description")}
       />
+
+      {workspaceId ? (
+        <Callout
+          tone="info"
+          icon="filter"
+          title={
+            rows[0]
+              ? t("filteredByAccount", { name: rows[0].workspaceName })
+              : t("filteredByAccountUnknown")
+          }
+          actions={
+            <Button size="sm" href={clearWorkspaceHref} leadingIcon="xmark">
+              {t("showAllLinks")}
+            </Button>
+          }
+        />
+      ) : null}
 
       <QueryFilterBar
         options={statusOptions}
@@ -77,10 +101,16 @@ export default async function AdminLinksPage({ searchParams }: { searchParams: S
 
       {rows.length === 0 ? (
         <EmptyState
-          icon={<Icon name="link" className="text-lg" />}
-          eyebrow={tn("links")}
+          icon="link"
           title={t("emptyTitle")}
           description={t("emptyDesc")}
+          actions={
+            filtered ? (
+              <Button href="/admin/links" leadingIcon="xmark">
+                {tNav("clearFilters")}
+              </Button>
+            ) : null
+          }
         />
       ) : (
         <>

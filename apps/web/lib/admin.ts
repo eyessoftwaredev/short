@@ -13,8 +13,10 @@ import {
   ilike,
   inArray,
   isNotNull,
+  isNull,
   links,
   member,
+  or,
   organization,
   plans,
   qrCodes,
@@ -257,7 +259,11 @@ export async function listWorkspaces(options: {
   }
   const ownerMember = aliasedTable(member, "workspace_owner");
 
-  if (options.planKey && options.planKey !== "all") {
+  if (options.planKey === "free") {
+    // Owners who never subscribed have no subscription row and are on Free as well;
+    // an equality filter alone hid them from the "Free" chip.
+    filters.push(or(eq(subscriptions.planKey, "free"), isNull(subscriptions.planKey))!);
+  } else if (options.planKey && options.planKey !== "all") {
     filters.push(eq(subscriptions.planKey, options.planKey as PlanKey));
   }
   const where = filters.length > 0 ? and(...filters) : undefined;
