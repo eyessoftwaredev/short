@@ -355,7 +355,47 @@
     "webhook_missing": "Bu webhook artık mevcut değil.",
     "media_missing": "Bu dosya artık medya kitaplığında yok.",
     "domain_missing": "Bu alan adı artık mevcut değil.",
-    "not_found": "Aradığın öğe artık mevcut değil."
+    "not_found": "Aradığın öğe artık mevcut değil.",
+    "forbidden": "Bu çalışma alanında bunu yapma yetkin yok.",
+    "rate_limited": "Çok fazla istek. Biraz bekleyip tekrar dene.",
+    "invalid_url": "Herkese açık bir http(s) adresi gir.",
+    "metadata_unavailable": "Sayfa okunamadı. Bilgileri elle doldur.",
+    "utm_template_exists": "Bu adda bir UTM şablonu zaten var.",
+    "utm_template_limit": "Bu çalışma alanında zaten 50 UTM şablonu var. Önce birini sil.",
+    "share_limit": "Bu linkin zaten 20 etkin paylaşım linki var. Önce birini iptal et.",
+    "analytics_unavailable": "Tıklama istatistikleri geçici olarak kullanılamıyor."
+  },
+  "share": {
+    "metaTitle": "Paylaşılan link istatistikleri",
+    "eyebrow": "Paylaşılan istatistikler",
+    "rangeLabel": "Zaman aralığı",
+    "ranges": {
+      "24h": "24 saat",
+      "7d": "7 gün",
+      "30d": "30 gün",
+      "90d": "90 gün",
+      "12m": "12 ay",
+      "all": "Tüm zamanlar"
+    },
+    "clicks": "Tıklama",
+    "visitors": "Ziyaretçi",
+    "qrScans": "QR tarama",
+    "change": "Önceki döneme göre %{delta}",
+    "noChange": "Önceki döneme göre değişiklik yok",
+    "overTime": "Zaman içinde tıklamalar",
+    "countries": "Ülkeler",
+    "referrers": "Yönlendirenler",
+    "devices": "Cihazlar",
+    "browsers": "Tarayıcılar",
+    "direct": "Doğrudan / bilinmiyor",
+    "unknown": "Bilinmiyor",
+    "footnote": "Link sahibinin paylaştığı salt okunur istatistikler. Bot trafiği hariçtir.",
+    "clampedNote": "Sahibin planında daha eski veriler bulunmadığından aralık daha geç başlıyor.",
+    "expiresNote": "Bu sayfa {date} tarihine kadar erişilebilir.",
+    "rateLimitedTitle": "Biraz yavaşla",
+    "rateLimitedBody": "Ağından çok fazla istek geldi. Bir dakika bekleyip sayfayı yenile.",
+    "notFoundTitle": "Bu istatistik sayfası kullanılamıyor",
+    "notFoundBody": "Link iptal edilmiş veya süresi dolmuş olabilir. Sahibinden yenisini iste."
   },
   "auth": {
     "signIn": "Giriş yap",
@@ -1365,6 +1405,7 @@
     "startsAt": "Yayına giriş zamanı",
     "startsAtHint": "Hemen yayına almak için boş bırak.",
     "startBeforeExpiry": "Başlangıç, bitiş zamanından önce olmalı.",
+    "maxClicksInvalid": "1 ile 1.000.000.000 arasında bir tam sayı gir ya da sınırsız için boş bırak.",
     "info": {
       "destination": "Hiçbir hedefleme kuralı veya A/B varyantı devreye girmediğinde ziyaretçinin gittiği sayfa. Tam bir http(s) adresi olmalı.",
       "domain": "Kısa linkin yayınlanacağı domain. Kendi markalı domainini Domainler bölümünden ekleyebilirsin.",
@@ -2268,6 +2309,7 @@
     "nameRequired": "Koda bir ad ver",
     "linkRequired": "Bir link seç",
     "hexColor": "#0f766e gibi bir hex renk kullan",
+    "frameTextTooLong": "Çerçeve etiketi en fazla 24 karakter olabilir.",
     "dotStyle": {
       "square": "Kare",
       "rounded": "Yuvarlak",
@@ -2675,6 +2717,7 @@
           "link.updated": "Herhangi bir link alanı değişti.",
           "link.deleted": "Link kalıcı silindi.",
           "link.clicked": "Biri yönlendirmeyi tamamladı (yüksek hacimde örneklenir).",
+          "link.broken": "Üst üste iki sağlık kontrolünde hedef çalışmıyordu (404/410/5xx, DNS hatası veya zaman aşımı).",
           "biopage.viewed": "Herkese açık bio sayfası görüntülendi.",
           "domain.verified": "Özel alan adı DNS doğrulaması başarılı."
         }

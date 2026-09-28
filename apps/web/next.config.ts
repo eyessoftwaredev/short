@@ -93,6 +93,15 @@ const nextConfig: NextConfig = {
         source: "/api/brand/:path*",
         headers: [{ key: "Content-Security-Policy", value: UPLOADED_ASSET_CSP }],
       },
+      {
+        // Public stats pages: the token in the path is the only secret, so it must not
+        // be indexed or leak through a Referer.
+        source: "/share/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
     ];
   },
   transpilePackages: ["@short/core", "@short/db", "@short/analytics"],
