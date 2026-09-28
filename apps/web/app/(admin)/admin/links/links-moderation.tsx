@@ -1,21 +1,22 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Icon } from "@/components/kit/icon";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   Field,
   Input,
-  Modal,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeaderCell,
   TableRow,
+  toast,
 } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import { formatDate, truncateMiddle } from "@/lib/format";
@@ -37,55 +38,56 @@ export function LinksModeration({ rows }: { rows: AdminLinkView[] }) {
   const router = useRouter();
   const t = useTranslations("admin.links");
   const tNav = useTranslations("admin.nav");
-  const tc = useTranslations("common");
   const actionMessage = useActionMessage();
   const [pending, startTransition] = useTransition();
   const [target, setTarget] = useState<AdminLinkView | null>(null);
+  const [restoring, setRestoring] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   function confirmFlag(): void {
     const link = target;
     if (!link) {
       return;
     }
-    setTarget(null);
-    setError(null);
     startTransition(async () => {
       const result = await flagLinkAction(link.id, reason);
+      setTarget(null);
       if (!result.ok) {
-        setError(actionMessage(result.error));
+        toast.error(t("actionFailed"), actionMessage(result.error));
         return;
       }
       setReason("");
+      toast.success(t("flaggedToast", { link: `${link.hostname}/${link.slug}` }));
       router.refresh();
     });
   }
 
   function restore(link: AdminLinkView): void {
-    setError(null);
+    setRestoring(link.id);
     startTransition(async () => {
       const result = await clearLinkFlagAction(link.id);
+      setRestoring(null);
       if (!result.ok) {
-        setError(actionMessage(result.error));
+        toast.error(t("actionFailed"), actionMessage(result.error));
         return;
       }
+      toast.success(t("restoredToast", { link: `${link.hostname}/${link.slug}` }));
       router.refresh();
     });
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-3" aria-busy={pending}>
-      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
-
-      <Table>
+    <>
+      <Table label={t("title")} pending={pending && target === null && restoring === null}>
         <TableHead>
           <TableRow>
             <TableHeaderCell>{t("shortLink")}</TableHeaderCell>
-            <TableHeaderCell>{tNav("destination")}</TableHeaderCell>
-            <TableHeaderCell>{tNav("workspace")}</TableHeaderCell>
-            <TableHeaderCell>{tNav("created")}</TableHeaderCell>
-            <TableHeaderCell className="text-right">{tNav("actions")}</TableHeaderCell>
+            <TableHeaderCell className="hidden md:table-cell">{tNav("destination")}</TableHeaderCell>
+            <TableHeaderCell className="hidden sm:table-cell">{tNav("workspace")}</TableHeaderCell>
+            <TableHeaderCell className="hidden lg:table-cell">{tNav("created")}</TableHeaderCell>
+            <TableHeaderCell className="w-px">
+              <span className="sr-only">{tNav("actions")}</span>
+            </TableHeaderCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -93,83 +95,96 @@ export function LinksModeration({ rows }: { rows: AdminLinkView[] }) {
             <TableRow key={row.id}>
               <TableCell>
                 <span className="flex min-w-0 flex-col gap-1">
-                  <span className="truncate font-mono text-sm">
+                  <span className="truncate font-mono text-[13px] text-ink">
                     {row.hostname}/{row.slug}
                   </span>
                   {row.flagged ? (
-                    <span className="flex flex-wrap items-center gap-2">
-                      <Badge tone="danger">{t("flagged")}</Badge>
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
+                      <Badge tone="danger" dot size="sm">
+                        {t("flagged")}
+                      </Badge>
                       {row.abuseReason ? (
-                        <span className="truncate text-xs text-fg-muted">{row.abuseReason}</span>
+                        <span className="min-w-0 truncate text-xs text-fg-muted">{row.abuseReason}</span>
                       ) : null}
                     </span>
                   ) : row.disabled ? (
-                    <Badge tone="muted">{t("disabled")}</Badge>
+                    <span>
+                      <Badge tone="neutral" size="sm">
+                        {t("disabled")}
+                      </Badge>
+                    </span>
                   ) : null}
+                  {/* Destination moves under the slug when its column is hidden. */}
+                  <span className="truncate font-mono text-xs text-fg-subtle md:hidden">
+                    {truncateMiddle(row.destination, 40)}
+                  </span>
                 </span>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden max-w-xs md:table-cell">
                 <a
                   href={row.destination}
                   target="_blank"
                   rel="noreferrer noopener nofollow"
-                  className="inline-flex min-w-0 items-center gap-1.5 text-sm"
+                  title={row.destination}
+                  className="inline-flex max-w-full min-w-0 items-center gap-1.5 font-mono text-xs text-fg-muted no-underline hover:text-accent-ink"
                 >
                   <span className="truncate">{truncateMiddle(row.destination, 52)}</span>
-                  <Icon name="external-link" className="text-xs shrink-0" />
+                  <Icon name="external-link" className="shrink-0 text-[10px]" />
                 </a>
               </TableCell>
-              <TableCell className="text-sm text-fg-muted">{row.workspaceName}</TableCell>
-              <TableCell className="text-sm text-fg-muted">{formatDate(row.createdAt)}</TableCell>
-              <TableCell>
-                <span className="flex justify-end gap-2">
-                  {row.flagged ? (
-                    <Button size="sm" disabled={pending} onClick={() => restore(row)}>
-                      <Icon name="ban" className="text-sm" />
-                      {tc("restore")}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      disabled={pending}
-                      onClick={() => {
-                        setReason("");
-                        setTarget(row);
-                      }}
-                    >
-                      <Icon name="flag" className="text-sm" />
-                      {t("flag")}
-                    </Button>
-                  )}
-                </span>
+              <TableCell className="hidden text-[13px] text-fg-muted sm:table-cell">{row.workspaceName}</TableCell>
+              <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted lg:table-cell">
+                {formatDate(row.createdAt)}
+              </TableCell>
+              <TableCell align="right">
+                {row.flagged ? (
+                  <Button
+                    size="sm"
+                    leadingIcon="rotate-right"
+                    loading={restoring === row.id}
+                    disabled={pending && restoring !== row.id}
+                    onClick={() => restore(row)}
+                  >
+                    {t("restore")}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    leadingIcon="flag"
+                    disabled={pending}
+                    onClick={() => {
+                      setReason("");
+                      setTarget(row);
+                    }}
+                  >
+                    {t("flag")}
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
-      <Modal
+      <ConfirmDialog
         open={target !== null}
         title={t("flagTitle", { host: target?.hostname ?? "", slug: target?.slug ?? "" })}
         description={t("flagDesc")}
+        confirmLabel={t("flagConfirm")}
+        loading={pending && target !== null}
+        onConfirm={confirmFlag}
         onClose={() => setTarget(null)}
-        footer={
-          <>
-            <Button onClick={() => setTarget(null)}>{tc("cancel")}</Button>
-            <Button variant="primary" onClick={confirmFlag}>
-              {t("flagConfirm")}
-            </Button>
-          </>
-        }
       >
         <Field label={t("reason")} info={t("reasonInfo")} hint={t("reasonHint")}>
           <Input
             value={reason}
+            maxLength={240}
             onChange={(event) => setReason(event.target.value)}
             placeholder={t("reasonPlaceholder")}
           />
         </Field>
-      </Modal>
-    </div>
+      </ConfirmDialog>
+    </>
   );
 }

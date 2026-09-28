@@ -1,60 +1,74 @@
 "use client";
 
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Icon } from "@/components/kit/icon";
-import Link from "next/link";
-import { useState, type FormEvent } from "react";
-import type { LandingShortenResult } from "@/lib/landing-shorten";
+import { Button } from "@/components/ui";
+import type { LandingShortenError, LandingShortenResult } from "@/lib/landing-shorten";
+import { cn } from "@/lib/cx";
 
-type ShortenFormProps = {
+export type ShortenFormLabels = {
+  label: string;
   placeholder: string;
   submit: string;
+  hint: string;
+  empty: string;
+  resultTitle: string;
   copy: string;
   copied: string;
+  open: string;
   another: string;
-  claim: string;
-  claimHref: string;
-  invalid: string;
-  rateLimited: string;
-  quota: string;
-  failed: string;
+  claimTitle: string;
+  claimBody: string;
+  claimCta: string;
+  ownedBody: string;
+  ownedCta: string;
+  errors: Record<LandingShortenError, string>;
 };
 
-export function ShortenForm({
-  placeholder,
-  submit,
-  copy,
-  copied,
-  another,
-  claim,
-  claimHref,
-  invalid,
-  rateLimited,
-  quota,
-  failed,
-}: ShortenFormProps) {
+type ShortenFormProps = {
+  labels: ShortenFormLabels;
+  /** Sign-up page on the panel host. */
+  claimHref: string;
+  /** Links list on the panel host, for a signed-in visitor whose link was saved. */
+  linksHref: string;
+};
+
+/**
+ * The hero's instant shortener. Anonymous links land on the platform domain;
+ * a signed-in visitor's link goes to their personal workspace (see
+ * `lib/landing-shorten.ts`). Deliberately a plain text field, not `type="url"`:
+ * people paste `acme.com/launch` without a scheme and the server adds it.
+ */
+export function ShortenForm({ labels, claimHref, linksHref }: ShortenFormProps) {
+  const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
-  const [shortHref, setShortHref] = useState<string | null>(null);
-  const [owned, setOwned] = useState(false);
+  const [result, setResult] = useState<{ shortUrl: string; owned: boolean; destination: string } | null>(
+    null,
+  );
   const [copiedNow, setCopiedNow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const messageFor = (code: string): string => {
-    if (code === "invalid") {
-      return invalid;
+  // Keyboard and screen-reader users land on the thing they most likely want next.
+  useEffect(() => {
+    if (result) {
+      resultRef.current?.querySelector<HTMLButtonElement>("[data-copy]")?.focus();
     }
-    if (code === "rate_limited") {
-      return rateLimited;
-    }
-    if (code === "quota") {
-      return quota;
-    }
-    return failed;
-  };
+  }, [result]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (pending) {
+      return;
+    }
+    const url = value.trim();
+    if (url === "") {
+      setError(labels.empty);
+      inputRef.current?.focus();
       return;
     }
     setPending(true);
@@ -63,98 +77,183 @@ export function ShortenForm({
       const response = await fetch("/api/landing/shorten", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: value }),
+        body: JSON.stringify({ url }),
       });
-      const result = (await response.json()) as LandingShortenResult;
-      if (!result.ok) {
-        setShortHref(null);
-        setError(messageFor(result.error));
+      const payload = (await response.json().catch(() => null)) as LandingShortenResult | null;
+      if (!payload) {
+        setError(labels.errors.failed);
         return;
       }
-      setShortHref(result.shortUrl);
-      setOwned(result.owned);
+      if (!payload.ok) {
+        setError(labels.errors[payload.error] ?? labels.errors.failed);
+        inputRef.current?.focus();
+        return;
+      }
+      setResult({ shortUrl: payload.shortUrl, owned: payload.owned, destination: url });
       setValue("");
     } catch {
-      setShortHref(null);
-      setError(failed);
+      setError(labels.errors.failed);
     } finally {
       setPending(false);
     }
   };
 
   const handleCopy = async (): Promise<void> => {
-    if (!shortHref) {
+    if (!result) {
       return;
     }
     try {
-      await navigator.clipboard.writeText(shortHref);
+      await navigator.clipboard.writeText(result.shortUrl);
       setCopiedNow(true);
-      window.setTimeout(() => setCopiedNow(false), 1400);
+      window.setTimeout(() => setCopiedNow(false), 1600);
     } catch {
       setCopiedNow(false);
     }
   };
 
-  if (shortHref) {
+  const reset = (): void => {
+    setResult(null);
+    setCopiedNow(false);
+    setError(null);
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  if (result) {
+    const display = result.shortUrl.replace(/^https?:\/\//, "");
     return (
-      <div className="landing-shorten landing-shorten--result">
-        <Icon name="check" className="shrink-0 text-sm text-accent" aria-hidden="true" />
-        <a className="min-w-0 truncate font-mono text-sm" href={shortHref} target="_blank" rel="noreferrer">
-          {shortHref.replace(/^https?:\/\//, "")}
-        </a>
-        <button type="button" className="kit-btn kit-btn--ghost kit-btn--sm" onClick={() => void handleCopy()}>
-          {copiedNow ? copied : copy}
-        </button>
-        <button
-          type="button"
-          className="kit-btn kit-btn--ghost kit-btn--sm"
-          onClick={() => {
-            setShortHref(null);
-            setOwned(false);
-            setCopiedNow(false);
-          }}
-        >
-          {another}
-        </button>
-        {owned ? null : (
-          <Link className="kit-btn kit-btn--primary kit-btn--sm hidden sm:inline-flex" href={claimHref}>
-            {claim}
-          </Link>
-        )}
+      <div
+        ref={resultRef}
+        className="animate-pop-in flex w-full max-w-2xl min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-bg text-left shadow-pop"
+        aria-live="polite"
+      >
+        <div className="flex min-w-0 flex-col gap-3 p-4 sm:p-5">
+          <p className="m-0 flex items-center gap-2 text-[13px] font-medium text-success">
+            <Icon name="circle-check" className="text-sm" />
+            {labels.resultTitle}
+          </p>
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+            <a
+              href={result.shortUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="min-w-0 flex-1 truncate font-mono text-lg font-medium text-ink sm:text-xl"
+            >
+              {display}
+            </a>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                data-copy
+                variant="primary"
+                leadingIcon={copiedNow ? "check" : "copy"}
+                onClick={() => {
+                  void handleCopy();
+                }}
+                aria-live="polite"
+              >
+                {copiedNow ? labels.copied : labels.copy}
+              </Button>
+              <Button
+                icon
+                href={result.shortUrl}
+                external
+                aria-label={labels.open}
+                title={labels.open}
+                leadingIcon="external-link"
+              />
+            </div>
+          </div>
+          <p className="m-0 flex min-w-0 items-center gap-1.5 text-[13px] text-fg-subtle">
+            <Icon name="arrow-right" className="text-xs" />
+            <span className="min-w-0 truncate">{result.destination}</span>
+          </p>
+        </div>
+        <div className="flex min-w-0 flex-col gap-3 border-t border-border-subtle bg-surface-subtle px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          {result.owned ? (
+            <p className="m-0 text-[13px] text-fg-muted">{labels.ownedBody}</p>
+          ) : (
+            <p className="m-0 min-w-0 text-[13px] leading-relaxed text-fg-muted">
+              <span className="font-medium text-ink">{labels.claimTitle}</span> {labels.claimBody}
+            </p>
+          )}
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button size="sm" variant="ghost" leadingIcon="rotate-right" onClick={reset}>
+              {labels.another}
+            </Button>
+            {result.owned ? (
+              <Button size="sm" href={linksHref} trailingIcon="arrow-right">
+                {labels.ownedCta}
+              </Button>
+            ) : (
+              <Button size="sm" href={claimHref} trailingIcon="arrow-right">
+                {labels.claimCta}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full max-w-xl min-w-0 flex-col items-center gap-2">
-      <form
-        className="landing-shorten"
-        onSubmit={(event) => {
-          void handleSubmit(event);
-        }}
+    <form
+      noValidate
+      className="flex w-full max-w-2xl min-w-0 flex-col gap-2"
+      aria-busy={pending}
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+    >
+      <label htmlFor={inputId} className="sr-only">
+        {labels.label}
+      </label>
+      <div
+        className={cn(
+          "flex min-w-0 flex-col gap-2 rounded-xl border bg-bg p-2 shadow-pop transition-[border-color,box-shadow] duration-150 focus-within:border-accent focus-within:shadow-[0_0_0_4px_var(--ring)] sm:flex-row sm:items-center",
+          error ? "border-danger" : "border-border-strong",
+        )}
       >
-        <Icon name="link" className="text-sm shrink-0 text-fg-subtle" aria-hidden="true" />
-        <input
-          type="url"
-          name="url"
-          value={value}
-          placeholder={placeholder}
-          autoComplete="url"
-          disabled={pending}
-          onChange={(event) => {
-            setValue(event.target.value);
-          }}
-        />
-        <button type="submit" className="kit-btn kit-btn--primary" disabled={pending}>
-          {submit}
-          <Icon name="arrow-right" className="text-sm" aria-hidden="true" />
-        </button>
-      </form>
+        <span className="flex min-w-0 flex-1 items-center gap-2.5 pl-2.5">
+          <Icon name="link" className="text-sm text-fg-subtle" />
+          <input
+            ref={inputRef}
+            id={inputId}
+            type="text"
+            inputMode="url"
+            name="url"
+            value={value}
+            placeholder={labels.placeholder}
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            maxLength={2048}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : hintId}
+            suppressHydrationWarning
+            className="h-11 min-h-0 flex-1 border-0 bg-transparent px-0 text-[15px] shadow-none hover:border-0 focus:shadow-none"
+            onChange={(event) => {
+              setValue(event.target.value);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+        </span>
+        <Button type="submit" variant="primary" size="lg" loading={pending} trailingIcon="arrow-right">
+          {labels.submit}
+        </Button>
+      </div>
       {error ? (
-        <p className="m-0 text-sm text-danger" role="alert">
+        <p id={errorId} role="alert" className="m-0 flex items-center gap-1.5 px-1 text-left text-[13px] text-danger">
+          <Icon name="circle-xmark" className="text-xs" />
           {error}
         </p>
-      ) : null}
-    </div>
+      ) : (
+        <p id={hintId} className="m-0 px-1 text-[13px] text-fg-subtle">
+          {labels.hint}
+        </p>
+      )}
+    </form>
   );
 }

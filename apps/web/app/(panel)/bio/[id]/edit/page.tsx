@@ -2,14 +2,11 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { StatusBadge } from "@/components/shell/status-badge";
-import { Hero } from "@/components/ui";
 import { emptyBioForm, toFormDate, type BioFormValues } from "@/lib/bio-form";
-import { bioUrl, getBiopage } from "@/lib/biopages";
-import { serverEnv } from "@/lib/env";
+import { getBiopage, platformHostname } from "@/lib/biopages";
 import { listWorkspaceDomains } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
-import { BioBuilder } from "../../bio-builder";
+import { BioBuilder, type TabId } from "../../bio-builder";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("bio");
@@ -17,10 +14,19 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-export default async function EditBioPage({ params }: { params: Params }) {
+const TABS: readonly TabId[] = ["content", "profile", "design", "settings"];
+
+export default async function EditBioPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const [context, t] = await Promise.all([requireWorkspace(), getTranslations("bio")]);
-  const { id } = await params;
+  const [{ id }, raw] = await Promise.all([params, searchParams]);
 
   const [page, domains] = await Promise.all([
     getBiopage(context.workspace.id, id),
@@ -30,6 +36,9 @@ export default async function EditBioPage({ params }: { params: Params }) {
   if (!page) {
     notFound();
   }
+
+  const tabParam = Array.isArray(raw.tab) ? raw.tab[0] : raw.tab;
+  const initialTab = TABS.find((tab) => tab === tabParam) ?? "content";
 
   const defaults: BioFormValues = {
     ...emptyBioForm(page.handle),
@@ -76,24 +85,23 @@ export default async function EditBioPage({ params }: { params: Params }) {
     <PanelShell
       title={page.displayName}
       crumbs={[{ label: context.workspace.name }, { label: t("title"), href: "/bio" }]}
-      topbarActions={<StatusBadge status={page.published ? "published" : "draft"} />}
     >
-      <Hero
-        variant="compact"
-        eyebrow={t("builder")}
-        title={page.displayName}
-        description={bioUrl(page.hostname, page.handle)}
-      />
       <BioBuilder
-        mode="edit"
         biopageId={page.id}
         defaultValues={defaults}
+        initialTab={initialTab}
+        welcome={raw.welcome === "1"}
         domains={domains
           .filter((domain) => !domain.isPlatform)
-          .map((domain) => ({ id: domain.id, hostname: domain.hostname }))}
-        platformHostname={serverEnv().PLATFORM_SHORT_DOMAIN}
+          .map((domain) => ({
+            id: domain.id,
+            hostname: domain.hostname,
+            ready: domain.status === "active",
+          }))}
+        platformHostname={platformHostname()}
         canCustomCss={context.plan.features.customCss}
         canForms={context.plan.features.bioForms}
+        canPassword={context.plan.features.passwordProtection}
       />
     </PanelShell>
   );

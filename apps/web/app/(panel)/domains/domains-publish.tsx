@@ -1,40 +1,44 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
-import { useActionMessage } from "@/lib/action-message";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
-import { Button, Card } from "@/components/ui";
+import { useTransition } from "react";
+import { Button, Disclosure, toast } from "@/components/ui";
+import { useActionMessage } from "@/lib/action-message";
 import { resyncKvAction } from "./actions";
 import { domainActionError } from "./errors";
 
+/**
+ * Manual escape hatch for when the edge and the database drift apart. Rarely
+ * needed, so it sits collapsed at the bottom of the list.
+ */
 export function DomainsPublish() {
   const t = useTranslations("domains");
   const te = useTranslations("errors");
   const actionMessage = useActionMessage();
   const [pending, startTransition] = useTransition();
-  const [notice, setNotice] = useState<string | null>(null);
 
-  async function resync(): Promise<void> {
-    setNotice(null);
-    const result = await resyncKvAction();
-    setNotice(
-      result.ok
-        ? t("publishedCount", { count: result.data.count })
-        : domainActionError(result.error, result.fieldErrors, "", t, te, actionMessage),
-    );
+  function resync(): void {
+    startTransition(async () => {
+      const result = await resyncKvAction();
+      if (result.ok) {
+        toast.success(t("publishedCount", { count: result.data.count }));
+        return;
+      }
+      toast.error(domainActionError(result.error, result.fieldErrors, "", t, te, actionMessage));
+    });
   }
 
   return (
-    <Card staticHover className="flex-row flex-wrap items-center justify-between gap-4">
-      <span className="min-w-0">
-        <span className="block text-sm font-medium">{t("publishTitle")}</span>
-        <span className="block text-sm text-fg-muted">{notice ?? t("publishHint")}</span>
-      </span>
-      <Button disabled={pending} onClick={() => startTransition(async () => { await resync(); })}>
-        <Icon name="rotate-right" className="text-base" />
-        {t("resync")}
-      </Button>
-    </Card>
+    <Disclosure title={t("troubleshootTitle")} description={t("troubleshootDesc")}>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
+        <span className="flex min-w-0 flex-1 basis-64 flex-col gap-0.5">
+          <span className="text-sm font-medium text-ink">{t("publishTitle")}</span>
+          <span className="text-[13px] text-fg-muted">{t("publishHint")}</span>
+        </span>
+        <Button leadingIcon="rotate-right" loading={pending} onClick={resync}>
+          {t("resync")}
+        </Button>
+      </div>
+    </Disclosure>
   );
 }

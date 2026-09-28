@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { clientIp } from "@/lib/abuse";
-import { createBioLead, getLiveBiopageById } from "@/lib/biopages";
+import { bioLeadExists, createBioLead, getLiveBiopageById } from "@/lib/biopages";
 import { rateLimit } from "@/lib/redis";
 
 export const runtime = "nodejs";
@@ -57,11 +57,18 @@ export async function POST(request: NextRequest) {
     return reply({ error: "not_found" }, 404);
   }
 
+  const email = parsed.data.email.toLowerCase();
+  // A repeat sign-up is answered like a new one (no enumeration of who is on the list),
+  // but it is not stored twice.
+  if (await bioLeadExists(page.id, email)) {
+    return reply({ ok: true });
+  }
+
   const ipHash = createHash("sha256").update(ip).digest("hex").slice(0, 32);
   await createBioLead({
     biopageId: page.id,
     blockId: block.id,
-    email: parsed.data.email.toLowerCase(),
+    email,
     ipHash,
   });
 

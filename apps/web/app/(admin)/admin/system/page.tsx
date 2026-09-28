@@ -2,17 +2,13 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Icon, type IconName } from "@/components/kit/icon";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { Badge, Card, Grid, Hero, Section } from "@/components/ui";
+import { Badge, Callout, Card, Grid, PageHeader, StatCard } from "@/components/ui";
+import { cn } from "@/lib/cx";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import {
-  HEALTH_STATUS_KEYS,
-  getIngestLag,
-  runHealthChecks,
-  type HealthCheck,
-  type HealthState,
-} from "@/lib/health";
+import { HEALTH_STATUS_KEYS, getIngestLag, runHealthChecks, type HealthState } from "@/lib/health";
 import { requireSuperadmin } from "@/lib/session";
 import { getStripeStatus } from "@/lib/stripe";
+import { RecheckButton } from "./recheck-button";
 import { StripeSettings } from "./stripe-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,18 +19,22 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Probes run on every request; caching them would defeat the purpose. */
 export const dynamic = "force-dynamic";
 
-const STATE_META: Record<HealthState, { tone: "accent" | "warn" | "danger" | "muted"; icon: IconName }> = {
-  ok: { tone: "accent", icon: "circle-check" },
-  degraded: { tone: "warn", icon: "warning" },
-  down: { tone: "danger", icon: "circle-xmark" },
-  disabled: { tone: "muted", icon: "ban" },
+/** Ingest older than this means the worker → queue → ClickHouse path has stalled. */
+const LAG_WARN_SECONDS = 300;
+
+const STATE_META: Record<
+  HealthState,
+  { tone: "success" | "warn" | "danger" | "neutral"; icon: IconName; iconClass: string }
+> = {
+  ok: { tone: "success", icon: "circle-check", iconClass: "bg-success-surface text-success" },
+  degraded: { tone: "warn", icon: "warning", iconClass: "bg-warn-surface text-warn" },
+  down: { tone: "danger", icon: "circle-xmark", iconClass: "bg-danger-surface text-danger" },
+  disabled: { tone: "neutral", icon: "ban", iconClass: "bg-surface text-fg-subtle" },
 };
 
 export default async function AdminSystemPage() {
   await requireSuperadmin();
-  const t = await getTranslations("admin.system");
-  const tNav = await getTranslations("admin.nav");
-  const tn = await getTranslations("nav");
+  const [t, tNav] = await Promise.all([getTranslations("admin.system"), getTranslations("admin.nav")]);
 
   const [checks, lag, stripeStatus] = await Promise.all([
     runHealthChecks(),
@@ -44,129 +44,111 @@ export default async function AdminSystemPage() {
 
   const down = checks.filter((check) => check.state === "down").length;
   const degraded = checks.filter((check) => check.state === "degraded").length;
-  const lagTone = lag.lagSeconds === null ? "muted" : lag.lagSeconds > 300 ? "warn" : "accent";
+  const configured = checks.filter((check) => check.state !== "disabled");
   const healthyCount = checks.filter((check) => check.state === "ok").length;
+  const lagging = lag.lagSeconds !== null && lag.lagSeconds > LAG_WARN_SECONDS;
 
   return (
-    <PanelShell title={tn("admin-system")} crumbs={[{ label: tNav("admin") }, { label: tn("admin-system") }]}>
-      <Hero eyebrow={t("eyebrow")} title={t("title")} description={t("description")} />
+    <PanelShell title={t("title")} crumbs={[{ label: tNav("admin"), href: "/admin" }]}>
+      <PageHeader
+        title={t("title")}
+        meta={
+          <Badge tone={down > 0 ? "danger" : degraded > 0 ? "warn" : "success"} dot>
+            {down > 0 ? t("statusDown") : degraded > 0 ? t("statusDegraded") : t("statusOk")}
+          </Badge>
+        }
+        description={t("description")}
+        actions={<RecheckButton label={t("recheck")} />}
+      />
 
-      {down > 0 || degraded > 0 ? (
-        <Card
-          staticHover
-          className={
-            down > 0
-              ? "flex-row items-center gap-3 border-danger-border bg-danger-surface"
-              : "flex-row items-center gap-3 border-warn-border bg-warn-surface"
-          }
-        >
-          <Icon name="warning" className={down > 0 ? "text-sm text-danger" : "text-sm text-warn-ink"} />
-          <span className="text-sm">
-            {down > 0 ? t("downAlert", { count: down }) : t("slowAlert", { count: degraded })}
-          </span>
-        </Card>
+      {down > 0 ? (
+        <Callout tone="danger" title={t("downAlert", { count: down })}>
+          {t("downAlertBody")}
+        </Callout>
+      ) : degraded > 0 ? (
+        <Callout tone="warn" title={t("slowAlert", { count: degraded })}>
+          {t("slowAlertBody")}
+        </Callout>
+      ) : (
+        <Callout tone="success" title={t("allHealthy")}>
+          {t("allHealthyBody", { count: configured.length })}
+        </Callout>
+      )}
+
+      {lagging ? (
+        <Callout tone="warn" icon="clock" title={t("lagAlert", { seconds: formatNumber(lag.lagSeconds ?? 0) })}>
+          {t("lagAlertBody")}
+        </Callout>
       ) : null}
 
       <Grid columns={3}>
-        <Card
+        <StatCard
+          icon="clock"
           label={t("ingestLag")}
+          info={t("ingestLagInfo")}
           value={lag.lagSeconds === null ? "—" : `${formatNumber(lag.lagSeconds)}s`}
-          delta={
-            lag.lastEventAt
-              ? t("lastEvent", { when: formatDateTime(lag.lastEventAt) })
-              : t("noEvents")
+          deltaLabel={
+            lag.lastEventAt ? t("lastEvent", { when: formatDateTime(lag.lastEventAt) }) : t("noEvents")
           }
-          staticHover
-          className={lagTone === "warn" ? "border-warn-border" : undefined}
         />
-        <Card
+        <StatCard
+          icon="pulse"
           label={t("eventsHour")}
+          info={t("eventsHourInfo")}
           value={formatNumber(lag.eventsLastHour)}
-          delta={t("eventsHourDelta")}
-          staticHover
+          deltaLabel={t("eventsHourDelta")}
         />
-        <Card
+        <StatCard
+          icon="layer-group"
           label={t("dependencies")}
-          value={`${healthyCount}/${checks.length}`}
-          delta={t("healthy")}
-          staticHover
+          info={t("dependenciesInfo")}
+          value={`${healthyCount}/${configured.length}`}
+          deltaLabel={t("healthy")}
         />
       </Grid>
 
+      <Card title={t("dependencies")} description={t("dependenciesDesc")}>
+        <ul className="m-0 flex list-none flex-col divide-y divide-border-subtle p-0">
+          {checks.map((check) => {
+            const meta = STATE_META[check.state];
+            return (
+              <li key={check.id} className="flex min-w-0 flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <span
+                  className={cn("flex size-8 shrink-0 items-center justify-center rounded-default", meta.iconClass)}
+                  aria-hidden="true"
+                >
+                  <Icon name={meta.icon} className="text-xs" />
+                </span>
+                <span className="flex min-w-0 flex-1 basis-48 flex-col">
+                  <span className="truncate text-sm font-medium text-ink">{check.label}</span>
+                  <span className="truncate text-xs text-fg-muted" title={check.detail}>
+                    {check.detail}
+                  </span>
+                </span>
+                {check.latencyMs === null ? null : (
+                  <span className="numeric shrink-0 font-mono text-xs text-fg-subtle">
+                    {t("latencyMs", { ms: check.latencyMs })}
+                  </span>
+                )}
+                <Badge tone={meta.tone} dot>
+                  {t(HEALTH_STATUS_KEYS[check.state])}
+                </Badge>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+
       <StripeSettings status={stripeStatus} />
 
-      <Section title={t("dependencies")} description={t("dependenciesDesc")}>
-        <div className="flex min-w-0 flex-col gap-3">
-          {checks.map((check) => (
-            <HealthRow
-              key={check.id}
-              check={check}
-              statusLabel={t(HEALTH_STATUS_KEYS[check.state])}
-              latencyLabel={
-                check.latencyMs === null ? null : t("latencyMs", { ms: check.latencyMs })
-              }
-            />
-          ))}
-        </div>
-      </Section>
-
-      <Section title={t("edge")} description={t("edgeDesc")}>
-        <Grid columns={2}>
-          <Card staticHover className="gap-2">
-            <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              <Icon name="pulse" className="text-xs" />
-              {t("redirectWorker")}
-            </span>
-            <span className="text-sm text-fg-muted">{t("redirectWorkerBody")}</span>
-          </Card>
-          <Card staticHover className="gap-2">
-            <span className="flex items-center gap-2 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              <Icon name="pulse" className="text-xs" />
-              {t("ingestConsumer")}
-            </span>
-            <span className="text-sm text-fg-muted">{t("ingestConsumerBody")}</span>
-          </Card>
-        </Grid>
-      </Section>
+      <Grid columns={2}>
+        <Card title={t("redirectWorker")} description={t("edgeDesc")}>
+          <p className="m-0 text-[13px] leading-5 text-fg-muted">{t("redirectWorkerBody")}</p>
+        </Card>
+        <Card title={t("ingestConsumer")} description={t("edgeDesc")}>
+          <p className="m-0 text-[13px] leading-5 text-fg-muted">{t("ingestConsumerBody")}</p>
+        </Card>
+      </Grid>
     </PanelShell>
-  );
-}
-
-function HealthRow({
-  check,
-  statusLabel,
-  latencyLabel,
-}: {
-  check: HealthCheck;
-  statusLabel: string;
-  latencyLabel: string | null;
-}) {
-  const meta = STATE_META[check.state];
-
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-default border border-border px-4 py-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-default bg-surface">
-        <Icon
-          name={meta.icon}
-          className={
-            check.state === "ok"
-              ? "text-sm text-accent-ink"
-              : check.state === "down"
-                ? "text-sm text-danger"
-                : check.state === "degraded"
-                  ? "text-sm text-warn-ink"
-                  : "text-sm text-fg-subtle"
-          }
-        />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium">{check.label}</span>
-        <span className="truncate text-xs text-fg-muted">{check.detail}</span>
-      </span>
-      {latencyLabel ? (
-        <span className="shrink-0 font-mono text-xs text-fg-subtle">{latencyLabel}</span>
-      ) : null}
-      <Badge tone={meta.tone}>{statusLabel}</Badge>
-    </div>
   );
 }

@@ -1,52 +1,56 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { DocsPageShell } from "@/components/docs/docs-page-shell";
-import { DocsHero, DocsProse, DocsTable } from "@/components/docs/docs-ui";
+import { DocsCallout, DocsHero, DocsProse, DocsSection, DocsTable } from "@/components/docs/docs-ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("docs.analytics");
   return { title: t("metaTitle") };
 }
 
+const METRIC_ROWS = ["clicks", "visitors", "scans", "bio", "referrer", "country", "device", "utm"] as const;
+
 export default async function AnalyticsGuidePage() {
   const t = await getTranslations("docs.analytics");
 
   return (
     <DocsPageShell section="analytics">
-      <div className="flex flex-col gap-10">
-        <DocsHero title={t("title")} description={t("description")} />
+      <DocsHero icon="chart-line" title={t("title")} description={t("description")} />
 
+      <DocsSection id="dashboard" title={t("dashboardTitle")}>
         <DocsProse>
-          <h2>{t("dashboardTitle")}</h2>
           <p>{t("dashboardBody")}</p>
         </DocsProse>
+      </DocsSection>
 
+      <DocsSection id="per-link" title={t("linkTitle")}>
         <DocsProse>
-          <h2>{t("linkTitle")}</h2>
           <p>{t("linkBody")}</p>
         </DocsProse>
+      </DocsSection>
 
+      <DocsSection id="metrics" title={t("metricsTitle")}>
         <DocsTable
           headers={[t("table.metric"), t("table.meaning")]}
-          rows={[
-            [t("table.rows.clicks"), t("table.rows.clicksDesc")],
-            [t("table.rows.visitors"), t("table.rows.visitorsDesc")],
-            [t("table.rows.referrer"), t("table.rows.referrerDesc")],
-            [t("table.rows.country"), t("table.rows.countryDesc")],
-            [t("table.rows.device"), t("table.rows.deviceDesc")],
-          ]}
+          rows={METRIC_ROWS.map((row) => [t(`table.rows.${row}`), t(`table.rows.${row}Desc`)])}
         />
+      </DocsSection>
 
+      <DocsCallout title={t("botsTitle")}>
+        <p>{t("botsBody")}</p>
+      </DocsCallout>
+
+      <DocsSection id="ranges" title={t("rangesTitle")}>
         <DocsProse>
-          <h2>{t("rangesTitle")}</h2>
           <p>{t("rangesBody")}</p>
         </DocsProse>
+      </DocsSection>
 
+      <DocsSection id="export" title={t("exportTitle")}>
         <DocsProse>
-          <h2>{t("exportTitle")}</h2>
           <p>{t("exportBody")}</p>
         </DocsProse>
-      </div>
+      </DocsSection>
     </DocsPageShell>
   );
 }

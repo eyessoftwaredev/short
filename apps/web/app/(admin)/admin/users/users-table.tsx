@@ -1,33 +1,19 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
-import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import {
+  Avatar,
   Badge,
-  Button,
-  Dropdown,
-  Field,
-  Input,
-  Modal,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeaderCell,
   TableRow,
-  type DropdownItem,
 } from "@/components/ui";
-import { useActionMessage } from "@/lib/action-message";
-import { formatDate } from "@/lib/format";
-import {
-  banUserAction,
-  impersonateUserAction,
-  setSuperadminAction,
-  unbanUserAction,
-} from "./actions";
+import { formatDate, formatNumber } from "@/lib/format";
+import { UserActions } from "./user-actions";
 
 export type AdminUserView = {
   id: string;
@@ -41,164 +27,90 @@ export type AdminUserView = {
   workspaces: number;
 };
 
+function initialsOf(name: string, email: string): string {
+  const source = name.trim() === "" ? email : name;
+  const parts = source.split(/[\s@._-]+/).filter(Boolean);
+  return `${parts[0]?.[0] ?? "?"}${parts.length > 1 ? (parts[1]?.[0] ?? "") : ""}`.toUpperCase();
+}
+
+/** Every state an account can be in, loudest first; "Active" only when nothing else applies. */
+export function UserStatusBadges({ user }: { user: Pick<AdminUserView, "banned" | "role" | "emailVerified"> }) {
+  const t = useTranslations("admin.users");
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {user.banned ? (
+        <Badge tone="danger" dot>
+          {t("banned")}
+        </Badge>
+      ) : null}
+      {user.role === "superadmin" ? <Badge tone="accent">{t("platformAdmin")}</Badge> : null}
+      {user.emailVerified ? null : (
+        <Badge tone="warn" dot>
+          {t("unverified")}
+        </Badge>
+      )}
+      {!user.banned && user.emailVerified && user.role !== "superadmin" ? (
+        <Badge tone="success" dot>
+          {t("active")}
+        </Badge>
+      ) : null}
+    </span>
+  );
+}
+
 export function UsersTable({ rows, currentUserId }: { rows: AdminUserView[]; currentUserId: string }) {
-  const router = useRouter();
   const t = useTranslations("admin.users");
   const tNav = useTranslations("admin.nav");
-  const tc = useTranslations("common");
-  const actionMessage = useActionMessage();
-  const [pending, startTransition] = useTransition();
-  const [banTarget, setBanTarget] = useState<AdminUserView | null>(null);
-  const [reason, setReason] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  function run(action: () => Promise<{ ok: boolean; error?: string }>): void {
-    setError(null);
-    startTransition(async () => {
-      const result = await action();
-      if (!result.ok) {
-        setError(actionMessage(result.error));
-        return;
-      }
-      router.refresh();
-    });
-  }
-
-  function confirmBan(): void {
-    const target = banTarget;
-    if (!target) {
-      return;
-    }
-    setBanTarget(null);
-    run(() => banUserAction(target.id, reason));
-    setReason("");
-  }
-
-  function menuFor(row: AdminUserView): DropdownItem[] {
-    const items: DropdownItem[] = [
-      {
-        id: "open",
-        label: t("openProfile"),
-        icon: <Icon name="user-gear" className="text-sm" />,
-        href: `/admin/users/${row.id}`,
-      },
-    ];
-
-    if (row.id !== currentUserId && !row.banned && row.role !== "superadmin") {
-      items.push({
-        id: "impersonate",
-        label: t("impersonate"),
-        icon: <Icon name="user-check" className="text-sm" />,
-        onSelect: () =>
-          startTransition(async () => {
-            const result = await impersonateUserAction(row.id);
-            if (!result.ok) {
-              setError(actionMessage(result.error));
-              return;
-            }
-            // The session now belongs to the impersonated user, so land in their panel.
-            window.location.href = "/dashboard";
-          }),
-      });
-    }
-
-    items.push({
-      id: "role",
-      label: row.role === "superadmin" ? t("revokeAdmin") : t("makeAdmin"),
-      onSelect: () => run(() => setSuperadminAction(row.id, row.role !== "superadmin")),
-    });
-
-    items.push(
-      row.banned
-        ? { id: "unban", label: t("liftBan"), onSelect: () => run(() => unbanUserAction(row.id)) }
-        : {
-            id: "ban",
-            label: t("banUser"),
-            danger: true,
-            onSelect: () => {
-              setReason("");
-              setBanTarget(row);
-            },
-          },
-    );
-
-    return items;
-  }
 
   return (
-    <div className="flex min-w-0 flex-col gap-3" aria-busy={pending}>
-      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
-
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableHeaderCell>{tNav("user")}</TableHeaderCell>
-            <TableHeaderCell>{tNav("status")}</TableHeaderCell>
-            <TableHeaderCell className="text-right">{t("workspacesCard")}</TableHeaderCell>
-            <TableHeaderCell>{tNav("joined")}</TableHeaderCell>
-            <TableHeaderCell className="text-right">{tNav("actions")}</TableHeaderCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <Link href={`/admin/users/${row.id}`} className="flex min-w-0 flex-col no-underline">
-                  <span className="truncate text-sm font-medium text-ink">{row.name}</span>
+    <Table label={t("metaTitle")}>
+      <TableHead>
+        <TableRow>
+          <TableHeaderCell>{tNav("user")}</TableHeaderCell>
+          <TableHeaderCell>{tNav("status")}</TableHeaderCell>
+          <TableHeaderCell numeric className="hidden md:table-cell">
+            {t("workspacesCard")}
+          </TableHeaderCell>
+          <TableHeaderCell className="hidden sm:table-cell">{tNav("joined")}</TableHeaderCell>
+          <TableHeaderCell className="w-px">
+            <span className="sr-only">{tNav("actions")}</span>
+          </TableHeaderCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
+            <TableCell>
+              <Link
+                href={`/admin/users/${row.id}`}
+                className="flex min-w-0 items-center gap-3 no-underline hover:no-underline"
+              >
+                <Avatar size="md" tone={row.role === "superadmin" ? "accent" : "neutral"}>
+                  {initialsOf(row.name, row.email)}
+                </Avatar>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-medium text-ink hover:text-accent-ink">
+                    {row.name || row.email}
+                  </span>
                   <span className="truncate font-mono text-xs text-fg-muted">{row.email}</span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <span className="flex flex-wrap items-center gap-2">
-                  {row.banned ? <Badge tone="danger">{t("banned")}</Badge> : null}
-                  {row.role === "superadmin" ? <Badge tone="accent">{t("platformAdmin")}</Badge> : null}
-                  {row.emailVerified ? null : <Badge tone="warn">{t("unverified")}</Badge>}
-                  {!row.banned && row.emailVerified && row.role !== "superadmin" ? (
-                    <Badge tone="muted">{t("active")}</Badge>
-                  ) : null}
                 </span>
-              </TableCell>
-              <TableCell className="text-right font-mono">{row.workspaces}</TableCell>
-              <TableCell className="text-sm text-fg-muted">{formatDate(row.createdAt)}</TableCell>
-              <TableCell>
-                <span className="flex justify-end">
-                  <Dropdown
-                    items={menuFor(row)}
-                    trigger={
-                      <Button size="sm" icon aria-label={t("actionsFor", { email: row.email })}>
-                        <Icon name="ellipsis" className="text-sm" />
-                      </Button>
-                    }
-                  />
-                </span>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      <Modal
-        open={banTarget !== null}
-        title={t("banTitle", { email: banTarget?.email ?? "" })}
-        description={t("banDesc")}
-        onClose={() => setBanTarget(null)}
-        footer={
-          <>
-            <Button onClick={() => setBanTarget(null)}>{tc("cancel")}</Button>
-            <Button variant="primary" onClick={confirmBan}>
-              {t("banUser")}
-            </Button>
-          </>
-        }
-      >
-        <Field label={t("reason")} info={t("banReasonInfo")} hint={t("reasonHint")}>
-          <Input
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder={t("reasonPlaceholder")}
-          />
-        </Field>
-      </Modal>
-    </div>
+              </Link>
+            </TableCell>
+            <TableCell>
+              <UserStatusBadges user={row} />
+            </TableCell>
+            <TableCell numeric className="hidden text-fg-muted md:table-cell">
+              {formatNumber(row.workspaces)}
+            </TableCell>
+            <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted sm:table-cell">
+              {formatDate(row.createdAt)}
+            </TableCell>
+            <TableCell align="right">
+              <UserActions user={row} currentUserId={currentUserId} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { DocsPageShell } from "@/components/docs/docs-page-shell";
-import { DocsCallout, DocsHero, DocsProse } from "@/components/docs/docs-ui";
+import { DocsCallout, DocsHero, DocsProse, DocsSection } from "@/components/docs/docs-ui";
+import { serverEnv } from "@/lib/env";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("docs.bioPages");
@@ -10,43 +11,50 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BioPagesGuidePage() {
   const t = await getTranslations("docs.bioPages");
+  const host = serverEnv().PLATFORM_SHORT_DOMAIN;
 
   return (
     <DocsPageShell section="bio-pages">
-      <div className="flex flex-col gap-10">
-        <DocsHero title={t("title")} description={t("description")} />
+      <DocsHero icon="address-card" title={t("title")} description={t("description")} />
 
+      <DocsSection id="handle" title={t("handleTitle")}>
         <DocsProse>
-          <h2>{t("handleTitle")}</h2>
-          <p>{t("handleBody")}</p>
+          <p>{t.rich("handleBody", { host, code: (chunks) => <code>{chunks}</code> })}</p>
         </DocsProse>
+      </DocsSection>
 
+      <DocsSection id="blocks" title={t("blocksTitle")}>
         <DocsProse>
-          <h2>{t("blocksTitle")}</h2>
           <p>{t("blocksBody")}</p>
           <ul>
-            <li>{t("blocks.0")}</li>
-            <li>{t("blocks.1")}</li>
-            <li>{t("blocks.2")}</li>
-            <li>{t("blocks.3")}</li>
-            <li>{t("blocks.4")}</li>
+            {(["0", "1", "2", "3", "4", "5"] as const).map((key) => (
+              <li key={key}>{t(`blocks.${key}`)}</li>
+            ))}
           </ul>
         </DocsProse>
+      </DocsSection>
 
+      <DocsSection id="look" title={t("lookTitle")}>
         <DocsProse>
-          <h2>{t("publishTitle")}</h2>
+          <p>{t("lookBody")}</p>
+        </DocsProse>
+      </DocsSection>
+
+      <DocsSection id="publish" title={t("publishTitle")}>
+        <DocsProse>
           <p>{t("publishBody")}</p>
         </DocsProse>
+      </DocsSection>
 
-        <DocsCallout title={t("leadsTitle")} variant="tip">
-          <p>{t("leadsBody")}</p>
-        </DocsCallout>
+      <DocsCallout title={t("leadsTitle")} variant="tip">
+        <p>{t("leadsBody")}</p>
+      </DocsCallout>
 
+      <DocsSection id="stats" title={t("statsTitle")}>
         <DocsProse>
-          <h2>{t("statsTitle")}</h2>
           <p>{t("statsBody")}</p>
         </DocsProse>
-      </div>
+      </DocsSection>
     </DocsPageShell>
   );
 }

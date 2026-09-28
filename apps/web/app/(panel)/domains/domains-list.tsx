@@ -1,13 +1,12 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Icon } from "@/components/kit/icon";
 import {
   Badge,
   Button,
-  EmptyState,
   Table,
   TableBody,
   TableCell,
@@ -15,70 +14,93 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@/components/ui";
-import { listStatus, type DomainRowView } from "./types";
+import { formatNumber } from "@/lib/format";
+import { cn } from "@/lib/cx";
+import { DomainStatusBadge } from "./domain-status-badge";
+import { DOMAIN_STATE_KEYS, domainState, type DomainRowView } from "./types";
 
 type DomainsListProps = {
   rows: DomainRowView[];
+  canManage: boolean;
 };
 
-export function DomainsList({ rows }: DomainsListProps) {
+export function DomainsList({ rows, canManage }: DomainsListProps) {
   const t = useTranslations("domains");
   const router = useRouter();
 
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        tone="first-run"
-        icon={<Icon name="globe" className="text-lg" />}
-        title={t("emptyTitle")}
-        description={t("emptyDesc")}
-        actions={
-          <Button variant="primary" href="/domains/new">
-            <Icon name="plus" className="text-sm" />
-            {t("add")}
-          </Button>
-        }
-      />
-    );
-  }
-
   return (
-    <Table>
+    <Table label={t("title")}>
       <TableHead>
         <TableRow>
-          <TableHeaderCell>{t("hostname")}</TableHeaderCell>
+          <TableHeaderCell>{t("colDomain")}</TableHeaderCell>
           <TableHeaderCell>{t("status")}</TableHeaderCell>
-          <TableHeaderCell className="hidden sm:table-cell">{t("links")}</TableHeaderCell>
-          <TableHeaderCell className="w-24 text-right">{t("open")}</TableHeaderCell>
+          <TableHeaderCell className="hidden md:table-cell">{t("colNext")}</TableHeaderCell>
+          <TableHeaderCell numeric className="hidden sm:table-cell">
+            {t("links")}
+          </TableHeaderCell>
+          <TableHeaderCell className="w-px">
+            <span className="sr-only">{t("actions")}</span>
+          </TableHeaderCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {rows.map((row) => {
-          const verified = listStatus(row) === "verified";
+          const state = domainState(row);
+          const href = `/domains/${row.id}`;
+          const needsSetup = state !== "live";
           return (
-            <TableRow key={row.id} interactive onClick={() => router.push(`/domains/${row.id}`)}>
+            <TableRow key={row.id} interactive onClick={() => router.push(href)}>
               <TableCell>
-                <Link href={`/domains/${row.id}`} className="flex min-w-0 items-center gap-2 font-medium">
-                  <span className="truncate">{row.hostname}</span>
-                  {row.isPlatform ? (
-                    <Badge tone="muted" className="shrink-0">
-                      {t("platform")}
-                    </Badge>
-                  ) : null}
-                  {row.isDefault ? (
-                    <Badge tone="accent" className="shrink-0">
-                      {t("default")}
-                    </Badge>
-                  ) : null}
-                </Link>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={cn(
+                      "hidden size-8 shrink-0 items-center justify-center rounded-default sm:flex",
+                      state === "live" ? "bg-success-surface text-success" : "bg-surface text-fg-muted",
+                    )}
+                    aria-hidden="true"
+                  >
+                    <Icon name="globe" className="text-xs" />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Link
+                        href={href}
+                        className="truncate font-medium text-ink no-underline hover:text-accent-ink hover:no-underline"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {row.hostname}
+                      </Link>
+                      {row.isDefault ? (
+                        <Badge tone="accent" size="sm">
+                          {t("default")}
+                        </Badge>
+                      ) : null}
+                    </span>
+                    {/* The "what's next" column is hidden on small screens; say it here instead. */}
+                    <span className="truncate text-xs text-fg-subtle md:hidden">
+                      {t(DOMAIN_STATE_KEYS[state].next)}
+                    </span>
+                  </span>
+                </span>
               </TableCell>
               <TableCell>
-                <Badge tone={verified ? "accent" : "warn"}>{verified ? t("verified") : t("pending")}</Badge>
+                <DomainStatusBadge state={state} />
               </TableCell>
-              <TableCell className="hidden sm:table-cell">{row.linkCount}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm" href={`/domains/${row.id}`}>
-                  {t("open")}
+              <TableCell className="hidden text-[13px] text-fg-muted md:table-cell">
+                {t(DOMAIN_STATE_KEYS[state].next)}
+              </TableCell>
+              <TableCell numeric className="hidden text-fg-muted sm:table-cell">
+                {formatNumber(row.linkCount)}
+              </TableCell>
+              <TableCell align="right">
+                <Button
+                  size="sm"
+                  variant={needsSetup && canManage ? "secondary" : "ghost"}
+                  trailingIcon="chevron-right"
+                  href={href}
+                  className="whitespace-nowrap"
+                >
+                  {needsSetup && canManage ? t("continueSetup") : t("manage")}
                 </Button>
               </TableCell>
             </TableRow>

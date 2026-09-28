@@ -1,6 +1,7 @@
 import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { features } from "@/lib/env";
 import { redirectIfAuthenticated } from "@/lib/session";
 import { safeInternalPath } from "@/lib/two-factor";
 import { AuthShell, type AuthHighlight } from "../_auth/auth-shell";
@@ -48,7 +49,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
       highlights={highlights}
       crossLink={{ prompt: t("noAccount"), label: t("createOne"), href: "/register" }}
     >
-      <LoginForm />
+      <LoginForm googleEnabled={features().google} />
     </AuthShell>
   );
 }

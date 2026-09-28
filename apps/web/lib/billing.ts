@@ -14,7 +14,7 @@ import {
   type SubscriptionRow,
 } from "@short/db";
 import { currentPeriod } from "./quota";
-import { getStripe, stripeEnabled } from "./stripe";
+import { getStripe, stripeEnabled, toSubscriptionStatus } from "./stripe";
 import { getPersonalWorkspaceId, getWorkspaceOwnerId } from "./workspace";
 
 export type BillingPlan = PlanRow & { definition: PlanDefinition };
@@ -143,6 +143,51 @@ export async function grantInfinityToUser(userId: string): Promise<void> {
   await assignUserPlan(userId, "infinity");
 }
 
+const BILLABLE_STATUSES = new Set(["active", "trialing", "past_due"]);
+
+/**
+ * Promotion overwrites the plan with the staff-only Infinity plan, and demotion used to
+ * leave it there — a former admin kept unlimited everything. Put them back on the plan
+ * their live Stripe subscription pays for, or Free when there is none.
+ */
+export async function revokeInfinityFromUser(userId: string): Promise<void> {
+  const current = await getSubscription(userId);
+  if (!current || current.planKey !== "infinity") {
+    return;
+  }
+
+  let planKey: PlanKey = "free";
+  let status = "active";
+  let interval = current.interval;
+  if (current.stripeSubscriptionId && (await stripeEnabled())) {
+    try {
+      const live = await (await getStripe()).subscriptions.retrieve(current.stripeSubscriptionId);
+      const priceId = live.items.data[0]?.price.id;
+      const mapped = priceId ? await planForStripePrice(priceId) : null;
+      if (mapped && BILLABLE_STATUSES.has(live.status)) {
+        planKey = mapped.key;
+        interval = mapped.interval;
+        status = toSubscriptionStatus(live.status);
+      }
+    } catch (error) {
+      // Free is the safe fallback; the next subscription webhook corrects it.
+      console.error("revokeInfinityFromUser: stripe lookup failed", error);
+    }
+  }
+
+  await upsertSubscription({
+    userId,
+    planKey,
+    status,
+    interval,
+    stripeCustomerId: current.stripeCustomerId,
+    stripeSubscriptionId: current.stripeSubscriptionId,
+    currentPeriodStart: current.currentPeriodStart,
+    currentPeriodEnd: current.currentPeriodEnd,
+    cancelAtPeriodEnd: current.cancelAtPeriodEnd,
+  });
+}
+
 export async function upsertSubscription(values: SubscriptionUpsert): Promise<void> {
   await getDb()
     .insert(subscriptions)
@@ -199,6 +244,8 @@ export type InvoiceView = {
   number: string;
   created: Date;
   amountPaid: number;
+  /** Invoice total. An open (unpaid) invoice has `amountPaid` 0, which read as "free". */
+  amount: number;
   currency: string;
   status: string;
   pdfUrl: string | null;
@@ -229,6 +276,7 @@ export async function getBillingAccount(customerId: string | null): Promise<Bill
         number: invoice.number ?? invoice.id ?? "",
         created: new Date(invoice.created * 1000),
         amountPaid: invoice.amount_paid,
+        amount: invoice.status === "paid" ? invoice.amount_paid : invoice.total,
         currency: invoice.currency.toUpperCase(),
         status: invoice.status ?? "draft",
         pdfUrl: invoice.invoice_pdf ?? null,

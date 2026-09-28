@@ -5,12 +5,18 @@ import {
   bioBlockSchema,
   biopageInputSchema,
   handleSchema,
+  isHexColor,
   scheduleInstant,
   type BioBlock,
   type BioBlockType,
   type BiopageInput,
 } from "@short/core";
 import { z } from "zod";
+
+/** Empty means "use the theme"; anything else must be a hex colour the server accepts. */
+const optionalHex = z
+  .string()
+  .refine((value) => value.trim() === "" || isHexColor(value.trim()), { message: "hexColor" });
 
 export const bioFormSchema = z.object({
   handle: handleSchema,
@@ -22,12 +28,12 @@ export const bioFormSchema = z.object({
   buttonStyle: z.enum(BIOPAGE_BUTTON_STYLES),
   templateId: z.string().nullable(),
   bgType: z.enum(["theme", "color", "gradient", "image"]),
-  bgColor: z.string(),
-  bgGradient: z.string(),
+  bgColor: optionalHex,
+  bgGradient: z.string().max(400, { message: "gradientLength" }),
   bgImageUrl: z.string(),
-  buttonColor: z.string(),
-  buttonTextColor: z.string(),
-  textColor: z.string(),
+  buttonColor: optionalHex,
+  buttonTextColor: optionalHex,
+  textColor: optionalHex,
   fontFamily: z.enum(BIOPAGE_FONTS),
   profileMode: z.enum(["photo", "text", "logo"]),
   logoUrl: z.string(),
@@ -43,7 +49,12 @@ export const bioFormSchema = z.object({
   adRightHref: z.string(),
   customCss: z.string().max(4000),
   sensitive: z.boolean(),
-  password: z.string(),
+  // Empty keeps the stored password; a new one has to meet the server's 8–128 rule.
+  password: z
+    .string()
+    .refine((value) => value === "" || (value.length >= 8 && value.length <= 128), {
+      message: "passwordLength",
+    }),
   removePassword: z.boolean(),
   hasPassword: z.boolean(),
   publishAt: z.string(),
@@ -51,7 +62,18 @@ export const bioFormSchema = z.object({
   seoTitle: z.string().trim().max(120),
   seoDescription: z.string().trim().max(300),
   published: z.boolean(),
-  blocks: z.array(bioBlockSchema).max(100),
+  blocks: z
+    .array(bioBlockSchema)
+    .max(100)
+    .superRefine((blocks, ctx) => {
+      // The stored schema lets an image block be empty (older rows), but a new one
+      // without a picture would render as a broken image on the public page.
+      blocks.forEach((block, index) => {
+        if (block.type === "image" && block.url.trim() === "") {
+          ctx.addIssue({ code: "custom", message: "imageRequired", path: [index, "url"] });
+        }
+      });
+    }),
 });
 
 export type BioFormValues = z.infer<typeof bioFormSchema>;
@@ -154,7 +176,11 @@ export function toBiopageInput(values: BioFormValues): BiopageInput {
 }
 
 /** Sensible starting config per block type, so a freshly added block already renders. */
-export function newBlock(type: BioBlockType, position: number): BioBlock {
+export function newBlock(
+  type: BioBlockType,
+  position: number,
+  copy: { linkLabel?: string; heading?: string; formButton?: string } = {},
+): BioBlock {
   const id = crypto.randomUUID();
 
   switch (type) {
@@ -163,7 +189,7 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
         id,
         position,
         type: "link",
-        label: "",
+        label: copy.linkLabel ?? "",
         destination: "https://",
         iconUrl: null,
         highlighted: false,
@@ -182,11 +208,12 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
     case "text":
       return { id, position, type: "text", body: "", align: "center", visible: true };
     case "header":
-      return { id, position, type: "header", text: "", visible: true };
+      return { id, position, type: "header", text: copy.heading ?? "", visible: true };
     case "image":
-      return { id, position, type: "image", url: "https://", alt: "", href: null, visible: true };
+      // No placeholder URL: "https://" failed the media-path check and drew a broken image.
+      return { id, position, type: "image", url: "", alt: "", href: null, visible: true };
     case "embed":
-      return { id, position, type: "embed", provider: "youtube", url: "https://", visible: true };
+      return { id, position, type: "embed", provider: "youtube", url: "", visible: true };
     case "form":
       return {
         id,
@@ -194,7 +221,7 @@ export function newBlock(type: BioBlockType, position: number): BioBlock {
         type: "form",
         mode: "email",
         title: "",
-        buttonLabel: "Subscribe",
+        buttonLabel: copy.formButton ?? "Subscribe",
         whatsappNumber: null,
         successMessage: "",
         visible: true,

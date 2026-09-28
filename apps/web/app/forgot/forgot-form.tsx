@@ -1,11 +1,10 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Field, Input } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
-import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
+import { AuthAlert, AuthHeading, AuthValue } from "../_auth/auth-primitives";
 
 export function ForgotForm() {
   const t = useTranslations("auth");
@@ -29,34 +28,23 @@ export function ForgotForm() {
 
   if (sent) {
     return (
-      <div className="flex min-w-0 flex-col gap-6">
-        <span
-          className="flex size-11 items-center justify-center rounded-default bg-accent-surface text-accent-ink"
-          aria-hidden="true"
-        >
-          <Icon name="envelope-circle-check" className="text-lg" />
-        </span>
+      <div className="flex min-w-0 flex-col gap-6" aria-live="polite">
+        <AuthHeading icon="envelope-circle-check" title={t("forgotSentTitle")} description={t("forgotSentDescription")} />
 
-        <AuthHeading title={t("forgotSentTitle")} description={t("forgotSentDescription")} />
-
-        <div className="flex min-w-0 flex-col gap-1.5 rounded-default border border-border bg-surface-subtle px-4 py-3.5">
-          <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-            {t("forgotRequestedFor")}
-          </span>
-          <span className="min-w-0 font-mono text-sm break-all text-ink">{email}</span>
-        </div>
+        <AuthValue label={t("forgotRequestedFor")} value={email} />
 
         <AuthAlert tone="info">{t("forgotBlind")}</AuthAlert>
 
         <div className="flex flex-wrap gap-2.5">
           <Button
+            leadingIcon="rotate-right"
             onClick={() => {
               setSent(false);
             }}
           >
             {t("forgotAnother")}
           </Button>
-          <Button variant="ghost" href="/login">
+          <Button variant="ghost" href="/login" leadingIcon="arrow-left">
             {t("verifyBackToSignIn")}
           </Button>
         </div>
@@ -80,19 +68,23 @@ export function ForgotForm() {
             type="email"
             name="email"
             autoComplete="email"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
             required
-            placeholder="you@acme.com"
+            autoFocus
+            placeholder={t("emailPlaceholder")}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </Field>
 
-        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
+        <Button type="submit" variant="primary" size="lg" block loading={pending}>
           {pending ? t("forgotSending") : t("forgotSubmit")}
         </Button>
       </form>
 
-      <p className="m-0 text-sm text-fg-muted">{t("forgotSettingsHint")}</p>
+      <p className="m-0 text-[13px] leading-relaxed text-fg-subtle">{t("forgotSettingsHint")}</p>
     </>
   );
 }

@@ -12,6 +12,12 @@ export function domainActionError(
   if (error === "domain_www") {
     return t("noWww");
   }
+  if (error === "domain_invalid") {
+    return t("errorInvalid");
+  }
+  if (error === "quota") {
+    return t("errorQuota");
+  }
   if (error === "cloudflare_rejected") {
     return t("cloudflareRejected", { message: fieldErrors?.detail?.[0] ?? "" });
   }
@@ -19,10 +25,10 @@ export function domainActionError(
     return t("cloudflareCheckFailed", { message: fieldErrors?.detail?.[0] ?? "" });
   }
   if (error === "cf_token_invalid") {
-    return t("cfTokenInvalid");
+    return t("cfTokenExpired");
   }
   if (error === "cf_no_zone") {
-    return t("cfNoZone", { host: fieldErrors?.host?.[0] ?? host });
+    return t("cfNoZoneHelp", { host: fieldErrors?.host?.[0] ?? host });
   }
   if (error === "cf_not_connected") {
     return t("cfNotConnected");

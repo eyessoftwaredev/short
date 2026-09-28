@@ -1,30 +1,38 @@
+import { Button } from "@/components/ui";
 import { panelUrl } from "@/lib/public-url";
-import type { getTranslations } from "next-intl/server";
-
-type LandingT = Awaited<ReturnType<typeof getTranslations<"landing">>>;
+import { cn } from "@/lib/cx";
 
 type LandingAuthLinksProps = {
-  t: LandingT;
   signedIn: boolean;
+  labels: { signIn: string; start: string; openPanel: string };
+  /** Stretch both buttons, e.g. inside the phone menu. */
+  block?: boolean;
+  className?: string;
 };
 
-export function LandingAuthLinks({ t, signedIn }: LandingAuthLinksProps) {
+/**
+ * Account entry points. They always point at the panel host, which may differ
+ * from the marketing host when the two are split.
+ */
+export function LandingAuthLinks({ signedIn, labels, block = false, className }: LandingAuthLinksProps) {
   if (signedIn) {
     return (
-      <a className="kit-btn kit-btn--primary" href={panelUrl("/dashboard")}>
-        {t("openPanel")}
-      </a>
+      <span className={cn("flex items-center gap-2", className)}>
+        <Button variant="primary" href={panelUrl("/dashboard")} trailingIcon="arrow-right" block={block}>
+          {labels.openPanel}
+        </Button>
+      </span>
     );
   }
 
   return (
-    <>
-      <a className="kit-btn kit-btn--ghost" href={panelUrl("/login")}>
-        {t("ctaSecondary")}
-      </a>
-      <a className="kit-btn kit-btn--primary hidden sm:inline-flex" href={panelUrl("/register")}>
-        {t("ctaStart")}
-      </a>
-    </>
+    <span className={cn("flex items-center gap-2", block && "flex-col-reverse items-stretch", className)}>
+      <Button variant={block ? "secondary" : "ghost"} href={panelUrl("/login")} block={block}>
+        {labels.signIn}
+      </Button>
+      <Button variant="primary" href={panelUrl("/register")} block={block}>
+        {labels.start}
+      </Button>
+    </span>
   );
 }
