@@ -214,6 +214,15 @@ export function QrDesigner({
   const kind = values.payloadKind;
   const isLink = kind === "link";
   const target = links.find((link) => link.id === values.linkId);
+  // The create bar says what is still missing, like the link form, rather than "Ready".
+  const createHint =
+    isLink && links.length === 0
+      ? t("saveBarNeedLink")
+      : isLink && values.linkId === ""
+        ? t("saveBarPickLink")
+        : values.name.trim() === ""
+          ? t("saveBarName")
+          : t("readyToCreate");
   const frame: QrFrame = values.frame ?? "none";
   const frameText = values.frameText ?? "";
   const hasLogo = values.logoUrl !== "";
@@ -1448,7 +1457,7 @@ export function QrDesigner({
       <SaveBar
         dirty={isDirty || mode === "create"}
         saving={isSubmitting}
-        message={mode === "create" ? t("readyToCreate") : tc("unsavedChanges")}
+        message={mode === "create" ? createHint : tc("unsavedChanges")}
         actions={
           <>
             {mode === "edit" ? (
