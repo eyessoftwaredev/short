@@ -7,3 +7,6 @@ export * from "./platform";
 export * from "./integrations";
 export * from "./media";
 export * from "./qr-templates";
+export * from "./utm-templates";
+export * from "./workspace-settings";
+export * from "./stats-shares";
