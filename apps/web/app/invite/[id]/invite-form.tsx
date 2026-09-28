@@ -56,6 +56,21 @@ export function InviteForm({
   const invitePath = `/invite/${invite.id}`;
   const emailMatches =
     sessionEmail !== null && sessionEmail.toLowerCase() === invite.email.toLowerCase();
+  const roleLabel =
+    invite.role === "owner" || invite.role === "admin" || invite.role === "member"
+      ? t(`role.${invite.role}`)
+      : invite.role;
+
+  /** Signed in as someone else: end that session, then come back to this invite. */
+  const switchAccount = async (): Promise<void> => {
+    setPending(true);
+    try {
+      await authClient.signOut();
+    } catch {
+      // Even if sign-out fails the login screen offers the right account.
+    }
+    window.location.assign(loginHref);
+  };
 
   const accept = async (): Promise<boolean> => {
     const result = await authClient.organization.acceptInvitation({ invitationId: invite.id });
@@ -215,6 +230,7 @@ export function InviteForm({
     return (
       <>
         <AuthHeading
+          icon="clock"
           title={t("inviteInvalidTitle")}
           description={
             invite.reason === "expired"
@@ -222,7 +238,7 @@ export function InviteForm({
               : t("inviteUsed", { workspace: invite.workspaceName })
           }
         />
-        <Button href="/login" variant="primary" size="lg" className="w-full">
+        <Button href="/login" variant="primary" size="lg" block>
           {t("signIn")}
         </Button>
       </>
@@ -233,7 +249,7 @@ export function InviteForm({
     <>
       <AuthHeading
         title={t("inviteTitle", { workspace: invite.workspaceName })}
-        description={t("inviteDescription", { role: invite.role, email: invite.email })}
+        description={t("inviteDescription", { role: roleLabel, email: invite.email })}
       />
 
       {error ? (
@@ -256,6 +272,7 @@ export function InviteForm({
               name="name"
               autoComplete="name"
               required
+              autoFocus
               placeholder={t("namePlaceholder")}
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -271,7 +288,7 @@ export function InviteForm({
             requirements
             invalid={Boolean(error)}
           />
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
+          <Button type="submit" variant="primary" size="lg" block loading={pending}>
             {pending ? t("inviteJoining") : t("inviteCreateAndJoin")}
           </Button>
           <p className="m-0 text-center text-sm text-fg-muted">
@@ -298,24 +315,39 @@ export function InviteForm({
             autoComplete="current-password"
             invalid={Boolean(error)}
           />
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
+          <Button type="submit" variant="primary" size="lg" block loading={pending}>
             {pending ? t("inviteJoining") : t("inviteSignInAndJoin")}
           </Button>
         </form>
       ) : null}
 
       {sessionEmail !== null && !emailMatches ? (
-        <AuthAlert tone="danger" title={t("inviteWrongAccountTitle")}>
-          {t("inviteWrongAccount", { email: invite.email, session: sessionEmail })}
-        </AuthAlert>
+        <>
+          <AuthAlert tone="danger" title={t("inviteWrongAccountTitle")}>
+            {t("inviteWrongAccount", { email: invite.email, session: sessionEmail })}
+          </AuthAlert>
+          <Button
+            variant="primary"
+            size="lg"
+            block
+            leadingIcon="right-from-bracket"
+            loading={pending}
+            onClick={() => {
+              void switchAccount();
+            }}
+          >
+            {t("inviteSwitchAccount")}
+          </Button>
+        </>
       ) : null}
 
       {emailMatches ? (
         <Button
           variant="primary"
           size="lg"
-          className="w-full"
-          disabled={pending}
+          block
+          loading={pending}
+          trailingIcon="arrow-right"
           onClick={() => {
             void joinSignedIn();
           }}

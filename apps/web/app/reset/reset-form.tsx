@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage } from "../_auth/auth-errors";
 import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
 import { PasswordField } from "../_auth/password-field";
 
@@ -18,6 +19,7 @@ export function ResetForm({ token }: { token: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -36,10 +38,11 @@ export function ResetForm({ token }: { token: string }) {
     try {
       const result = await authClient.resetPassword({ newPassword: password, token });
       if (result.error) {
-        setError(result.error.message ?? t("resetFailed"));
+        setError(authErrorMessage(result.error, t, t("resetFailed"), { minPassword: MIN_PASSWORD_LENGTH }));
         return;
       }
-      router.push("/login");
+      setDone(true);
+      router.push("/login?notice=password-reset");
     } catch {
       setError(te("generic"));
     } finally {
@@ -47,13 +50,29 @@ export function ResetForm({ token }: { token: string }) {
     }
   };
 
+  if (done) {
+    return (
+      <div className="flex min-w-0 flex-col gap-6" aria-live="polite">
+        <AuthHeading icon="circle-check" title={t("resetDoneTitle")} description={t("resetDoneBody")} />
+        <Button variant="primary" size="lg" block href="/login?notice=password-reset" trailingIcon="arrow-right">
+          {t("signIn")}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <>
       <AuthHeading title={t("resetTitle")} description={t("resetDescription")} />
 
       {error ? (
         <AuthAlert tone="danger" title={t("resetErrorTitle")}>
-          {error}
+          {error}{" "}
+          {error === t("errResetToken") ? (
+            <Link href="/forgot" className="font-medium">
+              {t("resetRequestNew")}
+            </Link>
+          ) : null}
         </AuthAlert>
       ) : null}
 
@@ -81,16 +100,11 @@ export function ResetForm({ token }: { token: string }) {
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           requirements
+          autoFocus={token !== ""}
           invalid={Boolean(error)}
         />
 
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          className="w-full"
-          disabled={pending || token === ""}
-        >
+        <Button type="submit" variant="primary" size="lg" block loading={pending} disabled={token === ""}>
           {pending ? t("resetUpdating") : t("resetSubmit")}
         </Button>
       </form>

@@ -1,19 +1,42 @@
 import { WEBHOOK_EVENTS } from "@short/core";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { DocsPageShell } from "@/components/docs/docs-page-shell";
-import { DocsCallout, DocsCodeBlock, DocsHero, DocsProse, DocsTable } from "@/components/docs/docs-ui";
-import Link from "next/link";
+import { DocsCallout, DocsCodeBlock, DocsHero, DocsProse, DocsSection, DocsTable } from "@/components/docs/docs-ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("docs.webhooks");
   return { title: t("metaTitle") };
 }
 
-export default async function WebhooksGuidePage() {
-  const t = await getTranslations("docs.webhooks");
+/** Shape sent by lib/webhooks.ts: `{ event, createdAt, data }`. */
+const PAYLOAD_EXAMPLE = `POST /your/endpoint HTTP/1.1
+content-type: application/json
+user-agent: Short-Webhooks/1
+x-short-event: link.clicked
+x-short-signature: t=1767225600,v1=5f2b…c9
 
-  const verifyExample = `const crypto = require("crypto");
+{
+  "event": "link.clicked",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "data": {
+    "linkId": "0f8c…",
+    "hostname": "go.acme.com",
+    "slug": "launch",
+    "qrId": null,
+    "ts": "2026-01-01T00:00:00.000Z",
+    "destination": "https://acme.com/launch",
+    "country": "TR",
+    "city": "Istanbul",
+    "device": "mobile",
+    "os": "ios",
+    "browser": "safari",
+    "referrer": "instagram.com"
+  }
+}`;
+
+const VERIFY_EXAMPLE = `const crypto = require("crypto");
 
 // header: the x-short-signature value, "t=<unix seconds>,v1=<hex>"
 function verify(rawBody, header, secret, toleranceSeconds = 300) {
@@ -33,52 +56,61 @@ function verify(rawBody, header, secret, toleranceSeconds = 300) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }`;
 
+export default async function WebhooksGuidePage() {
+  const t = await getTranslations("docs.webhooks");
+
   return (
     <DocsPageShell section="webhooks">
-      <div className="flex flex-col gap-10">
-        <DocsHero title={t("title")} description={t("description")} />
+      <DocsHero icon="repeat" title={t("title")} description={t("description")} />
 
+      <DocsSection id="setup" title={t("setupTitle")}>
         <DocsProse>
-          <h2>{t("setupTitle")}</h2>
           <p>{t("setupBody")}</p>
         </DocsProse>
-
         <DocsCallout title={t("settingsTitle")}>
           <p>
-            {t("settingsBody")}{" "}
-            <Link href="/settings" className="text-accent hover:underline">
-              {t("settingsLink")}
-            </Link>
+            {t("settingsBody")} <Link href="/settings?tab=webhooks">{t("settingsLink")}</Link>
           </p>
         </DocsCallout>
+      </DocsSection>
 
+      <DocsSection id="events" title={t("eventsTitle")}>
         <DocsProse>
-          <h2>{t("eventsTitle")}</h2>
           <p>{t("eventsBody")}</p>
         </DocsProse>
-
         <DocsTable
           headers={[t("eventsTable.event"), t("eventsTable.when")]}
-          rows={WEBHOOK_EVENTS.map((event) => [event, t(`eventsTable.rows.${event}`)])}
+          monoFirst
+          // Event names contain dots, which next-intl reads as nesting, so the keys use "_".
+          rows={WEBHOOK_EVENTS.map((event) => [event, t(`eventsTable.rows.${event.replace(".", "_")}`)])}
         />
+      </DocsSection>
 
+      <DocsSection id="payload" title={t("payloadTitle")}>
         <DocsProse>
-          <h2>{t("signatureTitle")}</h2>
+          <p>{t("payloadBody")}</p>
+        </DocsProse>
+        <DocsCodeBlock code={PAYLOAD_EXAMPLE} language="http" />
+      </DocsSection>
+
+      <DocsSection id="signature" title={t("signatureTitle")}>
+        <DocsProse>
           <p>{t("signatureBody")}</p>
         </DocsProse>
+        <DocsCodeBlock code={VERIFY_EXAMPLE} language="javascript" title="verify.js" />
+      </DocsSection>
 
-        <DocsCodeBlock code={verifyExample} language="javascript" />
-
+      <DocsSection id="delivery" title={t("deliveryTitle")}>
         <DocsProse>
-          <h2>{t("deliveryTitle")}</h2>
           <p>{t("deliveryBody")}</p>
           <ul>
             <li>{t("deliveryTips.0")}</li>
             <li>{t("deliveryTips.1")}</li>
             <li>{t("deliveryTips.2")}</li>
+            <li>{t("deliveryTips.3")}</li>
           </ul>
         </DocsProse>
-      </div>
+      </DocsSection>
     </DocsPageShell>
   );
 }

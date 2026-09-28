@@ -1,11 +1,10 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button, Field, Input } from "@/components/ui";
-import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
+import { AuthAlert, AuthHeading, AuthValue } from "../_auth/auth-primitives";
 import { changeUnverifiedEmailAction, resendVerificationEmail } from "./actions";
 
 type VerifyPendingProps = {
@@ -46,7 +45,9 @@ export function VerifyPending({ email, inviteId = "" }: VerifyPendingProps) {
     try {
       const result = await resendVerificationEmail();
       setRemaining(result.remainingSeconds);
-      setResent(true);
+      // `ok: false` means the cooldown refused the send; the countdown on the
+      // button already says so, and "another email is on its way" would be untrue.
+      setResent(result.ok);
     } catch {
       setResent(true);
     } finally {
@@ -79,56 +80,51 @@ export function VerifyPending({ email, inviteId = "" }: VerifyPendingProps) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <span
-        className="flex size-11 items-center justify-center rounded-default bg-accent-surface text-accent-ink"
-        aria-hidden="true"
-      >
-        <Icon name="envelope-circle-check" className="text-lg" />
-      </span>
+      <AuthHeading icon="envelope-circle-check" title={t("verifyTitle")} description={t("verifyDescription")} />
 
-      <AuthHeading title={t("verifyTitle")} description={t("verifyDescription")} />
+      <AuthValue label={t("verifySentTo")} value={email} />
 
-      <div className="flex min-w-0 flex-col gap-1.5 rounded-default border border-border bg-surface-subtle px-4 py-3.5">
-        <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-          {t("verifySentTo")}
-        </span>
-        <span className="min-w-0 font-mono text-sm break-all text-ink">{email}</span>
-      </div>
-
-      <ol className="m-0 flex list-none flex-col gap-2.5 p-0 text-sm text-fg-muted">
-        <li className="flex min-w-0 gap-2.5">
-          <span className="shrink-0 font-mono text-xs text-fg-subtle tabular-nums">01</span>
-          <span className="min-w-0">{t("verifyStep1")}</span>
-        </li>
-        <li className="flex min-w-0 gap-2.5">
-          <span className="shrink-0 font-mono text-xs text-fg-subtle tabular-nums">02</span>
-          <span className="min-w-0">{inviteId === "" ? t("verifyStep2") : t("verifyStep2Invite")}</span>
-        </li>
-        <li className="flex min-w-0 gap-2.5">
-          <span className="shrink-0 font-mono text-xs text-fg-subtle tabular-nums">03</span>
-          <span className="min-w-0">{t("verifyStep3")}</span>
-        </li>
+      <ol className="m-0 flex list-none flex-col gap-3 p-0 text-sm text-fg-muted">
+        {[t("verifyStep1"), inviteId === "" ? t("verifyStep2") : t("verifyStep2Invite"), t("verifyStep3")].map(
+          (step, index) => (
+            <li key={step} className="flex min-w-0 items-start gap-3">
+              <span className="numeric flex size-6 shrink-0 items-center justify-center rounded-pill bg-surface text-xs font-semibold text-fg-muted">
+                {index + 1}
+              </span>
+              <span className="min-w-0 pt-0.5">{step}</span>
+            </li>
+          ),
+        )}
       </ol>
 
-      <AuthAlert tone="info">{t("verifySpamHint")}</AuthAlert>
-
-      {resent ? <AuthAlert tone="accent">{t("verifyResent")}</AuthAlert> : null}
+      {resent ? (
+        <AuthAlert tone="accent">{t("verifyResent")}</AuthAlert>
+      ) : (
+        <AuthAlert tone="info">{t("verifySpamHint")}</AuthAlert>
+      )}
 
       {changing ? (
         <form
-          className="flex min-w-0 flex-col gap-3"
+          className="flex min-w-0 flex-col gap-4 rounded-lg border border-border p-4"
           onSubmit={(event) => {
             event.preventDefault();
             void handleChange();
           }}
         >
-          <p className="m-0 text-sm text-fg-muted">{t("verifyChangeHint")}</p>
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="m-0 text-sm font-semibold text-ink">{t("verifyChangeTitle")}</p>
+            <p className="m-0 text-[13px] text-fg-muted">{t("verifyChangeHint")}</p>
+          </div>
           <Field label={t("verifyNewEmail")} info={t("verifyNewEmailInfo")}>
             <Input
               type="email"
               name="new-email"
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
               required
+              autoFocus
               value={newEmail}
               onChange={(event) => setNewEmail(event.target.value)}
             />
@@ -143,24 +139,28 @@ export function VerifyPending({ email, inviteId = "" }: VerifyPendingProps) {
               onChange={(event) => setPassword(event.target.value)}
             />
           </Field>
-          <div className="flex flex-wrap gap-2.5">
-            <Button type="submit" variant="primary" loading={changePending} disabled={coolingDown}>
-              {changePending ? t("verifyChanging") : t("verifyChangeSubmit")}
-            </Button>
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 setChanging(false);
               }}
             >
               {tc("cancel")}
             </Button>
+            <Button type="submit" variant="primary" loading={changePending} disabled={coolingDown}>
+              {changePending ? t("verifyChanging") : coolingDown ? t("verifyWait", { seconds: remaining }) : t("verifyChangeSubmit")}
+            </Button>
           </div>
         </form>
       ) : (
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-col gap-2.5">
           <Button
             variant="primary"
+            size="lg"
+            block
+            leadingIcon={coolingDown ? "clock" : "rotate-right"}
             disabled={!resendEnabled}
             loading={pending}
             onClick={() => {
@@ -169,18 +169,23 @@ export function VerifyPending({ email, inviteId = "" }: VerifyPendingProps) {
           >
             {pending ? t("verifyResending") : coolingDown ? t("verifyWait", { seconds: remaining }) : t("verifyResend")}
           </Button>
-          <Button
-            onClick={() => {
-              setChanging(true);
-              setNewEmail("");
-              setPassword("");
-            }}
-          >
-            {t("verifyDifferentEmail")}
-          </Button>
-          <Button variant="ghost" href={loginHref}>
-            {t("verifyBackToSignIn")}
-          </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon="pen"
+              onClick={() => {
+                setChanging(true);
+                setNewEmail("");
+                setPassword("");
+              }}
+            >
+              {t("verifyDifferentEmail")}
+            </Button>
+            <Button variant="ghost" size="sm" href={loginHref} leadingIcon="arrow-left">
+              {t("verifyBackToSignIn")}
+            </Button>
+          </div>
         </div>
       )}
     </div>

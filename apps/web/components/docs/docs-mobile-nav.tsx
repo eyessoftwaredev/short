@@ -9,6 +9,7 @@ type DocsMobileNavProps = {
   active: DocsSectionId;
 };
 
+/** Guide switcher below `lg`: one scrollable row of chips, the current one first in view. */
 export function DocsMobileNav({ active }: DocsMobileNavProps) {
   const t = useTranslations("docs");
   const items = docsNavGroups.flatMap((group) => group.items);
@@ -16,7 +17,7 @@ export function DocsMobileNav({ active }: DocsMobileNavProps) {
   return (
     <nav
       aria-label={t("sidebarLabel")}
-      className="mb-6 flex gap-2 overflow-x-auto pb-1 lg:hidden"
+      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:hidden"
     >
       {items.map((item) => {
         const isActive = item.id === active;
@@ -26,10 +27,10 @@ export function DocsMobileNav({ active }: DocsMobileNavProps) {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "shrink-0 rounded-default border px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-pill border px-3 py-1.5 text-[13px] font-medium no-underline transition-colors hover:no-underline",
               isActive
-                ? "border-accent/40 bg-accent/10 text-accent"
-                : "border-border bg-surface text-fg-muted hover:text-ink",
+                ? "border-accent-border bg-accent-surface text-accent-on-surface hover:text-accent-on-surface"
+                : "border-border bg-bg text-fg-muted hover:border-border-hover hover:text-ink",
             )}
           >
             {t(item.labelKey)}

@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
-import { Icon, type IconName } from "@/components/kit/icon";
 import { getTranslations } from "next-intl/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BrandLockup } from "@/components/brand/brand-mark";
 import { BrandPreload } from "@/components/brand/brand-preload";
+import { ThemeToggle } from "@/components/landing/theme-toggle";
+import { Steps } from "@/components/ui";
 import { getPlatformBrand } from "@/lib/brand";
 import { getBrandLockupSources } from "@/lib/brand-assets";
 import { firstWinPath } from "@/lib/draft-link";
 import { requireSession } from "@/lib/session";
-import { OnboardingForm } from "./onboarding-form";
+import { OnboardingForm, OnboardingSignOut } from "./onboarding-form";
 
-export const metadata: Metadata = { title: "Create your account" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("onboarding");
+  return { title: t("title") };
+}
 
 export default async function OnboardingPage() {
   const [context, brand, t, brandSources] = await Promise.all([
@@ -26,61 +29,48 @@ export default async function OnboardingPage() {
   }
 
   const suggestion = context.user.name.trim() || (context.user.email.split("@")[0] ?? "");
-  const steps: ReadonlyArray<{ id: string; href: string; icon: IconName; title: string; body: string }> = [
-    { id: "links", href: "/links/new", icon: "link", title: t("stepLinksTitle"), body: t("stepLinksBody") },
-    { id: "qr", href: "/qr", icon: "qrcode", title: t("stepQrTitle"), body: t("stepQrBody") },
-    { id: "bio", href: "/bio", icon: "address-card", title: t("stepBioTitle"), body: t("stepBioBody") },
-  ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-subtle">
+    <div className="flex min-h-screen flex-col bg-canvas">
       <BrandPreload sources={brandSources} />
-      <header className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-bg px-6 py-4">
-        <BrandLockup
-          name={brand.name}
-          href="/"
-          logoSrc={brandSources.logoSrc}
-          wordmarkSrc={brandSources.wordmarkSrc}
-          hasWordmark={brandSources.hasWordmark}
-        />
-        <span className="min-w-0 truncate text-sm text-fg-muted">
-          {t("signedInAs")} <span className="text-ink">{context.user.email}</span>
-        </span>
+      <header className="border-b border-border-subtle bg-bg">
+        <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
+          <BrandLockup
+            name={brand.name}
+            href="/"
+            logoSrc={brandSources.logoSrc}
+            wordmarkSrc={brandSources.wordmarkSrc}
+            hasWordmark={brandSources.hasWordmark}
+          />
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="hidden min-w-0 truncate text-[13px] text-fg-muted sm:inline">
+              {t("signedInAs")} <span className="font-medium text-ink">{context.user.email}</span>
+            </span>
+            <OnboardingSignOut label={t("notYou")} />
+            <ThemeToggle />
+          </span>
+        </div>
       </header>
 
-      <main className="flex min-w-0 flex-1 justify-center px-6 py-12">
-        <div className="flex w-full max-w-xl min-w-0 flex-col gap-8">
+      <main id="main" className="flex min-w-0 flex-1 justify-center px-5 py-10 sm:px-6 sm:py-14">
+        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-8">
+          <Steps
+            current="workspace"
+            steps={[
+              { id: "account", label: t("stepAccount"), done: true },
+              { id: "email", label: t("stepEmail"), done: true },
+              { id: "workspace", label: t("stepWorkspace") },
+            ]}
+          />
           <div className="flex min-w-0 flex-col gap-2">
-            <span className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              {t("eyebrow")}
-            </span>
-            <h1 className="m-0 text-3xl leading-tight font-semibold tracking-tight">{t("title")}</h1>
-            <p className="m-0 max-w-prose text-base leading-relaxed text-fg-muted">{t("description")}</p>
+            <p className="m-0 text-[13px] font-medium text-accent-ink">{t("eyebrow")}</p>
+            <h1 className="m-0 text-2xl leading-tight font-semibold tracking-tight text-ink sm:text-3xl">
+              {t("title")}
+            </h1>
+            <p className="m-0 max-w-prose text-[15px] leading-relaxed text-fg-muted">{t("description")}</p>
           </div>
 
           <OnboardingForm suggestion={suggestion} />
-
-          <section className="flex min-w-0 flex-col gap-4">
-            <h2 className="m-0 font-mono text-xs tracking-widest text-fg-subtle uppercase">
-              {t("nextTitle")}
-            </h2>
-            <ul className="m-0 flex list-none flex-col gap-3.5 p-0">
-              {steps.map((step) => (
-                <li key={step.id} className="flex min-w-0 items-start gap-3.5">
-                  <span
-                    className="flex size-8 shrink-0 items-center justify-center rounded-default border border-border bg-bg text-fg-muted"
-                    aria-hidden="true"
-                  >
-                    <Icon name={step.icon} className="text-sm" />
-                  </span>
-                  <Link href={step.href} className="flex min-w-0 flex-col gap-0.5 no-underline">
-                    <span className="text-sm font-medium text-ink">{step.title}</span>
-                    <span className="text-sm leading-relaxed text-fg-muted">{step.body}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
       </main>
     </div>

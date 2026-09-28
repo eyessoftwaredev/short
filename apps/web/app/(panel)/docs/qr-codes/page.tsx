@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { DocsPageShell } from "@/components/docs/docs-page-shell";
-import { DocsHero, DocsProse, DocsTable } from "@/components/docs/docs-ui";
+import { DocsCallout, DocsHero, DocsProse, DocsSection, DocsTable } from "@/components/docs/docs-ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("docs.qrCodes");
@@ -13,11 +13,10 @@ export default async function QrCodesGuidePage() {
 
   return (
     <DocsPageShell section="qr-codes">
-      <div className="flex flex-col gap-10">
-        <DocsHero title={t("title")} description={t("description")} />
+      <DocsHero icon="qrcode" title={t("title")} description={t("description")} />
 
+      <DocsSection id="create" title={t("createTitle")}>
         <DocsProse>
-          <h2>{t("createTitle")}</h2>
           <p>{t("createBody")}</p>
           <ol>
             <li>{t("createSteps.0")}</li>
@@ -25,12 +24,12 @@ export default async function QrCodesGuidePage() {
             <li>{t("createSteps.2")}</li>
           </ol>
         </DocsProse>
+      </DocsSection>
 
+      <DocsSection id="types" title={t("payloadTitle")}>
         <DocsProse>
-          <h2>{t("payloadTitle")}</h2>
           <p>{t("payloadBody")}</p>
         </DocsProse>
-
         <DocsTable
           headers={[t("table.kind"), t("table.use")]}
           rows={[
@@ -40,9 +39,13 @@ export default async function QrCodesGuidePage() {
             [t("table.rows.wifi"), t("table.rows.wifiDesc")],
           ]}
         />
+        <DocsCallout title={t("dynamicTitle")} variant="tip">
+          <p>{t("dynamicBody")}</p>
+        </DocsCallout>
+      </DocsSection>
 
+      <DocsSection id="design" title={t("designTitle")}>
         <DocsProse>
-          <h2>{t("designTitle")}</h2>
           <p>{t("designBody")}</p>
           <ul>
             <li>{t("designTips.0")}</li>
@@ -50,7 +53,13 @@ export default async function QrCodesGuidePage() {
             <li>{t("designTips.2")}</li>
           </ul>
         </DocsProse>
-      </div>
+      </DocsSection>
+
+      <DocsSection id="export" title={t("exportTitle")}>
+        <DocsProse>
+          <p>{t("exportBody")}</p>
+        </DocsProse>
+      </DocsSection>
     </DocsPageShell>
   );
 }

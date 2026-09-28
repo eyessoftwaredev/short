@@ -1,7 +1,16 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { DocsPageShell } from "@/components/docs/docs-page-shell";
-import { DocsCallout, DocsHero, DocsProse, DocsStep } from "@/components/docs/docs-ui";
+import {
+  DocsCallout,
+  DocsCodeBlock,
+  DocsHero,
+  DocsProse,
+  DocsSection,
+  DocsStep,
+  DocsSteps,
+} from "@/components/docs/docs-ui";
+import { cnameTarget } from "@/lib/domains";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("docs.domains");
@@ -10,36 +19,39 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function DomainsGuidePage() {
   const t = await getTranslations("docs.domains");
+  const target = cnameTarget();
+  const steps = ["add", "dns", "verify", "default"] as const;
 
   return (
     <DocsPageShell section="domains">
-      <div className="flex flex-col gap-10">
-        <DocsHero title={t("title")} description={t("description")} />
+      <DocsHero icon="globe" title={t("title")} description={t("description")} />
 
-        <div className="flex flex-col gap-8">
-          <DocsStep index={1} title={t("steps.add.title")}>
-            <p>{t("steps.add.body")}</p>
-          </DocsStep>
-          <DocsStep index={2} title={t("steps.dns.title")}>
-            <p>{t("steps.dns.body")}</p>
-          </DocsStep>
-          <DocsStep index={3} title={t("steps.verify.title")}>
-            <p>{t("steps.verify.body")}</p>
-          </DocsStep>
-          <DocsStep index={4} title={t("steps.default.title")}>
-            <p>{t("steps.default.body")}</p>
-          </DocsStep>
-        </div>
+      <DocsSection id="setup" title={t("setupTitle")}>
+        <DocsSteps>
+          {steps.map((step, index) => (
+            <DocsStep key={step} index={index + 1} title={t(`steps.${step}.title`)}>
+              <p>{t(`steps.${step}.body`)}</p>
+            </DocsStep>
+          ))}
+        </DocsSteps>
+      </DocsSection>
 
+      <DocsSection id="dns" title={t("dnsTitle")}>
         <DocsProse>
-          <h2>{t("rootTitle")}</h2>
+          <p>{t("dnsBody")}</p>
+        </DocsProse>
+        <DocsCodeBlock language="dns" code={`go.acme.com.   CNAME   ${target}.`} />
+      </DocsSection>
+
+      <DocsSection id="root" title={t("rootTitle")}>
+        <DocsProse>
           <p>{t("rootBody")}</p>
         </DocsProse>
+      </DocsSection>
 
-        <DocsCallout title={t("sslTitle")}>
-          <p>{t("sslBody")}</p>
-        </DocsCallout>
-      </div>
+      <DocsCallout title={t("sslTitle")} variant="warn">
+        <p>{t("sslBody")}</p>
+      </DocsCallout>
     </DocsPageShell>
   );
 }

@@ -8,7 +8,8 @@ import { authClient } from "@/lib/auth-client";
 import { verifyPendingPath } from "@/lib/verify-path";
 import { grantVerifyResend } from "../verify/actions";
 import { useTranslations } from "next-intl";
-import { AuthAlert, AuthDivider, AuthHeading } from "../_auth/auth-primitives";
+import { authErrorMessage } from "../_auth/auth-errors";
+import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
 import { PasswordField } from "../_auth/password-field";
 
 const MIN_PASSWORD_LENGTH = 10;
@@ -40,7 +41,7 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
       // Without a callback the verification link lands on the marketing home page.
       const result = await authClient.signUp.email({ name, email, password, callbackURL: "/dashboard" });
       if (result.error) {
-        setError(result.error.message ?? t("signUpFailed"));
+        setError(authErrorMessage(result.error, t, t("signUpFailed"), { minPassword: MIN_PASSWORD_LENGTH }));
         return;
       }
       await grantVerifyResend(email, password);
@@ -74,6 +75,8 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
             name="name"
             autoComplete="name"
             required
+            autoFocus
+            maxLength={120}
             placeholder={t("namePlaceholder")}
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -85,6 +88,9 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
             type="email"
             name="email"
             autoComplete="email"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
             required
             placeholder={t("emailPlaceholder")}
             value={email}
@@ -102,18 +108,30 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
           invalid={Boolean(error)}
         />
 
-        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
+        <Button type="submit" variant="primary" size="lg" block loading={pending}>
           {pending ? t("creatingWorkspace") : t("createAccount")}
         </Button>
 
         <p className="m-0 text-xs leading-relaxed text-fg-subtle">
+          {t.rich("registerTerms", {
+            terms: (chunks) => (
+              <Link href="/terms" className="font-medium">
+                {chunks}
+              </Link>
+            ),
+            privacy: (chunks) => (
+              <Link href="/privacy" className="font-medium">
+                {chunks}
+              </Link>
+            ),
+          })}{" "}
           {t("verifyHint")}
         </p>
       </form>
 
-      <AuthDivider label={t("alreadyRegistered")} />
-
-      <p className="m-0 text-center text-sm text-fg-muted">
+      {/* The header carries the same cross-link from `sm` up. */}
+      <p className="m-0 text-center text-sm text-fg-muted sm:hidden">
+        {t("alreadyHaveAccount")}{" "}
         <Link href={loginHref} className="font-medium">
           {t("signInInstead")}
         </Link>

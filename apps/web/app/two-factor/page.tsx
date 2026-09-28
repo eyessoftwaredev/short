@@ -38,7 +38,7 @@ export default async function TwoFactorPage() {
       railTitle={t("twoFactorRailTitle")}
       railBody={t("twoFactorRailBody")}
       highlights={highlights}
-      crossLink={{ prompt: t("alreadyHaveAccount"), label: t("verifyBackToSignIn"), href: "/login" }}
+      crossLink={{ prompt: t("notYou"), label: t("verifyBackToSignIn"), href: "/login" }}
     >
       <TwoFactorForm />
     </AuthShell>
