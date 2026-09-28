@@ -1,13 +1,17 @@
 import {
   applyUtm,
+  effectiveExpiresAt,
   forwardQuery,
   isBeforeLinkStart,
   isBiopageLive,
   isSafeDestination,
+  linkDestinationVaries,
+  linkPreviewState,
   normalizeOpenMode,
   parseAcceptLanguage,
   parseUserAgent,
   planOpen,
+  previewSlugOf,
   resolveDestination,
   verifyGatePassword,
   type EventType,
@@ -16,7 +20,14 @@ import {
   type VisitorContext,
 } from "@short/core";
 import type { EdgeEnv } from "./env";
-import { cloakHtml, handoffHtml, passwordGateHtml, type HandoffOptions } from "./html";
+import {
+  cloakHtml,
+  handoffHtml,
+  passwordGateHtml,
+  previewHtml,
+  type HandoffOptions,
+  type PreviewOptions,
+} from "./html";
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 import {
@@ -316,10 +327,57 @@ function handoffResponse(options: DistributiveOmit<HandoffOptions, "nonce">): Re
   });
 }
 
+/**
+ * `<slug>+`: shows where a link leads instead of following it. Nothing is tracked, and
+ * the page is as locked down as the other interstitials: no script at all, nothing it
+ * may load, submit or be framed by.
+ */
+function previewResponse(
+  link: LinkKvRecord | null,
+  options: { hostname: string; slug: string; origin: string; language: string },
+): Response {
+  const state = linkPreviewState(link, Date.now());
+  const shortUrl = `${options.origin}/${encodeURIComponent(options.slug)}`;
+  const base = {
+    language: options.language,
+    shortLabel: `${options.hostname}/${options.slug}`,
+    shortUrl,
+  };
+  let page: PreviewOptions;
+  if (state === "available" && link) {
+    page = {
+      ...base,
+      state,
+      // What a visitor without targeting overrides gets, stored UTM tags included.
+      destination: applyUtm(link.destination, link.utm),
+      title: link.title,
+      varies: linkDestinationVaries(link),
+    };
+  } else if (state === "protected") {
+    page = { ...base, state };
+  } else {
+    page = { ...base, state: "unavailable" };
+  }
+
+  return new Response(previewHtml(page), {
+    status: state === "unavailable" ? 404 : 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store, max-age=0",
+      "x-robots-tag": "noindex, nofollow",
+      "content-security-policy":
+        "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "x-frame-options": "DENY",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+    },
+  });
+}
+
 type GateTarget = { id: string; passwordHash: string | null; title: string | null };
 
-function gateChallenge(target: GateTarget, error: boolean, status = 401): Response {
-  return new Response(passwordGateHtml({ title: target.title ?? "Protected link", error }), {
+function gateChallenge(target: GateTarget, error: boolean, status = 401, language = ""): Response {
+  return new Response(passwordGateHtml({ title: target.title ?? "Protected link", error, language }), {
     status,
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -372,10 +430,12 @@ async function handlePasswordGate(
     return null;
   }
 
+  const language = parseAcceptLanguage(request.headers.get("accept-language"));
+
   if (request.method === "POST") {
     const ip = request.headers.get("cf-connecting-ip") ?? "";
     if (await gateAttemptsExceeded(env, target.id, ip)) {
-      return gateChallenge(target, true, 429);
+      return gateChallenge(target, true, 429, language);
     }
 
     let submitted = "";
@@ -384,7 +444,7 @@ async function handlePasswordGate(
       submitted = String(form.get("password") ?? "");
     } catch {
       // A non-form body is a malformed submission, not a reason to 500 the worker.
-      return gateChallenge(target, true);
+      return gateChallenge(target, true, 401, language);
     }
 
     if (await verifyGatePassword(submitted, target.passwordHash)) {
@@ -400,10 +460,10 @@ async function handlePasswordGate(
       });
     }
 
-    return gateChallenge(target, true);
+    return gateChallenge(target, true, 401, language);
   }
 
-  return gateChallenge(target, false);
+  return gateChallenge(target, false, 401, language);
 }
 
 /** Biopages are rendered by the Next.js app; the worker only proxies and tracks the view. */
@@ -535,7 +595,11 @@ export default {
       slug = segments[0] ?? "";
     }
 
-    const target = await resolveTarget(env, hostname, slug);
+    // `promo+` previews `promo`. A `+` can never be part of a slug, so this cannot
+    // shadow a real link; `promo++` or `+` alone fall through as ordinary misses.
+    const previewSlug = previewSlugOf(slug);
+
+    const target = await resolveTarget(env, hostname, previewSlug ?? slug);
     if (target.fromOrigin) {
       ctx.waitUntil(target.backfill());
     }
@@ -549,6 +613,18 @@ export default {
 
     if (slug === "") {
       return notFound(env, target.domain.rootDestination);
+    }
+
+    if (previewSlug !== null) {
+      if (request.method === "POST") {
+        return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD" } });
+      }
+      return previewResponse(target.link, {
+        hostname,
+        slug: previewSlug,
+        origin: url.origin,
+        language: parseAcceptLanguage(request.headers.get("accept-language")),
+      });
     }
 
     if (target.biopage && isBiopageLive(target.biopage)) {
@@ -617,14 +693,16 @@ export default {
         rules: link.rules,
         abVariants: link.abVariants,
         abSeed: `${link.id}:${request.headers.get("cf-connecting-ip") ?? ""}`,
-        expiresAt: link.expiresAt,
+        // A link that used up its click limit expires "now" (see `effectiveExpiresAt`).
+        expiresAt: effectiveExpiresAt(link),
         expiredDestination: link.expiredDestination,
       },
       visitor,
     );
 
     // Without an explicit expiry destination an expired link is gone. Falling back to
-    // the live destination would make the expiry date purely cosmetic.
+    // the live destination would make the expiry date purely cosmetic. The same holds
+    // for a link whose click limit was reached.
     if (resolution.source === "expired" && !link.expiredDestination) {
       return notFound(env, target.domain.notFoundDestination);
     }
