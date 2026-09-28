@@ -46,6 +46,11 @@ export type LinkKvRecord = {
    * `auto` and no schema version bump is needed.
    */
   openMode?: LinkOpenMode;
+  /**
+   * Set once the link's lifetime click limit was reached (the panel's click-limit cron).
+   * The worker then treats the link as expired. Optional for records cached before it.
+   */
+  limitReached?: boolean;
 };
 
 /**
@@ -82,6 +87,28 @@ export type BiopageKvRecord = {
 /** True while a link is scheduled but not live yet. */
 export function isBeforeLinkStart(link: Pick<LinkKvRecord, "startsAt">, now: number): boolean {
   return typeof link.startsAt === "number" && now < link.startsAt;
+}
+
+export function isLinkLimitReached(link: Pick<LinkKvRecord, "limitReached">): boolean {
+  return link.limitReached === true;
+}
+
+/**
+ * The expiry the worker enforces. A link that used up its click limit behaves exactly
+ * like an expired one (expiry destination, else not-found), so it reports "already".
+ */
+export function effectiveExpiresAt(
+  link: Pick<LinkKvRecord, "expiresAt" | "limitReached">,
+): number | null {
+  return isLinkLimitReached(link) ? 0 : link.expiresAt;
+}
+
+export function isLinkExpired(
+  link: Pick<LinkKvRecord, "expiresAt" | "limitReached">,
+  now: number,
+): boolean {
+  const expiresAt = effectiveExpiresAt(link);
+  return expiresAt != null && now >= expiresAt;
 }
 
 export function linkKey(hostname: string, slug: string): string {

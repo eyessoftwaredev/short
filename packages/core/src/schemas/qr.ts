@@ -39,6 +39,16 @@ export const qrLogoSchema = z
     { message: "mediaPath" },
   );
 
+/**
+ * Decorative frame around the code with an optional call-to-action label.
+ * `box`: thin rounded border, label under the code. `bubble`: bordered card with the
+ * label in a speech-bubble pill below it. `banner`: thick filled border whose bottom
+ * edge carries the label.
+ */
+export const QR_FRAMES = ["none", "box", "bubble", "banner"] as const;
+export type QrFrame = (typeof QR_FRAMES)[number];
+export const QR_FRAME_TEXT_MAX = 24;
+
 export const qrStyleSchema = z.object({
   foreground: hexColor.default("#171717"),
   background: hexColor.default("#ffffff"),
@@ -53,6 +63,12 @@ export const qrStyleSchema = z.object({
   /** Logo width as a fraction of the QR width. */
   logoScale: z.number().min(0.1).max(0.3).default(0.22),
   caption: z.string().trim().max(60).default(""),
+  // Styles saved before frames existed parse as `none`, so old codes render unchanged.
+  frame: z.enum(QR_FRAMES).default("none"),
+  /** Label inside the frame ("Scan me"). Empty means a frame without a label. */
+  frameText: z.string().trim().max(QR_FRAME_TEXT_MAX).default(""),
+  /** Frame color; falls back to `foreground` when null. */
+  frameColor: hexColor.nullable().default(null),
 });
 
 export type QrStyle = z.infer<typeof qrStyleSchema>;

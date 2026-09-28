@@ -70,6 +70,21 @@ export function isReservedSlug(slug: string): boolean {
   return RESERVED_SLUGS.has(slug.toLowerCase());
 }
 
+/**
+ * `https://go.acme.com/promo+` shows the link's preview page instead of redirecting.
+ * `SLUG_PATTERN` never admits a `+`, so the suffix cannot shadow a real slug.
+ */
+export const PREVIEW_SUFFIX = "+";
+
+/** The slug a preview path points at, or null when the segment is not a preview. */
+export function previewSlugOf(segment: string): string | null {
+  if (segment.length < 2 || !segment.endsWith(PREVIEW_SUFFIX)) {
+    return null;
+  }
+  const base = segment.slice(0, -PREVIEW_SUFFIX.length);
+  return SLUG_PATTERN.test(base) ? base : null;
+}
+
 /** Public floor unless the actor is a platform superadmin. */
 export const MIN_PUBLIC_SLUG_LENGTH = 3;
 /** Inclusive upper bound of the paid vanity band (3–5). */
