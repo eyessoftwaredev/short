@@ -832,9 +832,13 @@ describe("open mode", () => {
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(response.headers.get("x-frame-options")).toBe("DENY");
     const html = await response.text();
-    expect(html).toContain('href="youtube://www.youtube.com/watch?v=dQw4w9WgXcQ"');
+    // iOS Safari: one tap on the https universal link, no scripted jump or auto fallback.
+    expect(html).toContain('id="launch" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"');
     expect(html).toContain('id="web" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"');
-    expect(html).toContain('data-fallback="1"');
+    expect(html).toContain('data-fallback="0"');
+    expect(html).toContain('data-web-script="1"');
+    expect(html).not.toContain("data-auto=");
+    expect(html).toContain("Open in YouTube");
 
     const nonce = scriptNonce(html);
     expect(nonce).toMatch(/^[0-9a-f]{32}$/);
@@ -848,17 +852,39 @@ describe("open mode", () => {
     expect(queue.sent[0]?.type).toBe("click");
   });
 
-  it("uses a package-pinned intent with a browser fallback on Android", async () => {
-    const { response } = await visit(
+  it("redirects Android browsers straight to a package-pinned intent, tracked once", async () => {
+    const { response, queue } = await visit(
       { destination: "https://www.instagram.com/p/C8abcdEFG/", openMode: "app" },
       { "user-agent": ANDROID_CHROME },
     );
-    const html = await response.text();
-    expect(html).toContain(
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
       `intent://www.instagram.com/p/C8abcdEFG/#Intent;scheme=https;package=com.instagram.android;S.browser_fallback_url=${encodeURIComponent(
         "https://www.instagram.com/p/C8abcdEFG/",
       )};end`,
     );
+    expect(response.headers.get("cache-control")).toBe("no-store, max-age=0");
+    expect(queue.sent).toHaveLength(1);
+  });
+
+  it("names the app in Turkish on the iOS tap page", async () => {
+    const { response } = await visit(
+      { destination: "https://www.instagram.com/berkcanturks/", openMode: "app" },
+      { "user-agent": IPHONE_SAFARI, "accept-language": "tr-TR,tr;q=0.9" },
+    );
+    const html = await response.text();
+    expect(html).toContain("Instagram'da aç");
+    expect(html).toContain("Tarayıcıda devam et");
+  });
+
+  it("attempts the scheme and falls back to the web inside an in-app browser", async () => {
+    const { response } = await visit(
+      { destination: "https://www.instagram.com/berkcanturks/", openMode: "app" },
+      { "user-agent": IPHONE_INSTAGRAM },
+    );
+    const html = await response.text();
+    expect(html).toContain('data-auto="instagram://user?username=berkcanturks"');
+    expect(html).toContain('data-fallback="1"');
   });
 
   it("redirects desktops, unknown apps and bots normally in app mode", async () => {

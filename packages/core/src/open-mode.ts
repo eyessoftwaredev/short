@@ -17,6 +17,8 @@ export function normalizeOpenMode(value: unknown): LinkOpenMode {
 
 type AppSpec = {
   id: string;
+  /** Brand name shown on the handoff button ("Open in Instagram"). */
+  name: string;
   /** Matches the hostname with a leading `www.` removed. */
   hosts: (host: string) => boolean;
   /** Android package that owns the app links for these hosts. */
@@ -59,6 +61,7 @@ const SPOTIFY_TYPES = new Set(["track", "album", "artist", "playlist", "show", "
 const APPS: readonly AppSpec[] = [
   {
     id: "youtube",
+    name: "YouTube",
     hosts: oneOf("youtube.com", "m.youtube.com", "youtu.be"),
     androidPackage: "com.google.android.youtube",
     ios: (url) => {
@@ -78,6 +81,7 @@ const APPS: readonly AppSpec[] = [
   },
   {
     id: "instagram",
+    name: "Instagram",
     hosts: oneOf("instagram.com"),
     androidPackage: "com.instagram.android",
     ios: (url) => {
@@ -91,11 +95,13 @@ const APPS: readonly AppSpec[] = [
   },
   {
     id: "tiktok",
+    name: "TikTok",
     hosts: oneOf("tiktok.com", "m.tiktok.com", "vm.tiktok.com", "vt.tiktok.com"),
     androidPackage: "com.zhiliaoapp.musically",
   },
   {
     id: "twitter",
+    name: "X",
     hosts: oneOf("twitter.com", "x.com", "mobile.twitter.com", "mobile.x.com"),
     androidPackage: "com.twitter.android",
     ios: (url) => {
@@ -115,11 +121,13 @@ const APPS: readonly AppSpec[] = [
   },
   {
     id: "facebook",
+    name: "Facebook",
     hosts: oneOf("facebook.com", "m.facebook.com", "fb.com", "fb.watch"),
     androidPackage: "com.facebook.katana",
   },
   {
     id: "spotify",
+    name: "Spotify",
     hosts: oneOf("open.spotify.com"),
     androidPackage: "com.spotify.music",
     ios: (url) => {
@@ -134,11 +142,13 @@ const APPS: readonly AppSpec[] = [
   },
   {
     id: "linkedin",
+    name: "LinkedIn",
     hosts: oneOf("linkedin.com"),
     androidPackage: "com.linkedin.android",
   },
   {
     id: "whatsapp",
+    name: "WhatsApp",
     hosts: oneOf("wa.me", "api.whatsapp.com", "chat.whatsapp.com"),
     androidPackage: "com.whatsapp",
     ios: (url) => {
@@ -162,6 +172,7 @@ const APPS: readonly AppSpec[] = [
   },
   {
     id: "telegram",
+    name: "Telegram",
     hosts: oneOf("t.me", "telegram.me"),
     androidPackage: "org.telegram.messenger",
     ios: (url) => {
@@ -193,6 +204,7 @@ const APPS: readonly AppSpec[] = [
   },
   {
     id: "pinterest",
+    name: "Pinterest",
     hosts: (host) => host === "pinterest.com" || host === "pin.it" || /^[a-z]{2}\.pinterest\.com$/.test(host),
     androidPackage: "com.pinterest",
     ios: (url) => {
@@ -297,12 +309,79 @@ export function browserEscapeUrl(destination: string, os: ParsedUa["os"]): strin
 
 export type OpenPlan =
   | { kind: "redirect" }
-  | { kind: "app"; app: string; launchUrl: string }
+  /** Answer with a 302 straight to `launchUrl` (an Android intent). */
+  | { kind: "launch"; app: string; launchUrl: string }
+  /**
+   * Serve the tap-through page. `buttonUrl` is what the big button opens; `autoUrl`, when
+   * set, is attempted once on load; `webFallback` sends the visitor on to the web
+   * destination if nothing took over the page.
+   */
+  | {
+      kind: "app";
+      app: string;
+      appName: string;
+      buttonUrl: string;
+      autoUrl: string | null;
+      webFallback: boolean;
+    }
   | { kind: "browser"; inApp: InAppName; launchUrl: string };
 
 /**
- * Decides whether a visit gets the plain redirect or the app / browser interstitial.
- * Bots and link unfurlers always get the redirect so previews keep working.
+ * Hands a known destination to its native app. What actually works differs per
+ * platform, so each gets the one mechanism it reliably honours:
+ * - Android browsers launch an `intent://` from a server redirect that follows the
+ *   visitor's tap, but block the same intent when a loaded page sets it from script.
+ *   They get a 302; Chrome falls back to `S.browser_fallback_url` without the app.
+ * - iOS Safari/Chrome open a universal link when the visitor taps a link to another
+ *   domain, with no prompt, and simply load the web page when the app is missing. A
+ *   redirect or scripted navigation never triggers it, and a custom scheme set from
+ *   script only raises an "Open in …?" dialog. So iOS gets one clear button.
+ * - In-app webviews ignore universal links and most redirects to other apps; they get
+ *   the custom scheme / intent attempted once, then the web page.
+ */
+function planApp(destination: string, ua: Pick<ParsedUa, "os" | "inApp">): OpenPlan {
+  const url = parseWebUrl(destination);
+  const app = url ? findApp(url) : null;
+  if (!url || !app) {
+    return { kind: "redirect" };
+  }
+
+  if (ua.os === "android") {
+    const intent = androidIntent(url, `package=${app.androidPackage};`);
+    if (!isSafeLaunchUrl(intent)) {
+      return { kind: "redirect" };
+    }
+    if (ua.inApp === null) {
+      return { kind: "launch", app: app.id, launchUrl: intent };
+    }
+    return { kind: "app", app: app.id, appName: app.name, buttonUrl: intent, autoUrl: intent, webFallback: true };
+  }
+
+  if (ua.os === "ios") {
+    if (ua.inApp === null) {
+      return {
+        kind: "app",
+        app: app.id,
+        appName: app.name,
+        buttonUrl: url.toString(),
+        autoUrl: null,
+        webFallback: false,
+      };
+    }
+    const scheme = app.ios?.(url) ?? null;
+    if (!scheme || !isSafeLaunchUrl(scheme)) {
+      return { kind: "redirect" };
+    }
+    return { kind: "app", app: app.id, appName: app.name, buttonUrl: scheme, autoUrl: scheme, webFallback: true };
+  }
+
+  return { kind: "redirect" };
+}
+
+/**
+ * Decides whether a visit gets the plain redirect, a direct app launch, or the app /
+ * browser interstitial. Bots and link unfurlers always get the redirect so previews
+ * keep working.
  */
 export function planOpen(
   mode: LinkOpenMode,
@@ -313,8 +392,7 @@ export function planOpen(
     return { kind: "redirect" };
   }
   if (mode === "app") {
-    const launch = appLaunchUrl(destination, ua.os);
-    return launch ? { kind: "app", app: launch.app, launchUrl: launch.url } : { kind: "redirect" };
+    return planApp(destination, ua);
   }
   if (ua.inApp === null) {
     return { kind: "redirect" };

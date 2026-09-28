@@ -16,7 +16,9 @@ import {
   type VisitorContext,
 } from "@short/core";
 import type { EdgeEnv } from "./env";
-import { cloakHtml, handoffHtml, passwordGateHtml } from "./html";
+import { cloakHtml, handoffHtml, passwordGateHtml, type HandoffOptions } from "./html";
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 import {
   gateAttemptBucket,
   gateCookieName,
@@ -298,9 +300,9 @@ function applyDeepLink(link: LinkKvRecord, resolution: Resolution, os: string): 
  * per-response nonce; everything else it could load or submit is shut off, and the
  * destination never learns the short link through a Referer.
  */
-function handoffResponse(options: Omit<Parameters<typeof handoffHtml>[0], "nonce">): Response {
+function handoffResponse(options: DistributiveOmit<HandoffOptions, "nonce">): Response {
   const nonce = crypto.randomUUID().replace(/-/g, "");
-  return new Response(handoffHtml({ ...options, nonce }), {
+  return new Response(handoffHtml({ ...options, nonce } as HandoffOptions), {
     status: 200,
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -666,9 +668,32 @@ export default {
     // ever points at the app or the destination itself, never back at this short link.
     // It also takes precedence over cloaking, which cannot hand off to an app.
     const plan = deepLinked ? null : planOpen(normalizeOpenMode(link.openMode), destination, ua);
-    if (plan && plan.kind !== "redirect") {
+    if (plan?.kind === "launch") {
+      // Android browsers only launch an intent from a redirect that follows the tap.
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: plan.launchUrl,
+          "cache-control": "no-store, max-age=0",
+          "referrer-policy": "no-referrer",
+          "x-robots-tag": "noindex, nofollow",
+        },
+      });
+    }
+    if (plan?.kind === "app") {
       return handoffResponse({
-        mode: plan.kind,
+        mode: "app",
+        appName: plan.appName,
+        buttonUrl: plan.buttonUrl,
+        autoUrl: plan.autoUrl,
+        webFallback: plan.webFallback,
+        webUrl: destination,
+        language,
+      });
+    }
+    if (plan?.kind === "browser") {
+      return handoffResponse({
+        mode: "browser",
         launchUrl: plan.launchUrl,
         webUrl: destination,
         os: ua.os,

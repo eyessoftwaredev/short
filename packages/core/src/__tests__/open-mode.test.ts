@@ -129,11 +129,59 @@ describe("planOpen", () => {
       kind: "app",
       app: "youtube",
     });
-    expect(planOpen("app", "https://youtu.be/dQw4w9WgXcQ", android)).toMatchObject({ kind: "app" });
+    expect(planOpen("app", "https://youtu.be/dQw4w9WgXcQ", android)).toMatchObject({ kind: "launch" });
     expect(
       planOpen("app", "https://youtu.be/dQw4w9WgXcQ", { os: "macos", inApp: null, isBot: false }),
     ).toEqual({ kind: "redirect" });
     expect(planOpen("app", "https://example.com", mobile)).toEqual({ kind: "redirect" });
+  });
+
+  it("redirects Android browsers straight to the package-pinned intent", () => {
+    expect(planOpen("app", "https://www.instagram.com/berkcanturks/", android)).toEqual({
+      kind: "launch",
+      app: "instagram",
+      launchUrl: `intent://www.instagram.com/berkcanturks/#Intent;scheme=https;package=com.instagram.android;S.browser_fallback_url=${encodeURIComponent(
+        "https://www.instagram.com/berkcanturks/",
+      )};end`,
+    });
+  });
+
+  it("gives iOS Safari a tap-to-open universal link with no scripted fallback", () => {
+    // A scripted custom-scheme jump only raises a dialog that an automatic web
+    // fallback used to dismiss; the https button opens the app without one.
+    expect(planOpen("app", "https://www.instagram.com/berkcanturks/", mobile)).toEqual({
+      kind: "app",
+      app: "instagram",
+      appName: "Instagram",
+      buttonUrl: "https://www.instagram.com/berkcanturks/",
+      autoUrl: null,
+      webFallback: false,
+    });
+    // Apps without a documented iOS scheme are reachable the same way.
+    expect(planOpen("app", "https://www.tiktok.com/@acme/video/1", mobile)).toMatchObject({
+      kind: "app",
+      appName: "TikTok",
+      autoUrl: null,
+    });
+  });
+
+  it("tries the custom scheme, then the web page, inside in-app browsers", () => {
+    expect(
+      planOpen("app", "https://www.instagram.com/berkcanturks/", { os: "ios", inApp: "facebook", isBot: false }),
+    ).toEqual({
+      kind: "app",
+      app: "instagram",
+      appName: "Instagram",
+      buttonUrl: "instagram://user?username=berkcanturks",
+      autoUrl: "instagram://user?username=berkcanturks",
+      webFallback: true,
+    });
+    expect(
+      planOpen("app", "https://www.tiktok.com/@acme/video/1", { os: "ios", inApp: "facebook", isBot: false }),
+    ).toEqual({ kind: "redirect" });
+    expect(
+      planOpen("app", "https://youtu.be/dQw4w9WgXcQ", { os: "android", inApp: "instagram", isBot: false }),
+    ).toMatchObject({ kind: "app", webFallback: true });
   });
 
   it("only escapes when the visit is inside an in-app browser", () => {

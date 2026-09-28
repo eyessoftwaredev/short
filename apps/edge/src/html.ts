@@ -94,11 +94,32 @@ export function passwordGateHtml(options: { title: string; error: boolean }): st
 </html>`;
 }
 
+/** Turkish locative for the app names open-mode knows ("Instagram'da", "X'te"). */
+const TR_LOCATIVE: Record<string, string> = {
+  YouTube: "YouTube'da",
+  Instagram: "Instagram'da",
+  TikTok: "TikTok'ta",
+  X: "X'te",
+  Facebook: "Facebook'ta",
+  Spotify: "Spotify'da",
+  LinkedIn: "LinkedIn'de",
+  WhatsApp: "WhatsApp'ta",
+  Telegram: "Telegram'da",
+  Pinterest: "Pinterest'te",
+};
+
+function trIn(app: string): string {
+  return TR_LOCATIVE[app] ?? `${app} uygulamasında`;
+}
+
 const HANDOFF_COPY = {
   en: {
-    appTitle: "Opening the app…",
-    appBody: "If the app does not open, you will continue in your browser in a moment.",
-    appButton: "Open app",
+    openingTitle: (app: string) => `Opening ${app}…`,
+    openingBody: "If the app does not open, you will continue in your browser in a moment.",
+    tapTitle: (app: string) => `Open in ${app}`,
+    tapBody: (app: string) => `This link opens in the ${app} app. Tap the button to continue.`,
+    appButton: (app: string) => `Open in ${app}`,
+    continueBrowser: "Continue in browser",
     browserTitle: "Open in your browser",
     browserBody:
       "This link works best in your phone's browser. Tap the button below, or copy the link and paste it into your browser.",
@@ -111,9 +132,12 @@ const HANDOFF_COPY = {
     continueHere: "Continue here",
   },
   tr: {
-    appTitle: "Uygulama açılıyor…",
-    appBody: "Uygulama açılmazsa birazdan tarayıcıda devam edeceksiniz.",
-    appButton: "Uygulamada aç",
+    openingTitle: (app: string) => `${app} açılıyor…`,
+    openingBody: "Uygulama açılmazsa birkaç saniye içinde tarayıcıda devam edeceksiniz.",
+    tapTitle: (app: string) => `${trIn(app)} aç`,
+    tapBody: (app: string) => `Bu bağlantı ${app} uygulamasında açılır. Devam etmek için düğmeye dokunun.`,
+    appButton: (app: string) => `${trIn(app)} aç`,
+    continueBrowser: "Tarayıcıda devam et",
     browserTitle: "Tarayıcınızda açın",
     browserBody:
       "Bu bağlantı telefonunuzun tarayıcısında daha iyi çalışır. Aşağıdaki düğmeye dokunun ya da bağlantıyı kopyalayıp tarayıcınıza yapıştırın.",
@@ -130,19 +154,31 @@ const HANDOFF_COPY = {
 /**
  * Static on purpose: every per-request value is read from escaped attributes in the
  * markup, so the script itself never interpolates anything and runs under a nonce.
- * The launch URL is attempted once on load; in app mode the web URL follows after
- * 1.5 s unless the page was hidden (the app took over).
+ * - `data-auto`: attempted once on load (custom scheme / intent / browser escape).
+ * - `data-fallback="1"`: continue to the web page after 2.5 s unless something took
+ *   over (the page hid, or an "Open in …?" dialog took focus).
+ * - `data-web-script="1"`: "continue in browser" navigates from script, because a tap
+ *   on the same https link would re-trigger the app's universal link on iOS.
  */
 const HANDOFF_SCRIPT = `(function () {
   var d = document;
-  var launch = d.getElementById("launch");
+  var b = d.body;
   var web = d.getElementById("web");
   var left = false;
-  d.addEventListener("visibilitychange", function () { if (d.hidden) { left = true; } });
-  window.addEventListener("pagehide", function () { left = true; });
-  if (launch) { try { window.location.href = launch.getAttribute("href"); } catch (e) {} }
-  if (web && d.body.getAttribute("data-fallback") === "1") {
-    setTimeout(function () { if (!left && !d.hidden) { window.location.replace(web.getAttribute("href")); } }, 1500);
+  var away = function () { left = true; };
+  d.addEventListener("visibilitychange", function () { if (d.hidden) { away(); } });
+  window.addEventListener("pagehide", away);
+  window.addEventListener("blur", away);
+  var auto = b.getAttribute("data-auto");
+  if (auto) { try { window.location.href = auto; } catch (e) {} }
+  if (web && b.getAttribute("data-fallback") === "1") {
+    setTimeout(function () { if (!left && !d.hidden) { window.location.replace(web.getAttribute("href")); } }, 2500);
+  }
+  if (web && b.getAttribute("data-web-script") === "1") {
+    web.addEventListener("click", function (event) {
+      event.preventDefault();
+      window.location.replace(web.getAttribute("href"));
+    });
   }
   var copy = d.getElementById("copy");
   var field = d.getElementById("url");
@@ -187,37 +223,67 @@ const HANDOFF_STYLE = `${BASE_STYLE}
   }
 `;
 
-export type HandoffOptions = {
-  /** `app`: try the native app, then fall back. `browser`: leave the in-app webview. */
-  mode: "app" | "browser";
-  /** Pre-validated with `isSafeLaunchUrl`; never an http(s), javascript: or data: URL. */
-  launchUrl: string;
+type HandoffBase = {
   /** Pre-validated with `isSafeDestination`. */
   webUrl: string;
-  os: string;
   language: string;
   nonce: string;
 };
 
+export type HandoffOptions =
+  | (HandoffBase & {
+      /** Open the destination in its native app (see `planOpen` in core). */
+      mode: "app";
+      appName: string;
+      /** The button's target: the https universal link, a custom scheme or an intent. */
+      buttonUrl: string;
+      /** Attempted once on load; null when only a tap can reach the app. */
+      autoUrl: string | null;
+      webFallback: boolean;
+    })
+  | (HandoffBase & {
+      /** Leave a social app's in-app browser. */
+      mode: "browser";
+      /** Pre-validated with `isSafeLaunchUrl`. */
+      launchUrl: string;
+      os: string;
+    });
+
 /** App-launch / browser-escape interstitial for a link's `openMode`. */
 export function handoffHtml(options: HandoffOptions): string {
   const copy = options.language === "tr" ? HANDOFF_COPY.tr : HANDOFF_COPY.en;
-  const launch = escapeHtml(options.launchUrl);
   const web = escapeHtml(options.webUrl);
-  const isApp = options.mode === "app";
 
-  const body = isApp
-    ? `<h1>${copy.appTitle}</h1>
-    <p>${copy.appBody}</p>
+  let title: string;
+  let body: string;
+  let attributes: string;
+  if (options.mode === "app") {
+    const name = escapeHtml(options.appName);
+    const opening = options.autoUrl !== null;
+    title = opening ? copy.openingTitle(name) : copy.tapTitle(name);
+    // A tap on the https button is the app's universal link; "continue" must not be.
+    const scriptedWeb = options.buttonUrl === options.webUrl;
+    attributes = [
+      options.autoUrl ? `data-auto="${escapeHtml(options.autoUrl)}"` : "",
+      `data-fallback="${options.webFallback ? "1" : "0"}"`,
+      `data-web-script="${scriptedWeb ? "1" : "0"}"`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    body = `<h1>${title}</h1>
+    <p>${opening ? copy.openingBody : copy.tapBody(name)}</p>
     <div class="actions">
-      <a class="button" id="launch" href="${launch}">${copy.appButton}</a>
-      <a class="link" id="web" href="${web}" rel="noreferrer">${copy.continueWeb}</a>
-    </div>`
-    : `<h1>${copy.browserTitle}</h1>
+      <a class="button" id="launch" href="${escapeHtml(options.buttonUrl)}">${copy.appButton(name)}</a>
+      <a class="link" id="web" href="${web}" rel="noreferrer">${copy.continueBrowser}</a>
+    </div>`;
+  } else {
+    title = copy.browserTitle;
+    attributes = `data-auto="${escapeHtml(options.launchUrl)}" data-fallback="0" data-web-script="0"`;
+    body = `<h1>${title}</h1>
     <p>${copy.browserBody}</p>
     ${options.os === "ios" ? `<p class="hint">${copy.browserIosHint}</p>` : ""}
     <div class="actions">
-      <a class="button" id="launch" href="${launch}">${copy.browserButton}</a>
+      <a class="button" id="launch" href="${escapeHtml(options.launchUrl)}">${copy.browserButton}</a>
       <label>
         ${copy.linkLabel}
         <input id="url" type="text" readonly value="${web}" />
@@ -225,6 +291,7 @@ export function handoffHtml(options: HandoffOptions): string {
       <button type="button" class="secondary" id="copy" data-done="${copy.copied}">${copy.copy}</button>
       <a class="link" id="web" href="${web}" rel="noreferrer">${copy.continueHere}</a>
     </div>`;
+  }
 
   return `<!doctype html>
 <html lang="${options.language === "tr" ? "tr" : "en"}">
@@ -233,10 +300,10 @@ export function handoffHtml(options: HandoffOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="referrer" content="no-referrer" />
-<title>${isApp ? copy.appTitle : copy.browserTitle}</title>
+<title>${title}</title>
 <style>${HANDOFF_STYLE}</style>
 </head>
-<body data-fallback="${isApp ? "1" : "0"}">
+<body ${attributes}>
   <main class="card">
     ${body}
   </main>
