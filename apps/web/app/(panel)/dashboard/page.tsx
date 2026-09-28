@@ -10,12 +10,15 @@ import { PanelShell } from "@/components/shell/panel-shell";
 import {
   Badge,
   Button,
+  Callout,
   Card,
   EmptyState,
   Grid,
-  Hero,
-  QuotaMeter,
-  Section,
+  InfoTip,
+  PageHeader,
+  Progress,
+  Sparkline,
+  StatCard,
   Table,
   TableBody,
   TableCell,
@@ -25,7 +28,6 @@ import {
 } from "@/components/ui";
 import { loadRecentEvents, loadSummary, loadTimeseries, loadTopLinks } from "@/lib/analytics";
 import { formatDateTime, formatNumber, parseClickhouseDate, truncateMiddle } from "@/lib/format";
-import { cn } from "@/lib/cx";
 import { getWorkspaceUsage } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 import { readDraftDestination } from "@/lib/draft-link";
@@ -35,7 +37,6 @@ import {
   clampRangeToRetention,
   countryName,
   deltaPercent,
-  formatDelta,
   localizedRangeLabel,
   resolveRange,
   titleCase,
@@ -99,27 +100,34 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   }
   const peakClicks = series.reduce((acc, point) => Math.max(acc, point.clicks), 0);
 
+  /** Headline delta as a plain percentage; the StatCard draws the arrow. */
+  const deltaText = (current: number, previous: number): string => {
+    const delta = deltaPercent(current, previous);
+    return delta === 0 ? noneDelta : `${Math.abs(delta)}%`;
+  };
+  const comparison = range.comparePrevious ? t("vsPrevious", { range: rangeLabel }) : rangeLabel;
+  const trendDescription = range.granularity === "hour" ? t("clickTrendDescHour") : t("clickTrendDescDay");
+
   return (
-    <PanelShell
-      title={t("dashboard")}
-      crumbs={[{ label: context.workspace.name }]}
-      topbarActions={
-        <Button variant="primary" size="sm" href="/links/new">
-          <Icon name="plus" className="text-sm" />
-          {tc("newLink")}
-        </Button>
-      }
-    >
-      <Hero
-        variant="compact"
-        eyebrow={t("planLabel", { name: context.plan.name })}
-        title={context.workspace.name}
+    <PanelShell title={t("dashboard")} crumbs={[{ label: context.workspace.name }]}>
+      {/*
+        Reference layout for panel pages (see components/DESIGN.md):
+        PageHeader → alerts → KPI row → primary chart → two-up detail cards.
+      */}
+      <PageHeader
+        title={t("dashboard")}
+        meta={<Badge tone="accent">{t("planLabel", { name: context.plan.name })}</Badge>}
         description={
           range.comparePrevious
-            ? t("dashboardDesc", { range: rangeLabel })
-            : t("dashboardDescAll", { range: rangeLabel })
+            ? t("dashboardIntro", { range: rangeLabel })
+            : t("dashboardIntroAll", { range: rangeLabel })
         }
-        actions={<RangePicker value={range.key} />}
+        secondaryActions={<RangePicker value={range.key} />}
+        actions={
+          <Button variant="primary" leadingIcon="plus" href="/links/new">
+            {tc("newLink")}
+          </Button>
+        }
       />
 
       {/*
@@ -128,162 +136,176 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         discovered at the point of failure.
       */}
       {overQuota || nearQuota ? (
-        <div
-          role="status"
-          className={cn(
-            "flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-default border px-4 py-3",
+        <Callout
+          tone={overQuota ? "danger" : "warn"}
+          title={
             overQuota
-              ? "border-danger-border bg-danger-surface text-danger"
-              : "border-warn-border bg-warn-surface text-warn-ink",
-          )}
-        >
-          <span className="min-w-0 text-sm">
-            {overQuota
               ? t("quotaOver", { limit: formatNumber(linkLimit), plan: context.plan.name })
-              : t("quotaNear", { limit: formatNumber(linkLimit), plan: context.plan.name })}
-          </span>
-          <Button size="sm" href="/billing">
-            {t("viewPlans")}
-          </Button>
-        </div>
+              : t("quotaNear", { limit: formatNumber(linkLimit), plan: context.plan.name })
+          }
+          actions={
+            <Button size="sm" href="/billing" leadingIcon="rocket">
+              {t("viewPlans")}
+            </Button>
+          }
+        />
       ) : null}
 
       {gettingStarted ? <GettingStartedCard steps={gettingStarted} /> : null}
 
       <Grid columns={4}>
-        <Card
-          icon={<Icon name="arrow-pointer" className="text-sm" />}
+        <StatCard
+          icon="arrow-pointer"
           label={ts("clicks")}
+          info={t("clicksInfo")}
           value={formatNumber(summary.clicks)}
-          trend={trendOf(summary.clicks, summary.previousClicks)}
+          delta={range.comparePrevious ? deltaText(summary.clicks, summary.previousClicks) : undefined}
+          trend={range.comparePrevious ? trendOf(summary.clicks, summary.previousClicks) : "neutral"}
+          deltaLabel={comparison}
           href="/analytics"
-          delta={
-            <>
-              {range.comparePrevious ? (
-                <>
-                  {formatDelta(summary.clicks, summary.previousClicks, noneDelta)}{" "}
-                  <span className="text-fg-subtle">{t("vsPrevious", { range: rangeLabel })}</span>
-                </>
-              ) : (
-                <span className="text-fg-subtle">{rangeLabel}</span>
-              )}
-            </>
+          sparkline={
+            series.length > 1 ? (
+              <Sparkline data={series.map((point) => point.clicks)} tone="chart-1" />
+            ) : null
           }
         />
-        <Card
-          icon={<Icon name="users" className="text-sm" />}
+        <StatCard
+          icon="users"
           label={t("uniqueVisitors")}
+          info={t("visitorsInfo")}
           value={formatNumber(summary.visitors)}
-          trend={trendOf(summary.visitors, summary.previousVisitors)}
-          href="/analytics"
           delta={
-            <>
-              {range.comparePrevious ? (
-                <>
-                  {formatDelta(summary.visitors, summary.previousVisitors, noneDelta)}{" "}
-                  <span className="text-fg-subtle">{t("vsPrevious", { range: rangeLabel })}</span>
-                </>
-              ) : (
-                <span className="text-fg-subtle">{rangeLabel}</span>
-              )}
-            </>
+            range.comparePrevious ? deltaText(summary.visitors, summary.previousVisitors) : undefined
+          }
+          trend={
+            range.comparePrevious ? trendOf(summary.visitors, summary.previousVisitors) : "neutral"
+          }
+          deltaLabel={comparison}
+          href="/analytics"
+          sparkline={
+            series.length > 1 ? (
+              <Sparkline data={series.map((point) => point.visitors)} tone="chart-2" />
+            ) : null
           }
         />
-        <Card
-          icon={<Icon name="earth" className="text-sm" />}
+        <StatCard
+          icon="earth"
           label={ts("countries")}
+          info={t("countriesInfo")}
           value={formatNumber(summary.countries)}
-          delta={t("countriesReached")}
+          deltaLabel={t("countriesReached")}
         />
-        <Card staticHover icon={<Icon name="link" className="text-sm" />} label={t("link")}>
-          <QuotaMeter label={t("linksUsed")} used={usage.links} limit={linkLimit} />
-        </Card>
+        <StatCard
+          icon="link"
+          label={t("linksUsed")}
+          info={t("linksUsedInfo")}
+          value={
+            <>
+              {formatNumber(usage.links)}
+              <span className="text-base font-medium text-fg-subtle">
+                {" / "}
+                {linkLimit === -1 ? tc("unlimited") : formatNumber(linkLimit)}
+              </span>
+            </>
+          }
+        >
+          {linkLimit === -1 ? null : (
+            <Progress
+              value={usage.links}
+              max={Math.max(linkLimit, 1)}
+              tone={overQuota ? "danger" : nearQuota ? "warn" : "accent"}
+              size="sm"
+              className="mt-auto"
+            />
+          )}
+        </StatCard>
       </Grid>
 
-      <Section
-        title={t("clickTrend")}
-        description={range.granularity === "hour" ? t("clickTrendDescHour") : t("clickTrendDescDay")}
-        meta={
-          series.length > 0 ? (
-            <span className="numeric font-mono">
-              {t("peak", {
+      <Card
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            {t("clickTrend")}
+            <InfoTip label={t("clickTrend")}>{t("clickTrendInfo")}</InfoTip>
+          </span>
+        }
+        description={
+          series.length > 0
+            ? `${trendDescription} · ${t("peak", {
                 value: formatNumber(peakClicks),
                 granularity: range.granularity === "hour" ? ts("hour") : ts("day"),
-              })}
-            </span>
-          ) : null
+              })}`
+            : trendDescription
         }
         actions={
-          <Link href="/analytics" className="text-sm text-accent-ink">
+          <Button size="sm" variant="ghost" trailingIcon="arrow-right" href="/analytics">
             {t("fullAnalytics")}
-          </Link>
+          </Button>
         }
       >
-        <Card staticHover>
-          {series.length === 0 ? (
-            <EmptyState
-              size="sm"
-              tone={hasLinks ? "default" : "first-run"}
-              icon={<Icon name="chart-line" className="text-sm" />}
-              title={hasLinks ? t("noClicksRange") : t("noClicksYet")}
-              description={hasLinks ? t("noClicksRangeBody") : t("noClicksYetBody")}
-              actions={
-                hasLinks ? null : (
-                  <Button variant="primary" href="/links/new">
-                    <Icon name="plus" className="text-sm" />
-                    {t("createFirstLink")}
-                  </Button>
-                )
-              }
-            />
-          ) : (
-            <>
-              {/*
-                Recharts' own legend is positioned inside the plot and pushes the
-                axis around; a static one keeps the plot area stable.
-              */}
-              <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
-                <span className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-pill bg-chart-1" aria-hidden="true" />
-                  {ts("clicks")}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-pill bg-chart-2" aria-hidden="true" />
-                  {t("uniqueVisitors")}
-                </span>
-              </div>
-              <TimeseriesChart data={series} granularity={range.granularity} />
-            </>
-          )}
-        </Card>
-      </Section>
+        {series.length === 0 ? (
+          <EmptyState
+            bare
+            size="sm"
+            tone={hasLinks ? "default" : "first-run"}
+            icon="chart-line"
+            title={hasLinks ? t("noClicksRange") : t("noClicksYet")}
+            description={hasLinks ? t("noClicksRangeBody") : t("noClicksYetBody")}
+            actions={
+              hasLinks ? null : (
+                <Button variant="primary" leadingIcon="plus" href="/links/new">
+                  {t("createFirstLink")}
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <>
+            {/*
+              A static legend: Recharts' own legend sits inside the plot and
+              pushes the axis around.
+            */}
+            <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-pill bg-chart-1" aria-hidden="true" />
+                {ts("clicks")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-pill bg-chart-2" aria-hidden="true" />
+                {t("uniqueVisitors")}
+              </span>
+            </div>
+            <TimeseriesChart data={series} granularity={range.granularity} />
+          </>
+        )}
+      </Card>
 
       <Grid columns={2}>
-        <Section
+        <Card
+          padding="none"
           title={t("topLinks")}
           description={t("topLinksDesc")}
           actions={
-            <Link href="/analytics" className="text-sm text-accent-ink">
-              {t("allAnalytics")}
-            </Link>
+            <Button size="sm" variant="ghost" trailingIcon="arrow-right" href="/links">
+              {tc("viewAll")}
+            </Button>
           }
         >
           {topLinks.length === 0 ? (
             <EmptyState
+              bare
               size="sm"
               tone={hasLinks ? "default" : "first-run"}
-              icon={<Icon name="link" className="text-sm" />}
+              icon="link"
               title={hasLinks ? t("noTraffic") : t("noLinks")}
               description={hasLinks ? t("noTrafficBody") : t("noLinksBody")}
               actions={
-                <Button variant="primary" href="/links/new">
-                  <Icon name="plus" className="text-sm" />
+                <Button variant="primary" leadingIcon="plus" href="/links/new">
                   {hasLinks ? tc("newLink") : t("createALink")}
                 </Button>
               }
             />
           ) : (
-            <Table density="compact" label={t("topLinks")}>
+            <Table bare density="compact" label={t("topLinks")}>
               <TableHead>
                 <TableRow>
                   <TableHeaderCell>{t("link")}</TableHeaderCell>
@@ -297,7 +319,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                     <TableCell truncate>
                       <Link
                         href={`/links/${row.linkId}/stats`}
-                        className="truncate font-mono text-sm text-ink no-underline hover:text-accent-ink"
+                        className="truncate font-mono text-[13px] text-ink no-underline hover:text-accent-ink"
                       >
                         {row.hostname}/{row.slug}
                       </Link>
@@ -311,44 +333,56 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               </TableBody>
             </Table>
           )}
-        </Section>
+        </Card>
 
-        <Section
+        <Card
           title={t("latestClicks")}
           description={t("latestClicksDesc")}
-          meta={recent.length > 0 ? <Badge tone="accent" dot>{t("live")}</Badge> : null}
+          actions={
+            recent.length > 0 ? (
+              <Badge tone="success" dot>
+                {t("live")}
+              </Badge>
+            ) : null
+          }
         >
           {recent.length === 0 ? (
             <EmptyState
+              bare
               size="sm"
-              icon={<Icon name="arrow-pointer" className="text-sm" />}
+              icon="arrow-pointer"
               title={t("nothingYet")}
               description={t("nothingYetBody")}
             />
           ) : (
-            <ol className="m-0 flex list-none flex-col gap-3.5 rounded-default border border-border bg-bg p-5">
+            <ol className="m-0 flex list-none flex-col divide-y divide-border-subtle p-0">
               {recent.map((event, index) => (
-                <li key={`${event.ts}-${event.destination}-${index}`} className="flex min-w-0 gap-3">
+                <li
+                  key={`${event.ts}-${event.destination}-${index}`}
+                  className="flex min-w-0 items-start gap-3 py-2.5 first:pt-0 last:pb-0"
+                >
                   <span
-                    className="mt-1.5 size-2 shrink-0 rounded-pill bg-accent"
+                    className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-default bg-surface text-fg-subtle"
                     aria-hidden="true"
-                  />
+                  >
+                    <Icon name="arrow-pointer" className="text-[11px]" />
+                  </span>
                   <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="truncate text-sm">
+                    <span className="truncate text-sm text-ink">
                       {countryName(event.country, locale, unknown)}
                       {event.city ? ` · ${event.city}` : ""} · {titleCase(event.device, unknown)} ·{" "}
                       {titleCase(event.browser, unknown)}
                     </span>
-                    <span className="truncate font-mono text-xs text-fg-subtle">
+                    <span className="truncate text-xs text-fg-subtle">
                       {formatDateTime(parseClickhouseDate(event.ts))} ·{" "}
-                      {truncateMiddle(event.destination, 40)}
+                      <span className="font-mono">{truncateMiddle(event.destination, 40)}</span>
                     </span>
                   </span>
                 </li>
               ))}
             </ol>
           )}
-        </Section>
+        </Card>
       </Grid>
     </PanelShell>
   );
