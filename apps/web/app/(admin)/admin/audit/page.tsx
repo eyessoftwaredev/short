@@ -169,7 +169,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
                           <span className="font-mono text-xs text-fg-subtle">{target}</span>
                         </span>
                         {details ? (
-                          <span className="line-clamp-2 max-w-2xl text-xs break-all text-fg-muted" title={details}>
+                          <span className="line-clamp-2 max-w-2xl text-xs wrap-anywhere text-fg-muted" title={details}>
                             {details}
                           </span>
                         ) : null}
