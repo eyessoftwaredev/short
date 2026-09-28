@@ -253,11 +253,13 @@ export function LinksTable({ rows, total, page, pageSize, filtered, canDelete }:
     <span className="flex min-w-0 items-center gap-0.5">
       <Link
         href={`/links/${row.id}/stats`}
-        className="min-w-0 truncate font-mono text-[13px] text-ink no-underline hover:text-accent-ink hover:no-underline"
+        className="flex min-w-0 font-mono text-[13px] text-ink no-underline hover:text-accent-ink hover:no-underline"
         title={t("list.openDetails")}
       >
-        <span className="text-fg-subtle">{row.hostname}/</span>
-        <span className="font-medium">{row.slug}</span>
+        {/* The host is the same on most rows, so it gives way first and the slug that
+            tells links apart stays readable. */}
+        <span className="min-w-[5ch] shrink-10 truncate text-fg-subtle">{row.hostname}/</span>
+        <span className="min-w-0 truncate font-medium">{row.slug}</span>
       </Link>
       <CopyButton value={`https://${row.hostname}/${row.slug}`} label={t("copyShortLink")} iconOnly className="size-7" />
     </span>

@@ -76,15 +76,18 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
                   {event.linkId ? (
                     <Link
                       href={`/links/${event.linkId}/stats`}
-                      className="truncate font-mono text-sm text-ink no-underline hover:text-accent-ink"
+                      className="flex min-w-0 font-mono text-sm text-ink no-underline hover:text-accent-ink"
                     >
-                      <span className="text-fg-subtle">{event.hostname}/</span>
-                      <span className="font-medium">{event.slug}</span>
+                      {/* The host repeats on every row; it gives way before the slug does. */}
+                      <span className="min-w-[5ch] shrink-10 truncate text-fg-subtle">{event.hostname}/</span>
+                      <span className="min-w-0 truncate font-medium">{event.slug}</span>
                     </Link>
                   ) : (
-                    <span className="font-mono text-sm text-fg-muted">
-                      {event.hostname ? `${event.hostname}/` : ""}
-                      {event.slug || "—"}
+                    <span className="flex min-w-0 font-mono text-sm text-fg-muted">
+                      {event.hostname ? (
+                        <span className="min-w-[5ch] shrink-10 truncate">{event.hostname}/</span>
+                      ) : null}
+                      <span className="min-w-0 truncate">{event.slug || "—"}</span>
                     </span>
                   )}
                 </TableCell>

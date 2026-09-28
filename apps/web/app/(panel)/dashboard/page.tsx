@@ -421,13 +421,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               <TableBody>
                 {topLinks.map((row) => (
                   <TableRow key={row.linkId}>
-                    <TableCell truncate>
+                    {/* w-full: a max-w-0 truncating cell otherwise shrinks to its minimum and
+                        cuts every row down to the same "host…". */}
+                    <TableCell truncate className="w-full">
                       <Link
                         href={`/links/${row.linkId}/stats`}
-                        className="truncate font-mono text-[13px] text-ink no-underline hover:text-accent-ink"
+                        className="flex min-w-0 font-mono text-[13px] text-ink no-underline hover:text-accent-ink"
                       >
-                        <span className="text-fg-subtle">{row.hostname}/</span>
-                        {row.slug}
+                        <span className="min-w-[5ch] shrink-10 truncate text-fg-subtle">{row.hostname}/</span>
+                        <span className="min-w-0 truncate">{row.slug}</span>
                       </Link>
                     </TableCell>
                     <TableCell numeric>{formatNumber(row.clicks)}</TableCell>
