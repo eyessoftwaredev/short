@@ -18,7 +18,9 @@ import {
   closestCenter,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -511,6 +513,26 @@ export function BioBuilder({
   // dnd-kit numbers its aria-describedby ids from a module counter, which differs between
   // the server render and hydration; a React id keeps both sides identical.
   const dndId = useId();
+  // dnd-kit's built-in screen-reader text is English; announce moves in the panel language.
+  const dndAccessibility = useMemo(() => {
+    const blocksNow = () => getValues("blocks");
+    const nameOf = (id: UniqueIdentifier): string => {
+      const block = blocksNow().find((item) => item.id === id);
+      return block ? describeBlock(block, t) : String(id);
+    };
+    const positionOf = (id: UniqueIdentifier): number => blocksNow().findIndex((item) => item.id === id) + 1;
+    const announcements: Announcements = {
+      onDragStart: ({ active }) => t("editor.dragStart", { name: nameOf(active.id) }),
+      onDragOver: ({ active, over }) =>
+        over ? t("editor.dragOver", { name: nameOf(active.id), position: positionOf(over.id) }) : undefined,
+      onDragEnd: ({ active, over }) =>
+        over
+          ? t("editor.dragEnd", { name: nameOf(active.id), position: positionOf(over.id) })
+          : t("editor.dragCancel", { name: nameOf(active.id) }),
+      onDragCancel: ({ active }) => t("editor.dragCancel", { name: nameOf(active.id) }),
+    };
+    return { announcements, screenReaderInstructions: { draggable: t("editor.dragInstructions") } };
+  }, [getValues, t]);
 
   const hostname = useMemo(
     () => domains.find((domain) => domain.id === values.domainId)?.hostname ?? platformHostname,
@@ -993,7 +1015,13 @@ export function BioBuilder({
                 </div>
               ) : (
                 <>
-                  <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                  <DndContext
+                    id={dndId}
+                    accessibility={dndAccessibility}
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={onDragEnd}
+                  >
                     <SortableContext
                       items={values.blocks.map((block) => block.id)}
                       strategy={verticalListSortingStrategy}
