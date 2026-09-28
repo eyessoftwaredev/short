@@ -19,6 +19,33 @@ export type EmailCopy = {
   inviteBody: string;
   inviteCta: string;
   pasteHint: string;
+  brokenSubjectOne: string;
+  brokenSubjectMany: string;
+  brokenHeading: string;
+  brokenBody: string;
+  brokenCta: string;
+  brokenFootnote: string;
+  brokenMore: string;
+  brokenReasonDns: string;
+  brokenReasonTimeout: string;
+  brokenReasonNetwork: string;
+  brokenReasonHttp: string;
+  digestSubject: string;
+  digestHeading: string;
+  digestIntro: string;
+  digestClicks: string;
+  digestVisitors: string;
+  digestUp: string;
+  digestDown: string;
+  digestFlat: string;
+  digestNew: string;
+  digestTopLinks: string;
+  digestTopCountries: string;
+  digestBrokenOne: string;
+  digestBrokenMany: string;
+  digestCta: string;
+  digestFootnote: string;
+  digestUnknownCountry: string;
 };
 
 const EN: EmailCopy = {
@@ -37,6 +64,34 @@ const EN: EmailCopy = {
   inviteBody: "{inviter} invited you to join the {workspace} team.",
   inviteCta: "Accept invitation",
   pasteHint: "Or paste this link into your browser:",
+  brokenSubjectOne: "A link in {workspace} stopped working",
+  brokenSubjectMany: "{count} links in {workspace} stopped working",
+  brokenHeading: "Some destinations are not responding",
+  brokenBody:
+    "We checked where your short links point, twice in a row, and these destinations did not answer. Visitors who follow them may land on an error page.",
+  brokenCta: "Review broken links",
+  brokenFootnote: "You get this email because link health alerts are on for {workspace}. You can turn them off in Settings.",
+  brokenMore: "…and {count} more",
+  brokenReasonDns: "domain not found",
+  brokenReasonTimeout: "timed out",
+  brokenReasonNetwork: "connection failed",
+  brokenReasonHttp: "HTTP {code}",
+  digestSubject: "{workspace}: {clicks} clicks last week",
+  digestHeading: "Your week in {workspace}",
+  digestIntro: "How your links did from {from} to {to}.",
+  digestClicks: "Clicks",
+  digestVisitors: "Visitors",
+  digestUp: "{percent}% more than the week before",
+  digestDown: "{percent}% fewer than the week before",
+  digestFlat: "Same as the week before",
+  digestNew: "No clicks the week before",
+  digestTopLinks: "Top links",
+  digestTopCountries: "Top countries",
+  digestBrokenOne: "1 link stopped working last week.",
+  digestBrokenMany: "{count} links stopped working last week.",
+  digestCta: "Open dashboard",
+  digestFootnote: "You get this summary because the weekly digest is on for {workspace}. You can turn it off in Settings.",
+  digestUnknownCountry: "Unknown",
 };
 
 const TR: EmailCopy = {
@@ -55,6 +110,34 @@ const TR: EmailCopy = {
   inviteBody: "{inviter} seni {workspace} takımına davet etti.",
   inviteCta: "Daveti kabul et",
   pasteHint: "Veya bu linki tarayıcına yapıştır:",
+  brokenSubjectOne: "{workspace} içindeki bir link çalışmıyor",
+  brokenSubjectMany: "{workspace} içinde {count} link çalışmıyor",
+  brokenHeading: "Bazı hedefler yanıt vermiyor",
+  brokenBody:
+    "Kısa linklerinin yönlendirdiği adresleri üst üste iki kez kontrol ettik ve bu hedefler yanıt vermedi. Bu linkleri açan ziyaretçiler bir hata sayfasıyla karşılaşabilir.",
+  brokenCta: "Bozuk linkleri incele",
+  brokenFootnote: "{workspace} için link sağlığı uyarıları açık olduğu için bu e-postayı aldın. Ayarlar'dan kapatabilirsin.",
+  brokenMore: "…ve {count} tane daha",
+  brokenReasonDns: "alan adı bulunamadı",
+  brokenReasonTimeout: "zaman aşımı",
+  brokenReasonNetwork: "bağlantı kurulamadı",
+  brokenReasonHttp: "HTTP {code}",
+  digestSubject: "{workspace}: geçen hafta {clicks} tıklama",
+  digestHeading: "{workspace} haftalık özeti",
+  digestIntro: "{from} – {to} arasında linklerinin performansı.",
+  digestClicks: "Tıklama",
+  digestVisitors: "Ziyaretçi",
+  digestUp: "Önceki haftaya göre %{percent} fazla",
+  digestDown: "Önceki haftaya göre %{percent} az",
+  digestFlat: "Önceki haftayla aynı",
+  digestNew: "Önceki hafta hiç tıklama yoktu",
+  digestTopLinks: "En çok tıklanan linkler",
+  digestTopCountries: "En çok tıklanan ülkeler",
+  digestBrokenOne: "Geçen hafta 1 link çalışmayı durdurdu.",
+  digestBrokenMany: "Geçen hafta {count} link çalışmayı durdurdu.",
+  digestCta: "Panele git",
+  digestFootnote: "{workspace} için haftalık özet açık olduğu için bu e-postayı aldın. Ayarlar'dan kapatabilirsin.",
+  digestUnknownCountry: "Bilinmiyor",
 };
 
 function apply(template: string, vars: Record<string, string>): string {
