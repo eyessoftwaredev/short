@@ -139,13 +139,18 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
   };
 
   const url = shortUrl(link.hostname, link.slug);
-  const returning = Math.max(summary.clicks - summary.visitors, 0);
-  const hasTraffic = summary.clicks > 0 || series.length > 0;
+  // Like the chart and the share page, the headline counts every visit to the link:
+  // `clicks` alone left QR scans out, so the "QR scans" filter showed 0 clicks and
+  // visitors could outnumber clicks.
+  const visits = summary.clicks + summary.qrScans;
+  const previousVisits = summary.previousClicks + (summary.previousQrScans ?? 0);
+  const returning = Math.max(visits - summary.visitors, 0);
+  const hasTraffic = visits > 0 || series.length > 0;
   const peakClicks = series.reduce((acc, point) => Math.max(acc, point.clicks), 0);
   const singleBucket = series.length === 1;
   // The whole life of the link fits in the range and nothing came in: invite a share
   // instead of suggesting a wider range.
-  const neverClicked = summary.clicks === 0 && link.createdAt.getTime() >= range.from.getTime();
+  const neverClicked = visits === 0 && link.createdAt.getTime() >= range.from.getTime();
   const now = Date.now();
   const status = linkStatusOf(
     {
@@ -356,7 +361,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
       </div>
 
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <StatsToggles />
+        <StatsToggles types={["", "click", "qr_scan"]} />
         <div className="flex flex-wrap items-center gap-2">
           <ExportButtons href={exportHref} />
           <RangePicker value={range.key} />
@@ -368,9 +373,9 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
           icon="arrow-pointer"
           label={ts("clicks")}
           info={t("detail.clicksInfo")}
-          value={formatNumber(summary.clicks)}
-          delta={range.comparePrevious ? deltaText(summary.clicks, summary.previousClicks) : undefined}
-          trend={range.comparePrevious ? trendOf(summary.clicks, summary.previousClicks) : "neutral"}
+          value={formatNumber(visits)}
+          delta={range.comparePrevious ? deltaText(visits, previousVisits) : undefined}
+          trend={range.comparePrevious ? trendOf(visits, previousVisits) : "neutral"}
           deltaLabel={comparison}
           sparkline={series.length > 1 ? <Sparkline data={series.map((point) => point.clicks)} tone="chart-1" /> : null}
         />

@@ -6,7 +6,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const TYPES = ["", "click", "qr_scan", "bio_view"] as const;
 
-export function StatsToggles() {
+type StatsType = (typeof TYPES)[number];
+
+/** Link stats pass the link-level types only: bio page views never belong to a link. */
+export function StatsToggles({ types = TYPES }: { types?: readonly StatsType[] }) {
   const t = useTranslations("stats");
   const router = useRouter();
   const pathname = usePathname();
@@ -26,7 +29,7 @@ export function StatsToggles() {
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      {TYPES.map((value) => (
+      {types.map((value) => (
         <Chip key={value || "all"} active={type === value} onClick={() => setParam("type", value || null)}>
           {value === "" ? t("allEvents") : t(`type.${value}`)}
         </Chip>
