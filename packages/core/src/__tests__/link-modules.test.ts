@@ -147,9 +147,12 @@ describe("linkInputSchema.maxClicks", () => {
     }
   });
 
-  it("adds broken and limited list filters", () => {
-    expect(linkListQuerySchema.parse({ status: "broken" }).status).toBe("broken");
-    expect(linkListQuerySchema.parse({ status: "limited" }).status).toBe("limited");
+  it("adds health and click-limit list filters next to status", () => {
+    const query = linkListQuerySchema.parse({ health: "broken", clickLimit: "reached" });
+    expect(query).toMatchObject({ status: "all", health: "broken", clickLimit: "reached" });
+    expect(linkListQuerySchema.parse({}).health).toBeUndefined();
+    expect(linkListQuerySchema.safeParse({ health: "dead" }).success).toBe(false);
+    expect(linkListQuerySchema.safeParse({ status: "broken" }).success).toBe(false);
   });
 });
 

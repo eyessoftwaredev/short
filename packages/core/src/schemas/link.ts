@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LINK_HEALTH_STATUSES } from "../link-health";
 import { LINK_OPEN_MODES } from "../open-mode";
 import { SLUG_PATTERN, isReservedSlug } from "../slug";
 import { abVariantSchema, safeDestinationSchema, targetRuleSchema } from "../targeting";
@@ -88,11 +89,11 @@ export const linkListQuerySchema = z.object({
   domainId: z.string().uuid().optional(),
   folderId: z.string().uuid().optional(),
   tag: z.string().trim().max(48).optional(),
-  // `broken`: the health monitor failed the destination twice in a row.
-  // `limited`: the link used up its click limit.
-  status: z
-    .enum(["all", "active", "archived", "expired", "scheduled", "broken", "limited"])
-    .default("all"),
+  status: z.enum(["all", "active", "archived", "expired", "scheduled"]).default("all"),
+  /** Destination health from the link-health monitor, e.g. `broken`. */
+  health: z.enum(LINK_HEALTH_STATUSES).optional(),
+  /** `set`: links with a click limit; `reached`: links that used it up. */
+  clickLimit: z.enum(["set", "reached"]).optional(),
   sort: z.enum(["created_desc", "created_asc", "clicks_desc", "slug_asc"]).default("created_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(10).max(100).default(25),
