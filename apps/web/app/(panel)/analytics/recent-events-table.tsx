@@ -26,8 +26,9 @@ function typeLabel(
   type: string,
   t: (key: string) => string,
 ): string {
+  // One row is one event: the singular "Link click", not the plural filter-chip label "Clicks".
   if (type === "click" || type === "qr_scan" || type === "bio_view" || type === "bio_click") {
-    return t(`type.${type}`);
+    return t(`eventKind.${type}`);
   }
   return type;
 }
@@ -53,12 +54,12 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
     <Table stickyHeader bare={bare} density="compact" label={ts("recentEventsTable")}>
       <TableHead sticky>
         <TableRow>
-          <TableHeaderCell className="w-40">{ts("when")}</TableHeaderCell>
-          <TableHeaderCell className="w-28">{ts("eventType")}</TableHeaderCell>
+          <TableHeaderCell className="w-32">{ts("when")}</TableHeaderCell>
+          <TableHeaderCell className="w-44">{ts("eventType")}</TableHeaderCell>
           {showLink ? <TableHeaderCell className="w-44">{ts("link")}</TableHeaderCell> : null}
           <TableHeaderCell className="w-48">{ts("location")}</TableHeaderCell>
           <TableHeaderCell className="w-56">{ts("device")}</TableHeaderCell>
-          <TableHeaderCell className="w-36">{ts("ip")}</TableHeaderCell>
+          <TableHeaderCell className="w-32">{ts("ip")}</TableHeaderCell>
           <TableHeaderCell>{ts("referrer")}</TableHeaderCell>
         </TableRow>
       </TableHead>
@@ -70,7 +71,7 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
               <TableCell className="numeric font-mono text-xs whitespace-nowrap text-fg-muted">
                 {formatDateTime(parseClickhouseDate(event.ts), locale)}
               </TableCell>
-              <TableCell className="text-fg-muted">{typeLabel(event.type, ts)}</TableCell>
+              <TableCell className="whitespace-nowrap text-fg-muted">{typeLabel(event.type, ts)}</TableCell>
               {showLink ? (
                 // Every text column truncates to its header width; the link keeps a floor so
                 // it is never squeezed down to a few pixels.
@@ -121,7 +122,7 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
               <TableCell className="font-mono text-xs text-fg-muted">
                 {event.ip || "—"}
               </TableCell>
-              <TableCell truncate className="text-fg-muted">
+              <TableCell truncate className="min-w-28 text-fg-muted">
                 {event.referrerDomain === "" ? ts("direct") : event.referrerDomain}
               </TableCell>
             </TableRow>
