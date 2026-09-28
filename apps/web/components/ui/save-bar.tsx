@@ -41,7 +41,7 @@ export function SaveBar({
   return (
     <div
       className={cn(
-        "animate-slide-in-up sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-toast mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-elevated py-2.5 pr-2.5 pl-4 shadow-toast lg:bottom-5",
+        "animate-slide-in-up sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-sticky mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-elevated py-2.5 pr-2.5 pl-4 shadow-toast lg:bottom-5",
         className,
       )}
     >
