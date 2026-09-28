@@ -1,5 +1,6 @@
 import { qrTemplateInputSchema, type QrStyle, type QrTemplateInput } from "@short/core";
 import { and, desc, eq, getDb, qrTemplates, type QrTemplateRow } from "@short/db";
+import { parseWithQrLogoPreset } from "./qr-logo-presets";
 
 export type QrTemplateView = {
   id: string;
@@ -34,7 +35,9 @@ export async function createQrTemplate(
   createdBy: string,
   input: QrTemplateInput,
 ): Promise<QrTemplateView> {
-  const parsed = qrTemplateInputSchema.parse(input);
+  const parsed = parseWithQrLogoPreset(input.style.logoUrl, (logoUrl) =>
+    qrTemplateInputSchema.parse({ ...input, style: { ...input.style, logoUrl } }),
+  );
   const [row] = await getDb()
     .insert(qrTemplates)
     .values({

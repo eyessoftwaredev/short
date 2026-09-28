@@ -6,6 +6,7 @@ import { PanelShell } from "@/components/shell/panel-shell";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { Badge, Button, Card, Dropdown, EmptyState, Grid, Hero } from "@/components/ui";
 import { formatDate } from "@/lib/format";
+import { getLink } from "@/lib/links";
 import { listQrCodes, qrPayload } from "@/lib/qr-codes";
 import { buildQrSvg } from "@/lib/qr-svg";
 import { requireWorkspace } from "@/lib/session";
@@ -25,7 +26,13 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
   const pageParam = Number(Array.isArray(raw.page) ? raw.page[0] : raw.page);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
 
-  const { items, total } = await listQrCodes(context.workspace.id, page, PAGE_SIZE);
+  const linkParam = Array.isArray(raw.linkId) ? raw.linkId[0] : raw.linkId;
+  // Only a link from this workspace narrows the list; anything else shows every code.
+  const filterLink = linkParam ? await getLink(context.workspace.id, linkParam) : null;
+
+  const { items, total } = await listQrCodes(context.workspace.id, page, PAGE_SIZE, {
+    linkId: filterLink?.id ?? null,
+  });
 
   return (
     <PanelShell
@@ -38,8 +45,49 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
         </Button>
       }
     >
+      {filterLink ? (
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-default border border-border bg-surface-subtle px-4 py-3">
+          <p className="m-0 flex min-w-0 items-center gap-2 text-sm text-fg-muted">
+            <Icon name="filter" className="shrink-0 text-xs" aria-hidden="true" />
+            <span className="min-w-0 truncate">
+              {t.rich("filteredByLink", {
+                link: () => (
+                  <Link
+                    href={`/links/${filterLink.id}`}
+                    className="font-mono font-medium text-ink"
+                  >
+                    {filterLink.hostname}/{filterLink.slug}
+                  </Link>
+                ),
+              })}
+            </span>
+          </p>
+          <span className="flex shrink-0 items-center gap-1">
+            <Button size="sm" variant="ghost" href={`/qr/new?linkId=${filterLink.id}`}>
+              <Icon name="plus" className="text-sm" aria-hidden="true" />
+              {t("linkCard.another")}
+            </Button>
+            <Button size="sm" variant="ghost" href="/qr">
+              <Icon name="xmark" className="text-sm" aria-hidden="true" />
+              {t("clearFilter")}
+            </Button>
+          </span>
+        </div>
+      ) : null}
+
       {/* `total`, not `items`: a stale ?page= past the end still shows the pager. */}
-      {total === 0 ? (
+      {total === 0 && filterLink ? (
+        <EmptyState
+          icon={<Icon name="qrcode" className="text-lg" />}
+          title={t("filteredEmptyTitle")}
+          description={t("filteredEmptyDesc")}
+          actions={
+            <Button variant="primary" href={`/qr/new?linkId=${filterLink.id}`}>
+              {t("designCta")}
+            </Button>
+          }
+        />
+      ) : total === 0 ? (
         <EmptyState
           icon={<Icon name="qrcode" className="text-lg" />}
           eyebrow={t("title")}

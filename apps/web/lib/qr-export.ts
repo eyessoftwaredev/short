@@ -1,5 +1,7 @@
 import { isPublicHttpUrl, type QrStyle } from "@short/core";
 import { getMediaById, mediaToDataUri, parseMediaId } from "./media";
+import { parseQrLogoPreset } from "./qr-logo-presets";
+import { qrLogoPresetDataUri } from "./qr-logo-svg";
 import { buildQrSvg } from "./qr-svg";
 
 const MAX_LOGO_BYTES = 1024 * 1024;
@@ -54,8 +56,9 @@ async function fetchRemoteLogo(url: string): Promise<string | null> {
 }
 
 /**
- * Logos are inlined so preview and export share the same bytes. First-party media
- * is read from Postgres; leftover HTTPS URLs stay behind the SSRF allowlist.
+ * Logos are inlined so preview and export share the same bytes. Built-in presets are
+ * rendered in-process, first-party media is read from Postgres, and leftover HTTPS
+ * URLs stay behind the SSRF allowlist.
  */
 export async function fetchLogoDataUri(url: string | null): Promise<string | null> {
   if (!url) {
@@ -64,6 +67,11 @@ export async function fetchLogoDataUri(url: string | null): Promise<string | nul
 
   if (url.startsWith("data:image/")) {
     return url.length <= MAX_LOGO_BYTES ? url : null;
+  }
+
+  const preset = parseQrLogoPreset(url);
+  if (preset) {
+    return qrLogoPresetDataUri(preset.id);
   }
 
   const mediaId = parseMediaId(url);

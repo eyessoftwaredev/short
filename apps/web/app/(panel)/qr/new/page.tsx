@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Hero } from "@/components/ui";
-import { listLinks, shortUrl } from "@/lib/links";
+import { getLink, listLinks, shortUrl } from "@/lib/links";
 import { emptyQrForm } from "@/lib/qr-form";
 import { listQrTemplates } from "@/lib/qr-templates";
 import { requireWorkspace } from "@/lib/session";
@@ -20,7 +20,7 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
   const raw = await searchParams;
   const preselect = Array.isArray(raw.linkId) ? raw.linkId[0] : raw.linkId;
 
-  const [{ items }, templates] = await Promise.all([
+  const [{ items }, templates, preselected] = await Promise.all([
     listLinks(context.workspace.id, {
     status: "active",
     sort: "created_desc",
@@ -28,6 +28,9 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
     pageSize: 200,
   }),
     listQrTemplates(context.workspace.id),
+    // "Design a custom code" from the link editor may point at an archived or older link
+    // that the active list below does not include.
+    preselect ? getLink(context.workspace.id, preselect) : Promise.resolve(null),
   ]);
 
   const options: QrLinkOption[] = items.map((link) => ({
@@ -35,6 +38,14 @@ export default async function NewQrPage({ searchParams }: { searchParams: Search
     label: `${link.hostname}/${link.slug}${link.title ? ` · ${link.title}` : ""}`,
     url: shortUrl(link.hostname, link.slug),
   }));
+
+  if (preselected && !options.some((option) => option.id === preselected.id)) {
+    options.unshift({
+      id: preselected.id,
+      label: `${preselected.hostname}/${preselected.slug}${preselected.title ? ` · ${preselected.title}` : ""}`,
+      url: shortUrl(preselected.hostname, preselected.slug),
+    });
+  }
 
   const selected = options.find((option) => option.id === preselect) ?? options[0];
 

@@ -9,6 +9,7 @@ import {
   type QrStyle,
 } from "@short/core";
 import { z } from "zod";
+import { parseWithQrLogoPreset } from "./qr-logo-presets";
 
 const hexColor = z
   .string()
@@ -187,13 +188,16 @@ export function previewQrPayload(values: QrFormValues): string {
 export function toQrInput(raw: QrFormValues): QrInput {
   // Server actions receive whatever the client sent, so the form schema runs here too.
   const values = qrFormSchema.parse(raw);
-  return qrInputSchema.parse({
-    name: values.name,
-    payloadKind: values.payloadKind,
-    linkId: values.payloadKind === "link" ? values.linkId : null,
-    payload: payloadForKind(values),
-    style: toQrStyle(values),
-  });
+  const style = toQrStyle(values);
+  return parseWithQrLogoPreset(style.logoUrl, (logoUrl) =>
+    qrInputSchema.parse({
+      name: values.name,
+      payloadKind: values.payloadKind,
+      linkId: values.payloadKind === "link" ? values.linkId : null,
+      payload: payloadForKind(values),
+      style: { ...style, logoUrl },
+    }),
+  );
 }
 
 export function toQrForm(

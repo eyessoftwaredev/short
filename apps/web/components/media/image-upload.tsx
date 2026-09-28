@@ -11,6 +11,8 @@ type ImageUploadProps = {
   onChange: (value: string) => void;
   disabled?: boolean;
   hint?: string;
+  /** Offers the built-in QR logo libraries (brand icons, emoji) in the picker. */
+  presets?: boolean;
 };
 
 type UploadResponse = {
@@ -28,7 +30,13 @@ function mediaErrorKey(code: string | undefined): "media_type" | "media_size" | 
   return "media_failed";
 }
 
-export function ImageUpload({ value, onChange, disabled = false, hint }: ImageUploadProps) {
+export function ImageUpload({
+  value,
+  onChange,
+  disabled = false,
+  hint,
+  presets = false,
+}: ImageUploadProps) {
   const t = useTranslations("media");
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
@@ -97,7 +105,7 @@ export function ImageUpload({ value, onChange, disabled = false, hint }: ImageUp
               disabled={disabled || pending}
               onClick={() => setLibraryOpen(true)}
             >
-              {t("library")}
+              {presets ? t("logoLibrary") : t("library")}
             </Button>
             {value ? (
               <Button
@@ -118,6 +126,7 @@ export function ImageUpload({ value, onChange, disabled = false, hint }: ImageUp
 
       <MediaPicker
         open={libraryOpen}
+        presets={presets}
         selectedUrl={value}
         onClose={() => setLibraryOpen(false)}
         onSelect={onChange}

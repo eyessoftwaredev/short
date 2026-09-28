@@ -14,6 +14,7 @@ import {
   workspaceMedia,
   type WorkspaceMediaRow,
 } from "@short/db";
+import { isQrLogoPreset } from "./qr-logo-presets";
 
 export const MEDIA_PATH = /^\/api\/media\/([0-9a-f-]{36})$/i;
 export const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"] as const;
@@ -82,6 +83,21 @@ export async function assertOwnedMedia(
   if (!row) {
     throw new Error("Image is not in this workspace");
   }
+}
+
+/**
+ * QR logos accept workspace media or one of the built-in presets (social icons, emoji).
+ * Presets are a shared static catalogue, so there is nothing to own; only uploads are
+ * checked against the workspace.
+ */
+export async function assertQrLogo(
+  workspaceId: string,
+  value: string | null | undefined,
+): Promise<void> {
+  if (isQrLogoPreset(value)) {
+    return;
+  }
+  await assertOwnedMedia(workspaceId, value);
 }
 
 export function mediaToDataUri(row: Pick<WorkspaceMediaRow, "contentType" | "bytes">): string {

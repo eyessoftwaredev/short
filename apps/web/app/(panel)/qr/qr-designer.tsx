@@ -17,6 +17,7 @@ import {
   Chip,
   CopyButton,
   Field,
+  InfoTip,
   Input,
   Modal,
   SaveBar,
@@ -159,8 +160,21 @@ function ControlGroup({
   );
 }
 
+/** A control label that is not a `Field` (chip rows, switches), with its "i" tooltip. */
+function ControlLabel({ label, info }: { label: string; info: string }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+      <span className="min-w-0 truncate">{label}</span>
+      <InfoTip inline label={label}>
+        {info}
+      </InfoTip>
+    </span>
+  );
+}
+
 function Slider({
   label,
+  info,
   readout,
   value,
   min,
@@ -170,6 +184,7 @@ function Slider({
   onChange,
 }: {
   label: string;
+  info?: string;
   readout: string;
   value: number;
   min: number;
@@ -182,9 +197,16 @@ function Slider({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <label htmlFor={id} className="min-w-0 truncate text-sm font-medium">
-          {label}
-        </label>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <label htmlFor={id} className="min-w-0 truncate text-sm font-medium">
+            {label}
+          </label>
+          {info ? (
+            <InfoTip inline label={label}>
+              {info}
+            </InfoTip>
+          ) : null}
+        </span>
         <span className="shrink-0 font-mono text-xs text-fg-muted tabular-nums">{readout}</span>
       </div>
       <input
@@ -204,6 +226,7 @@ function Slider({
 
 function ColorControl({
   label,
+  info,
   pickerAria,
   error,
   value,
@@ -211,6 +234,7 @@ function ColorControl({
   inputProps,
 }: {
   label: string;
+  info: string;
   pickerAria: string;
   error?: string;
   value: string;
@@ -218,7 +242,7 @@ function ColorControl({
   inputProps: Record<string, unknown>;
 }) {
   return (
-    <Field label={label} error={error}>
+    <Field label={label} info={info} error={error}>
       <div className="flex min-w-0 items-center gap-2">
         <input
           type="color"
@@ -473,7 +497,12 @@ export function QrDesigner({
                 </div>
 
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="shrink-0 text-xs text-fg-subtle">{t("pngSize")}</span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-fg-subtle">
+                    {t("pngSize")}
+                    <InfoTip inline label={t("pngSize")}>
+                      {t("info.pngSize")}
+                    </InfoTip>
+                  </span>
                   {EXPORT_SIZES.map((size) => (
                     <Chip
                       key={size}
@@ -499,11 +528,11 @@ export function QrDesigner({
 
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
           <ControlGroup title={t("target")} description={t("targetDesc")}>
-            <Field label={t("name")} error={qrFieldError(errors.name?.message, t, te)}>
+            <Field label={t("name")} info={t("info.name")} error={qrFieldError(errors.name?.message, t, te)}>
               <Input placeholder={t("namePlaceholder")} {...register("name")} />
             </Field>
 
-            <Field label={t("payloadKind")}>
+            <Field label={t("payloadKind")} info={t("info.payloadKind")}>
               <Select {...register("payloadKind")}>
                 {QR_PAYLOAD_KINDS.map((kind) => (
                   <option key={kind} value={kind}>
@@ -516,6 +545,7 @@ export function QrDesigner({
             {values.payloadKind === "link" ? (
               <Field
                 label={t("shortLink")}
+                info={t("info.shortLink")}
                 error={qrFieldError(errors.linkId?.message, t, te)}
                 hint={t("shortLinkHint")}
               >
@@ -541,7 +571,7 @@ export function QrDesigner({
             ) : null}
 
             {values.payloadKind === "url" ? (
-              <Field label={t("payloadUrl")} error={qrFieldError(errors.payloadUrl?.message, t, te)}>
+              <Field label={t("payloadUrl")} info={t("info.payloadUrl")} error={qrFieldError(errors.payloadUrl?.message, t, te)}>
                 <Input placeholder="https://example.com" {...register("payloadUrl")} />
               </Field>
             ) : null}
@@ -550,21 +580,22 @@ export function QrDesigner({
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field
                   label={t("vcardName")}
+                  info={t("info.vcardName")}
                   className="sm:col-span-2"
                   error={qrFieldError(errors.vcardName?.message, t, te)}
                 >
                   <Input {...register("vcardName")} />
                 </Field>
-                <Field label={t("vcardOrg")}>
+                <Field label={t("vcardOrg")} info={t("info.vcardOrg")}>
                   <Input {...register("vcardOrg")} />
                 </Field>
-                <Field label={t("vcardPhone")}>
+                <Field label={t("vcardPhone")} info={t("info.vcardPhone")}>
                   <Input {...register("vcardPhone")} />
                 </Field>
-                <Field label={t("vcardEmail")} error={qrFieldError(errors.vcardEmail?.message, t, te)}>
+                <Field label={t("vcardEmail")} info={t("info.vcardEmail")} error={qrFieldError(errors.vcardEmail?.message, t, te)}>
                   <Input type="email" {...register("vcardEmail")} />
                 </Field>
-                <Field label={t("vcardUrl")}>
+                <Field label={t("vcardUrl")} info={t("info.vcardUrl")}>
                   <Input {...register("vcardUrl")} />
                 </Field>
               </div>
@@ -572,10 +603,10 @@ export function QrDesigner({
 
             {values.payloadKind === "wifi" ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("wifiSsid")} error={qrFieldError(errors.wifiSsid?.message, t, te)}>
+                <Field label={t("wifiSsid")} info={t("info.wifiSsid")} error={qrFieldError(errors.wifiSsid?.message, t, te)}>
                   <Input {...register("wifiSsid")} />
                 </Field>
-                <Field label={t("wifiPassword")}>
+                <Field label={t("wifiPassword")} info={t("info.wifiPassword")}>
                   <SecretInput
                     domName="qr-wifi-password"
                     ref={wifiPasswordField.ref}
@@ -583,14 +614,14 @@ export function QrDesigner({
                     onBlur={wifiPasswordField.onBlur}
                   />
                 </Field>
-                <Field label={t("wifiSecurity")}>
+                <Field label={t("wifiSecurity")} info={t("info.wifiSecurity")}>
                   <Select {...register("wifiSecurity")}>
                     <option value="WPA">WPA/WPA2</option>
                     <option value="WEP">WEP</option>
                     <option value="nopass">{t("wifiOpen")}</option>
                   </Select>
                 </Field>
-                <Field label={t("wifiHidden")}>
+                <Field label={t("wifiHidden")} info={t("info.wifiHidden")}>
                   <Switch
                     checked={values.wifiHidden}
                     onCheckedChange={(checked) => setValue("wifiHidden", checked, { shouldDirty: true })}
@@ -599,7 +630,7 @@ export function QrDesigner({
               </div>
             ) : null}
 
-            <Field label={t("caption")} hint={t("captionHint", { count: values.caption.length })}>
+            <Field label={t("caption")} info={t("info.caption")} hint={t("captionHint", { count: values.caption.length })}>
               <Input placeholder={t("captionPlaceholder")} maxLength={60} {...register("caption")} />
             </Field>
           </ControlGroup>
@@ -611,7 +642,7 @@ export function QrDesigner({
           >
             <div className="flex min-w-0 flex-col gap-2">
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium">{t("templatesTitle")}</span>
+                <ControlLabel label={t("templatesTitle")} info={t("info.templates")} />
                 <Button type="button" size="sm" variant="ghost" onClick={() => setSaveTemplateOpen(true)}>
                   {t("saveTemplate")}
                 </Button>
@@ -685,7 +716,7 @@ export function QrDesigner({
             </div>
 
             <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-sm font-medium">{t("presets")}</span>
+              <ControlLabel label={t("presets")} info={t("info.palettes")} />
               <div className="flex min-w-0 flex-wrap gap-2">
                 {QR_PALETTES.map((palette) => {
                   const active =
@@ -717,6 +748,7 @@ export function QrDesigner({
             <div className="grid min-w-0 gap-4 *:min-w-0 sm:grid-cols-2">
               <ColorControl
                 label={t("foreground")}
+                info={t("info.foreground")}
                 pickerAria={t("colourPicker", { label: t("foreground") })}
                 error={qrFieldError(errors.foreground?.message, t, te)}
                 value={values.foreground}
@@ -725,6 +757,7 @@ export function QrDesigner({
               />
               <ColorControl
                 label={t("background")}
+                info={t("info.background")}
                 pickerAria={t("colourPicker", { label: t("background") })}
                 error={qrFieldError(errors.background?.message, t, te)}
                 value={values.background}
@@ -735,7 +768,12 @@ export function QrDesigner({
 
             <div className="flex min-w-0 items-center justify-between gap-4 rounded-default border border-border bg-surface-subtle px-4 py-3">
               <span className="min-w-0">
-                <span className="block text-sm font-medium">{t("tintFinders")}</span>
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  {t("tintFinders")}
+                  <InfoTip inline label={t("tintFinders")}>
+                    {t("info.tintFinders")}
+                  </InfoTip>
+                </span>
                 <span className="block text-xs text-fg-muted">{t("tintFindersHint")}</span>
               </span>
               <Switch
@@ -750,6 +788,7 @@ export function QrDesigner({
             {values.useCustomCorners ? (
               <ColorControl
                 label={t("cornerColour")}
+                info={t("info.cornerColour")}
                 pickerAria={t("colourPicker", { label: t("cornerColour") })}
                 error={qrFieldError(errors.cornerColor?.message, t, te)}
                 value={values.cornerColor}
@@ -761,7 +800,7 @@ export function QrDesigner({
 
           <ControlGroup title={t("shapeTitle")} description={t("shapeDesc")}>
             <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-sm font-medium">{t("moduleShape")}</span>
+              <ControlLabel label={t("moduleShape")} info={t("info.moduleShape")} />
               <div className="flex min-w-0 flex-wrap gap-2">
                 {QR_DOT_STYLES.map((style) => (
                   <Chip
@@ -778,6 +817,7 @@ export function QrDesigner({
 
             <Field
               label={t("errorCorrection")}
+              info={t("info.errorCorrection")}
               hint={hasLogo ? t("errorLocked") : t("errorHint")}
             >
               <Select {...register("errorCorrection")} disabled={hasLogo}>
@@ -791,6 +831,7 @@ export function QrDesigner({
 
             <Slider
               label={t("quietZone")}
+              info={t("info.quietZone")}
               readout={t("quietZoneReadout", { count: values.margin })}
               value={values.margin}
               min={0}
@@ -801,6 +842,7 @@ export function QrDesigner({
 
             <Slider
               label={t("exportSize")}
+              info={t("info.exportSize")}
               readout={t("exportSizeReadout", { size: values.size })}
               value={values.size}
               min={128}
@@ -821,9 +863,10 @@ export function QrDesigner({
               </p>
             )}
 
-            <Field label={t("logo")} hint={t("logoHint")}>
+            <Field label={t("logo")} info={t("info.logo")} hint={t("logoHint")}>
               <ImageUpload
                 value={values.logoUrl}
+                presets
                 disabled={!canUseLogo}
                 onChange={(url) => setValue("logoUrl", url, { shouldDirty: true })}
               />
@@ -831,6 +874,7 @@ export function QrDesigner({
 
             <Slider
               label={t("logoSize")}
+              info={t("info.logoSize")}
               readout={t("logoSizeReadout", { percent: Math.round(values.logoScale * 100) })}
               value={values.logoScale}
               min={0.1}
@@ -947,7 +991,7 @@ export function QrDesigner({
         }
       >
         <div className="px-6 py-4">
-          <Field label={t("templateName")}>
+          <Field label={t("templateName")} info={t("info.templateName")}>
             <Input
               value={templateName}
               maxLength={120}

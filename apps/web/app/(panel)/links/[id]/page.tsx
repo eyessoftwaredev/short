@@ -8,6 +8,7 @@ import { Button, CopyButton, Hero } from "@/components/ui";
 import type { LinkFormValues } from "@/lib/link-form";
 import { getLink, listWorkspaceDomains, shortUrl } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
+import { LinkQrCard } from "../../qr/link-qr-card";
 import { LinkForm } from "../link-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -50,6 +51,8 @@ export default async function EditLinkPage({ params }: { params: Promise<{ id: s
     tagsText: link.tags.join(", "),
     // ISO on purpose: the form converts it to the viewer's local time in the browser.
     expiresAt: link.expiresAt?.toISOString() ?? "",
+    // Same ISO convention as `expiresAt`; empty means "live immediately".
+    startsAt: link.startsAt?.toISOString() ?? "",
     expiredDestination: link.expiredDestination ?? "",
     // Never round-trips the stored hash; an empty value means "keep the current password".
     password: "",
@@ -58,6 +61,7 @@ export default async function EditLinkPage({ params }: { params: Promise<{ id: s
     cloaked: link.cloaked,
     noIndex: link.noIndex,
     forwardQuery: link.forwardQuery,
+    openMode: link.openMode,
     archived: link.archived,
     utmSource: link.utm?.utm_source ?? "",
     utmMedium: link.utm?.utm_medium ?? "",
@@ -90,6 +94,7 @@ export default async function EditLinkPage({ params }: { params: Promise<{ id: s
           </>
         }
       />
+      <LinkQrCard workspaceId={context.workspace.id} linkId={link.id} />
       <LinkForm
         mode="edit"
         linkId={link.id}

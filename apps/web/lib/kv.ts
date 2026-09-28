@@ -107,6 +107,11 @@ export async function deleteLinkRecord(hostname: string, slug: string): Promise<
   await deleteKeys([linkKey(hostname, slug)]);
 }
 
+/** One bulk-delete call for many links (Cloudflare accepts up to 10,000 keys). */
+export async function deleteLinkRecords(entries: { hostname: string; slug: string }[]): Promise<void> {
+  await deleteKeys(entries.map((entry) => linkKey(entry.hostname, entry.slug)));
+}
+
 export async function putDomainRecord(record: DomainKvRecord): Promise<void> {
   await writeBulk([{ key: domainKey(record.hostname), value: JSON.stringify(record) }]);
 }

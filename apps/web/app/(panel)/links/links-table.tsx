@@ -32,7 +32,9 @@ import {
 } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import { cn } from "@/lib/cx";
-import { archiveLinkAction, deleteLinkAction } from "./actions";
+import { openQrCodeForLinkAction } from "../qr/actions";
+import { archiveLinkAction, deleteLinkAction, duplicateLinkAction } from "./actions";
+import { LinksBulkBar } from "./links-bulk-bar";
 
 export type LinkListRow = {
   id: string;
@@ -47,9 +49,15 @@ export type LinkListRow = {
   hasPassword: boolean;
   createdAt: string;
   clicks: number;
+  /** Scheduled go-live (ISO); the link redirects only from this moment on. */
+  startsAt?: string | null;
 };
 
-type StatusFilter = "all" | "active" | "archived" | "expired";
+type StatusFilter = "all" | "active" | "archived" | "expired" | "scheduled";
+
+function isScheduled(row: LinkListRow, now: number): boolean {
+  return !row.archived && row.startsAt != null && new Date(row.startsAt).getTime() > now;
+}
 
 const columnHelper = createColumnHelper<LinkListRow>();
 
@@ -58,6 +66,7 @@ const columnHelper = createColumnHelper<LinkListRow>();
  * text columns, which then truncate instead of pushing the actions off-screen.
  */
 const COLUMN_WIDTHS: Record<string, string> = {
+  select: "w-10",
   flags: "w-16",
   tags: "w-44",
   clicks: "w-24",
@@ -102,6 +111,7 @@ export function LinksTable({
   const tc = useTranslations("common");
   const ts = useTranslations("stats");
   const tn = useTranslations("nav");
+  const tq = useTranslations("qr");
   const locale = useLocale();
   const router = useRouter();
   const params = useSearchParams();
@@ -109,7 +119,33 @@ export function LinksTable({
   const [searchDraft, setSearchDraft] = useState(search);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const actionMessage = useActionMessage();
+
+  // Selection is per page: ids that left the page (pagination, filters, deletes) drop out.
+  const selectedIds = useMemo(
+    () => rows.filter((row) => selected.has(row.id)).map((row) => row.id),
+    [rows, selected],
+  );
+  const allSelected = rows.length > 0 && selectedIds.length === rows.length;
+  const toggleRow = useCallback((id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+  const toggleAll = useCallback(
+    (checked: boolean) => setSelected(checked ? new Set(rows.map((row) => row.id)) : new Set()),
+    [rows],
+  );
+  // Captured once per mount; "scheduled" only needs minute-level accuracy.
+  const [now] = useState(() => Date.now());
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const dateFormat = useMemo(
@@ -122,6 +158,7 @@ export function LinksTable({
     { id: "active", label: t("statusActive") },
     { id: "archived", label: t("statusArchived") },
     { id: "expired", label: t("statusExpired") },
+    { id: "scheduled", label: t("statusScheduled") },
   ];
 
   /** Every filter lives in the URL so the list is shareable and survives a refresh. */
@@ -157,6 +194,55 @@ export function LinksTable({
           label: ts("statistics"),
           icon: <Icon name="chart-line" className="text-sm" />,
           href: `/links/${row.id}/stats`,
+        },
+        {
+          id: "duplicate",
+          label: t("table.duplicate"),
+          icon: <Icon name="copy" className="text-sm" />,
+          onSelect: () => {
+            setBusyRowId(row.id);
+            setActionError(null);
+            startTransition(async () => {
+              try {
+                const result = await duplicateLinkAction(row.id);
+                if (!result.ok) {
+                  setActionError(actionMessage(result.error));
+                  return;
+                }
+                router.push(`/links/${result.data.id}`);
+              } catch (error) {
+                console.error("failed to duplicate link", error);
+                setActionError(actionMessage("generic"));
+              } finally {
+                setBusyRowId(null);
+              }
+            });
+          },
+        },
+        {
+          id: "qr",
+          label: tq("linkCard.menuItem"),
+          icon: <Icon name="qrcode" className="text-sm" />,
+          onSelect: () => {
+            // Opens the newest code for this link, or creates one and opens that.
+            setBusyRowId(row.id);
+            setActionError(null);
+            startTransition(async () => {
+              try {
+                const result = await openQrCodeForLinkAction(row.id);
+                if (!result.ok) {
+                  setActionError(actionMessage(result.error));
+                  return;
+                }
+                router.push(`/qr/${result.data.id}`);
+              } catch (error) {
+                console.error("failed to open QR code for link", error);
+                setActionError(actionMessage("generic"));
+              } finally {
+                setBusyRowId(null);
+              }
+            });
+          },
         },
         {
           id: "open",
@@ -231,11 +317,38 @@ export function LinksTable({
 
       return items;
     },
-    [actionMessage, canDelete, router, t, tc, ts],
+    [actionMessage, canDelete, router, t, tc, tq, ts],
   );
 
   const columns = useMemo(
     () => [
+      columnHelper.display({
+        id: "select",
+        header: () => (
+          <input
+            type="checkbox"
+            aria-label={t("table.selectPage")}
+            checked={allSelected}
+            ref={(input) => {
+              if (input) {
+                input.indeterminate = selectedIds.length > 0 && !allSelected;
+              }
+            }}
+            onChange={(event) => toggleAll(event.target.checked)}
+          />
+        ),
+        cell: (info) => {
+          const row = info.row.original;
+          return (
+            <input
+              type="checkbox"
+              aria-label={t("table.selectRow", { slug: row.slug })}
+              checked={selected.has(row.id)}
+              onChange={(event) => toggleRow(row.id, event.target.checked)}
+            />
+          );
+        },
+      }),
       columnHelper.accessor("slug", {
         header: t("shortLink"),
         cell: (info) => {
@@ -330,13 +443,16 @@ export function LinksTable({
       }),
       columnHelper.accessor("archived", {
         header: t("colStatus"),
-        cell: (info) => (
-          <StatusBadge
-            status={
-              info.getValue() ? "archived" : info.row.original.expired ? "expired" : "active"
-            }
-          />
-        ),
+        cell: (info) =>
+          isScheduled(info.row.original, now) ? (
+            <Badge tone="warn">{t("statusScheduled")}</Badge>
+          ) : (
+            <StatusBadge
+              status={
+                info.getValue() ? "archived" : info.row.original.expired ? "expired" : "active"
+              }
+            />
+          ),
       }),
       columnHelper.accessor("createdAt", {
         header: t("colCreated"),
@@ -367,7 +483,20 @@ export function LinksTable({
         ),
       }),
     ],
-    [busyRowId, dateFormat, numberFormat, rowActions, t, ts],
+    [
+      allSelected,
+      busyRowId,
+      dateFormat,
+      now,
+      numberFormat,
+      rowActions,
+      selected,
+      selectedIds.length,
+      t,
+      toggleAll,
+      toggleRow,
+      ts,
+    ],
   );
 
   const table = useReactTable({
@@ -404,6 +533,21 @@ export function LinksTable({
       {actionError ? (
         <p role="alert" className="m-0 text-sm text-danger">
           {actionError}
+        </p>
+      ) : null}
+
+      {notice && !actionError ? (
+        <p role="status" className="m-0 flex items-center gap-2 text-sm text-fg-muted">
+          <Icon name="circle-check" className="text-sm text-accent" aria-hidden="true" />
+          {notice}
+          <button
+            type="button"
+            className="text-fg-subtle hover:text-ink"
+            aria-label={tc("dismiss")}
+            onClick={() => setNotice(null)}
+          >
+            <Icon name="xmark" className="text-xs" aria-hidden="true" />
+          </button>
         </p>
       ) : null}
 
@@ -463,7 +607,10 @@ export function LinksTable({
             </TableHead>
             <TableBody>
               {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} selected={busyRowId === row.original.id}>
+                <TableRow
+                  key={row.id}
+                  selected={busyRowId === row.original.id || selected.has(row.original.id)}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
@@ -478,6 +625,24 @@ export function LinksTable({
               ))}
             </TableBody>
           </Table>
+
+          {selectedIds.length > 0 ? (
+            <LinksBulkBar
+              selectedIds={selectedIds}
+              canDelete={canDelete}
+              onClear={() => setSelected(new Set())}
+              onDone={(message) => {
+                setActionError(null);
+                setNotice(message);
+                setSelected(new Set());
+                router.refresh();
+              }}
+              onError={(message) => {
+                setNotice(null);
+                setActionError(message);
+              }}
+            />
+          ) : null}
 
           <Pagination
             page={page}

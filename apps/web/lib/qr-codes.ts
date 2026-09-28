@@ -39,13 +39,22 @@ function selection() {
   };
 }
 
+export type QrCodeFilter = {
+  /** Only codes that encode this short link (the link editor's "all QR codes" view). */
+  linkId?: string | null;
+};
+
 export async function listQrCodes(
   workspaceId: string,
   page = 1,
   pageSize = 24,
+  filter: QrCodeFilter = {},
 ): Promise<{ items: QrCodeWithTarget[]; total: number }> {
   const db = getDb();
-  const where = eq(qrCodes.workspaceId, workspaceId);
+  const linkId = filter.linkId && UUID.test(filter.linkId) ? filter.linkId : null;
+  const where = linkId
+    ? and(eq(qrCodes.workspaceId, workspaceId), eq(qrCodes.linkId, linkId))
+    : eq(qrCodes.workspaceId, workspaceId);
 
   const [items, totals] = await Promise.all([
     db
@@ -108,6 +117,21 @@ function normalizeQrRow(row: {
     destination: row.destination ?? "",
     linkArchived: row.linkArchived ?? false,
   };
+}
+
+/**
+ * The newest code that encodes a short link, plus how many there are in total, for the
+ * link editor's QR card and the links table's "QR code" shortcut.
+ */
+export async function getLatestQrCodeForLink(
+  workspaceId: string,
+  linkId: string,
+): Promise<{ latest: QrCodeWithTarget | null; total: number }> {
+  if (!UUID.test(linkId)) {
+    return { latest: null, total: 0 };
+  }
+  const { items, total } = await listQrCodes(workspaceId, 1, 1, { linkId });
+  return { latest: items[0] ?? null, total };
 }
 
 /** Guards against attaching a QR code to a link from another workspace. */

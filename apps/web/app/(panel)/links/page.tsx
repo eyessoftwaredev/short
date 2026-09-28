@@ -102,6 +102,7 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
     tags: link.tags,
     archived: link.archived,
     expired: link.expiresAt != null && link.expiresAt.getTime() <= now,
+    startsAt: link.startsAt?.toISOString() ?? null,
     hasRules: link.rules.length > 0,
     hasPassword: link.passwordHash != null,
     createdAt: link.createdAt.toISOString(),
