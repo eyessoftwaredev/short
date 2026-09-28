@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { getRedis, rateLimit } from "./redis";
+import { readyRedis, rateLimit } from "./redis";
 import { serverEnv } from "./env";
 
 const COOLDOWNS_SEC = [30, 120, 300, 900] as const;
@@ -73,7 +73,7 @@ function remainingFromReset(resetAt: number): number {
  */
 export async function consumeResendSlot(email: string, ip: string): Promise<ResendGate> {
   const normalized = normalizeEmail(email);
-  const redis = getRedis();
+  const redis = await readyRedis();
 
   if (!redis) {
     return { allowed: true, remainingSeconds: COOLDOWNS_SEC[0] };

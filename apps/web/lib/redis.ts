@@ -1,7 +1,13 @@
 import Redis from "ioredis";
 import { features, serverEnv } from "./env";
 
-const globalForRedis = globalThis as unknown as { __shortRedis?: Redis };
+const globalForRedis = globalThis as unknown as {
+  __shortRedis?: Redis;
+  __shortRedisConnect?: Promise<void>;
+};
+
+/** Upper bound on waiting for the first handshake; past it the caller fails open as before. */
+const CONNECT_WAIT_MS = 2_000;
 
 function redisKey(suffix: string): string {
   return `${serverEnv().REDIS_KEY_PREFIX}${suffix}`;
@@ -24,6 +30,30 @@ export function getRedis(): Redis | null {
   return globalForRedis.__shortRedis;
 }
 
+/**
+ * `lazyConnect` opens the socket on the first command, but `enableOfflineQueue: false`
+ * rejects every command sent before the socket is ready — so the first rate-limit check,
+ * cache read or health ping after each boot used to fail. Await that first handshake
+ * once (bounded) instead. Later disconnects still fail fast, which is the point of
+ * disabling the offline queue.
+ */
+export async function readyRedis(): Promise<Redis | null> {
+  const redis = getRedis();
+  if (!redis) {
+    return null;
+  }
+  if (redis.status === "wait") {
+    globalForRedis.__shortRedisConnect ??= redis.connect().catch(() => {
+      // The "error" listener already logged it; commands below fail open.
+    });
+  }
+  const connecting = globalForRedis.__shortRedisConnect;
+  if (connecting && redis.status !== "ready") {
+    await Promise.race([connecting, new Promise((resolve) => setTimeout(resolve, CONNECT_WAIT_MS))]);
+  }
+  return redis;
+}
+
 export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -39,7 +69,7 @@ export async function rateLimit(
   limit: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
-  const redis = getRedis();
+  const redis = await readyRedis();
   const resetAt = (Math.floor(Date.now() / 1000 / windowSeconds) + 1) * windowSeconds * 1000;
 
   if (!redis) {
@@ -60,7 +90,7 @@ export async function rateLimit(
 }
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  const redis = getRedis();
+  const redis = await readyRedis();
   if (!redis) {
     return null;
   }
@@ -73,7 +103,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 }
 
 export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-  const redis = getRedis();
+  const redis = await readyRedis();
   if (!redis) {
     return;
   }
@@ -85,7 +115,7 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
 }
 
 export async function cacheDelete(key: string): Promise<void> {
-  const redis = getRedis();
+  const redis = await readyRedis();
   if (!redis) {
     return;
   }

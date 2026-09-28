@@ -1,7 +1,7 @@
 import { chPing } from "@short/analytics";
 import { getSql } from "@short/db";
 import { features, serverEnv } from "./env";
-import { getRedis } from "./redis";
+import { readyRedis } from "./redis";
 
 export type HealthState = "ok" | "degraded" | "down" | "disabled";
 
@@ -76,7 +76,7 @@ async function checkRedis(): Promise<HealthCheck> {
     return disabled("redis", "Redis", "REDIS_URL not set — rate limits fail open");
   }
   return timed("redis", "Redis", async () => {
-    const redis = getRedis();
+    const redis = await readyRedis();
     if (!redis) {
       throw new Error("Client unavailable");
     }
