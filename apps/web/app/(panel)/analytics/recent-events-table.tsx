@@ -72,7 +72,9 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
               </TableCell>
               <TableCell className="text-fg-muted">{typeLabel(event.type, ts)}</TableCell>
               {showLink ? (
-                <TableCell truncate>
+                // Every text column truncates to its header width; the link keeps a floor so
+                // it is never squeezed down to a few pixels.
+                <TableCell truncate className="min-w-40">
                   {event.linkId ? (
                     <Link
                       href={`/links/${event.linkId}/stats`}
@@ -92,7 +94,7 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
                   )}
                 </TableCell>
               ) : null}
-              <TableCell>
+              <TableCell truncate>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="flex w-5 shrink-0 justify-center" aria-hidden="true">
                     {flag || <Icon name="earth" className="text-xs text-fg-subtle" />}
@@ -103,7 +105,7 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
                   </span>
                 </span>
               </TableCell>
-              <TableCell>
+              <TableCell truncate>
                 <span className="flex min-w-0 items-center gap-2 text-fg-muted">
                   <span className="flex shrink-0 items-center gap-1">
                     {deviceIcon(event.device)}
