@@ -407,7 +407,9 @@ export function BioPageView({
     <div
       className={cn(
         "relative w-full",
-        embedded && "min-h-full",
+        // A percentage min-height does not reach a child whose parent only has a
+        // min-height, so the themed surface below grows through flex instead.
+        embedded && "flex min-h-full flex-col",
         hasSideAds && page.adLeftImage && "lg:pl-56",
         hasSideAds && page.adRightImage && "lg:pr-56",
       )}
@@ -430,7 +432,7 @@ export function BioPageView({
           "relative flex w-full flex-col items-center bg-bio-bg text-bio-fg antialiased",
           themedBackground &&
             "bg-[radial-gradient(130%_60%_at_50%_0%,var(--bio-bg-alt)_0%,transparent_72%)]",
-          embedded ? "min-h-full" : "min-h-dvh",
+          embedded ? "flex-1" : "min-h-dvh",
           className,
         )}
         style={rootStyle}
