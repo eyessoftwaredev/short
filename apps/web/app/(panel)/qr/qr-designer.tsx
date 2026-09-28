@@ -634,7 +634,9 @@ export function QrDesigner({
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-default border border-border-subtle bg-surface p-1">
                   {svg ? (
-                    <SvgMarkup svg={svg} className="w-full" />
+                    // At ~1px per module Chromium drops rounded rects entirely on 1x screens,
+                    // leaving only the corner eyes; square modules still read at this size.
+                    <SvgMarkup svg={svg} className="w-full [&_g[fill]>rect]:[rx:0]" />
                   ) : (
                     <Icon name="warning" className="text-sm text-danger" />
                   )}
