@@ -1,9 +1,9 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
+import type { IconName } from "@/components/kit/icon";
 import { useTranslations } from "next-intl";
-import { useState, useTransition, type ComponentProps, type ReactNode } from "react";
-import { Button, Field, Input, Modal, Select } from "@/components/ui";
+import { useState, useTransition, type ReactNode } from "react";
+import { Button, ConfirmDialog, Field, Input, Modal, Select } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import {
   bulkArchiveLinksAction,
@@ -50,7 +50,7 @@ function BarButton({
   onClick,
 }: {
   label: string;
-  icon: ComponentProps<typeof Icon>["name"];
+  icon: IconName;
   danger?: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -59,12 +59,12 @@ function BarButton({
     <Button
       size="sm"
       variant={danger ? "danger" : "ghost"}
+      leadingIcon={icon}
       disabled={disabled}
       aria-label={label}
       title={label}
       onClick={onClick}
     >
-      <Icon name={icon} className="text-sm" aria-hidden="true" />
       {/* Icons alone on phones keep the bar to one or two lines. */}
       <span className="hidden sm:inline">{label}</span>
     </Button>
@@ -160,7 +160,7 @@ export function LinksBulkBar({
       <div
         role="region"
         aria-label={t("actionsLabel")}
-        className="sticky bottom-4 z-toast flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-default border border-border-strong bg-bg px-3 py-2 shadow-toast"
+        className="animate-slide-in-up sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-toast flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-elevated py-2 pr-2 pl-2 shadow-toast lg:bottom-5"
       >
         <span className="flex min-w-0 items-center gap-1">
           <Button
@@ -171,10 +171,9 @@ export function LinksBulkBar({
             title={t("clear")}
             disabled={pending}
             onClick={onClear}
-          >
-            <Icon name="xmark" className="text-sm" aria-hidden="true" />
-          </Button>
-          <span role="status" className="truncate text-sm font-medium">
+            leadingIcon="xmark"
+          />
+          <span role="status" className="numeric truncate text-sm font-medium text-ink">
             {t("selected", { count })}
           </span>
         </span>
@@ -227,6 +226,7 @@ export function LinksBulkBar({
 
       <Modal
         open={dialog === "move"}
+        icon="folder"
         title={t("moveTitle")}
         description={t("moveDesc", { count })}
         onClose={closeDialog}
@@ -237,7 +237,8 @@ export function LinksBulkBar({
             </Button>
             <Button
               variant="primary"
-              disabled={pending || folders === null}
+              loading={pending}
+              disabled={folders === null}
               onClick={() =>
                 run(
                   () => bulkMoveLinksAction(selectedIds, folderId === "" ? null : folderId),
@@ -245,7 +246,7 @@ export function LinksBulkBar({
                 )
               }
             >
-              {pending ? tc("working") : t("moveConfirm")}
+              {t("moveConfirm")}
             </Button>
           </>
         }
@@ -266,10 +267,10 @@ export function LinksBulkBar({
             </Select>
           </Field>
           {folders === null ? (
-            <p className="m-0 text-xs text-fg-subtle">{t("foldersLoading")}</p>
+            <p className="m-0 text-[13px] text-fg-subtle">{t("foldersLoading")}</p>
           ) : null}
           {dialogError ? (
-            <p role="alert" className="m-0 text-xs text-danger">
+            <p role="alert" className="m-0 text-[13px] text-danger">
               {dialogError}
             </p>
           ) : null}
@@ -278,6 +279,7 @@ export function LinksBulkBar({
 
       <Modal
         open={dialog === "tag"}
+        icon="tag"
         title={t("tagTitle")}
         description={t("tagDesc", { count })}
         onClose={closeDialog}
@@ -288,12 +290,13 @@ export function LinksBulkBar({
             </Button>
             <Button
               variant="primary"
-              disabled={pending || !tagValid}
+              loading={pending}
+              disabled={!tagValid}
               onClick={() =>
                 run(() => bulkTagLinksAction(selectedIds, tag.trim()), (n) => t("doneTagged", { count: n }))
               }
             >
-              {pending ? tc("working") : t("tagConfirm")}
+              {t("tagConfirm")}
             </Button>
           </>
         }
@@ -324,46 +327,28 @@ export function LinksBulkBar({
             />
           </Field>
           {dialogError ? (
-            <p role="alert" className="m-0 text-xs text-danger">
+            <p role="alert" className="m-0 text-[13px] text-danger">
               {dialogError}
             </p>
           ) : null}
         </div>
       </Modal>
 
-      <Modal
+      <ConfirmDialog
         open={dialog === "delete"}
         title={t("deleteTitle", { count })}
+        description={t("deleteDesc")}
+        confirmLabel={t("deleteConfirm", { count })}
+        loading={pending}
         onClose={closeDialog}
-        footer={
-          <>
-            <Button disabled={pending} onClick={closeDialog}>
-              {tc("cancel")}
-            </Button>
-            <Button
-              variant="danger"
-              disabled={pending}
-              onClick={() =>
-                run(() => bulkDeleteLinksAction(selectedIds), (n) => t("doneDeleted", { count: n }))
-              }
-            >
-              {pending ? tc("working") : t("deleteConfirm", { count })}
-            </Button>
-          </>
-        }
+        onConfirm={() => run(() => bulkDeleteLinksAction(selectedIds), (n) => t("doneDeleted", { count: n }))}
       >
-        <div className="flex min-w-0 flex-col gap-2">
-          <div className="flex min-w-0 items-start gap-3 rounded-default border border-danger bg-danger-surface px-3.5 py-3">
-            <Icon name="warning" className="mt-0.5 shrink-0 text-sm text-danger" aria-hidden="true" />
-            <p className="m-0 min-w-0 text-sm text-fg-muted">{t("deleteDesc")}</p>
-          </div>
-          {dialogError ? (
-            <p role="alert" className="m-0 text-xs text-danger">
-              {dialogError}
-            </p>
-          ) : null}
-        </div>
-      </Modal>
+        {dialogError ? (
+          <p role="alert" className="m-0 text-[13px] text-danger">
+            {dialogError}
+          </p>
+        ) : null}
+      </ConfirmDialog>
     </>
   );
 }

@@ -16,6 +16,7 @@ import {
 import {
   Badge,
   Button,
+  Callout,
   Card,
   Chip,
   EmptyState,
@@ -160,10 +161,29 @@ function newCondition(type: Condition["type"]): Condition {
   }
 }
 
+type DisplayNamesLike = { of: (code: string) => string | undefined };
+
+function displayNames(locale: string, type: "region" | "language"): DisplayNamesLike | null {
+  try {
+    return new Intl.DisplayNames([locale, "en"], { type });
+  } catch {
+    return null;
+  }
+}
+
+function namedValue(locale: string, type: "region" | "language", code: string): string {
+  try {
+    return displayNames(locale, type)?.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 function describeValue(
   type: Condition["type"],
   value: string,
   t: ReturnType<typeof useTranslations>,
+  locale?: string,
 ): string {
   switch (type) {
     case "device":
@@ -172,14 +192,31 @@ function describeValue(
       return clientLabel(OS_LABELS, value, t);
     case "browser":
       return clientLabel(BROWSER_LABELS, value, t);
+    case "country":
+      return locale && /^[A-Za-z]{2}$/.test(value) ? namedValue(locale, "region", value.toUpperCase()) : value;
+    case "language":
+      return locale ? namedValue(locale, "language", value) : value;
     default:
       return value;
   }
 }
 
+/**
+ * One line per rule for the editor's summary: "Country in Turkey, Germany AND Device in
+ * mobile". Countries and languages are shown by name when the runtime knows them.
+ */
+export function describeRuleConditions(
+  rule: TargetRule,
+  t: ReturnType<typeof useTranslations>,
+  locale: string,
+): string {
+  return rule.conditions.map((condition) => describeCondition(condition, t, locale)).join(` ${t("and")} `);
+}
+
 function describeCondition(
   condition: Condition,
   t: ReturnType<typeof useTranslations>,
+  locale?: string,
 ): string {
   switch (condition.type) {
     case "referrer":
@@ -197,7 +234,7 @@ function describeCondition(
       return `${condition.from}–${condition.to} ${condition.timezone}`;
     default: {
       const values = condition.values
-        .map((value) => describeValue(condition.type, value, t))
+        .map((value) => describeValue(condition.type, value, t, locale))
         .join(", ");
       return t("descSet", {
         type: conditionLabel(condition.type, t),
@@ -431,7 +468,7 @@ function ConditionEditor({
   const t = useTranslations("links");
 
   return (
-    <div className="flex flex-col gap-3 rounded-default border border-border bg-surface-subtle p-4">
+    <div className="flex flex-col gap-3 rounded-md border border-border-subtle bg-surface-subtle p-4">
       <div className="flex items-end gap-2">
         <Field label={t("when")} info={t("info.when")} className="flex-1">
           <Select
@@ -639,6 +676,7 @@ type RuleBuilderProps = {
 
 export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderProps) {
   const t = useTranslations("links");
+  const locale = useLocale();
 
   const addRule = (): void => {
     onChange([
@@ -659,11 +697,12 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
   if (disabled) {
     return (
       <EmptyState
+        icon="sliders"
         eyebrow={t("paywallEyebrow")}
         title={t("paywallTitle")}
         description={t("paywallBody")}
         actions={
-          <Button variant="primary" onClick={() => window.location.assign("/billing")}>
+          <Button variant="primary" leadingIcon="rocket" href="/billing">
             {t("seePlans")}
           </Button>
         }
@@ -673,15 +712,17 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="m-0 text-sm text-fg-muted">{t("rulesIntro")}</p>
+      <Callout tone="info">{t("rulesIntro")}</Callout>
 
       {rules.length === 0 ? (
         <EmptyState
+          size="sm"
+          tone="first-run"
+          icon="sliders"
           title={t("noRulesTitle")}
           description={t("noRulesBody")}
           actions={
-            <Button variant="primary" onClick={addRule}>
-              <Icon name="plus" className="text-sm" />
+            <Button variant="primary" leadingIcon="plus" onClick={addRule}>
               {t("addRule")}
             </Button>
           }
@@ -689,13 +730,15 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
       ) : null}
 
       {rules.map((rule, index) => (
-        <Card key={rule.id} staticHover className="gap-4">
+        <Card key={rule.id} className="gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Badge tone="muted">{t("priorityBadge", { priority: rule.priority })}</Badge>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <Badge tone="accent" className="w-fit">
+                {t("form.ruleNumber", { n: index + 1 })}
+              </Badge>
               {rule.conditions.length > 0 ? (
-                <span className="font-mono text-xs text-fg-subtle">
-                  {rule.conditions.map((condition) => describeCondition(condition, t)).join(` ${t("and")} `)}
+                <span className="text-[13px] leading-5 text-fg-muted">
+                  {describeRuleConditions(rule, t, locale)}
                 </span>
               ) : null}
             </div>
@@ -745,11 +788,13 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
             ))}
             <Button
               size="sm"
+              variant="ghost"
+              leadingIcon="plus"
+              className="w-fit"
               onClick={() =>
                 patchRule(index, { conditions: [...rule.conditions, newCondition("device")] })
               }
             >
-              <Icon name="plus" className="text-sm" />
               {t("addCondition")}
             </Button>
           </div>
@@ -765,8 +810,7 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
       ))}
 
       {rules.length > 0 ? (
-        <Button onClick={addRule}>
-          <Icon name="plus" className="text-sm" />
+        <Button leadingIcon="plus" className="w-fit" onClick={addRule}>
           {t("addRule")}
         </Button>
       ) : null}

@@ -23,6 +23,8 @@ import {
   isUniqueViolation,
   links,
   lt,
+  lte,
+  ne,
   or,
   sql,
   type DomainRow,
@@ -63,6 +65,12 @@ export function toKvRecord(link: LinkRow, hostname: string): LinkKvRecord {
     image: link.image,
   };
 }
+
+/**
+ * Thrown by `createLink` / `updateLink` when a caller-picked slug is already used on the
+ * domain. API v1 maps this exact text to a 409; the panel turns it into a slug field error.
+ */
+export const SLUG_TAKEN_ERROR = "That slug is already taken on this domain";
 
 export function shortUrl(hostname: string, slug: string): string {
   return `https://${hostname}/${slug}`;
@@ -176,7 +184,7 @@ export async function createLink({
       // A caller-supplied slug that collides is a user error, not something to retry.
       if (input.slug || !isUniqueViolation(error)) {
         if (isUniqueViolation(error)) {
-          throw new Error("That slug is already taken on this domain");
+          throw new Error(SLUG_TAKEN_ERROR);
         }
         throw error;
       }
@@ -279,7 +287,7 @@ export async function updateLink({
     return { ...updated, hostname: domain.hostname };
   } catch (error) {
     if (isUniqueViolation(error)) {
-      throw new Error("That slug is already taken on this domain");
+      throw new Error(SLUG_TAKEN_ERROR);
     }
     throw error;
   }
@@ -348,9 +356,20 @@ export type LinkListResult = {
   total: number;
 };
 
+export type ListLinksOptions = {
+  /**
+   * `status: "active"` normally means "not archived" (API v1 and the QR link picker rely
+   * on that). The panel's links list asks for the stricter reading that matches its
+   * status badge: redirecting right now — not archived, not expired, not over its click
+   * limit and already live.
+   */
+  strictActive?: boolean;
+};
+
 export async function listLinks(
   workspaceId: string,
   query: LinkListQuery,
+  options: ListLinksOptions = {},
 ): Promise<LinkListResult> {
   const db = getDb();
   const filters = [eq(links.workspaceId, workspaceId)];
@@ -379,6 +398,18 @@ export async function listLinks(
 
   if (query.status === "active") {
     filters.push(eq(links.archived, false));
+    if (options.strictActive) {
+      const now = new Date();
+      filters.push(isNull(links.clickLimitReachedAt));
+      const notExpired = or(isNull(links.expiresAt), gt(links.expiresAt, now));
+      const started = or(isNull(links.startsAt), lte(links.startsAt, now));
+      if (notExpired) {
+        filters.push(notExpired);
+      }
+      if (started) {
+        filters.push(started);
+      }
+    }
   } else if (query.status === "archived") {
     filters.push(eq(links.archived, true));
   } else if (query.status === "expired") {
@@ -431,6 +462,57 @@ export async function listLinks(
     items: rows.map((row) => ({ ...row.link, hostname: row.hostname })),
     total: totals[0]?.value ?? 0,
   };
+}
+
+/** Distinct tags used by the workspace's links, alphabetical (for the list's tag filter). */
+export async function listWorkspaceTags(workspaceId: string, limit = 200): Promise<string[]> {
+  const rows = await getDb()
+    .selectDistinct({ tag: sql<string>`jsonb_array_elements_text(${links.tags})` })
+    .from(links)
+    .where(eq(links.workspaceId, workspaceId))
+    .orderBy(sql`1`)
+    .limit(limit);
+  return rows.map((row) => row.tag).filter((tag) => tag !== "");
+}
+
+/** Live links whose destination the health monitor currently reports as broken. */
+export async function countBrokenLinks(workspaceId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ value: count() })
+    .from(links)
+    .where(
+      and(eq(links.workspaceId, workspaceId), eq(links.healthStatus, "broken"), eq(links.archived, false)),
+    );
+  return row?.value ?? 0;
+}
+
+/**
+ * Whether `slug` is already used on the domain by any link (any workspace: platform
+ * domains are shared), ignoring `excludeLinkId` so an edit does not collide with itself.
+ */
+export async function isSlugTaken(domainId: string, slug: string, excludeLinkId?: string): Promise<boolean> {
+  const filters = [eq(links.domainId, domainId), eq(links.slug, slug)];
+  if (excludeLinkId && UUID_PATTERN.test(excludeLinkId)) {
+    filters.push(ne(links.id, excludeLinkId));
+  }
+  const [row] = await getDb()
+    .select({ id: links.id })
+    .from(links)
+    .where(and(...filters))
+    .limit(1);
+  return row != null;
+}
+
+/** The domain when the workspace may put links on it (its own, or a shared platform domain). */
+export async function findUsableDomain(workspaceId: string, domainId: string): Promise<DomainRow | null> {
+  if (!UUID_PATTERN.test(domainId)) {
+    return null;
+  }
+  try {
+    return await requireDomain(workspaceId, domainId);
+  } catch {
+    return null;
+  }
 }
 
 export async function listWorkspaceDomains(workspaceId: string): Promise<DomainRow[]> {

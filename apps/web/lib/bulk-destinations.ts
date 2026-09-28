@@ -91,7 +91,20 @@ type LinkPatch = {
   expiredDestination: string | null;
   rules: TargetRule[];
   abVariants: AbVariant[];
-};
+} & Partial<Pick<LinkRow, "healthStatus" | "healthCheckedAt" | "healthStatusCode" | "healthFailures" | "brokenSince">>;
+
+/**
+ * A rewritten main destination has not been probed yet, so the old host's verdict must
+ * not stick (same rule as a single edit in `updateLink`). Rewrites are often the fix for
+ * a dead host, and those links would otherwise keep showing as broken for hours.
+ */
+const HEALTH_RESET = {
+  healthStatus: "unknown",
+  healthCheckedAt: null,
+  healthStatusCode: null,
+  healthFailures: 0,
+  brokenSince: null,
+} as const;
 
 function rewriteLink(link: LinkRow, from: string, to: string): { patch: LinkPatch; fields: string[] } | null {
   const destination = rewriteField(link.destination, from, to);
@@ -133,6 +146,7 @@ function rewriteLink(link: LinkRow, from: string, to: string): { patch: LinkPatc
       expiredDestination: expired.next,
       rules: rules.next,
       abVariants: variants.next,
+      ...(destination.changed ? HEALTH_RESET : {}),
     },
   };
 }

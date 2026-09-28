@@ -1,7 +1,5 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
-
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -25,7 +23,7 @@ export default function LinksError({
   return (
     <PanelShell title={tn("links")} searchable={false}>
       <EmptyState
-        icon={<Icon name="warning" className="text-lg" />}
+        icon="warning"
         eyebrow={error.digest ? tc("errorRef", { digest: error.digest }) : undefined}
         title={t("loadError")}
         /*
@@ -35,8 +33,7 @@ export default function LinksError({
         description={t("loadErrorBody")}
         actions={
           <>
-            <Button variant="primary" onClick={reset}>
-              <Icon name="rotate-right" className="text-sm" />
+            <Button variant="primary" leadingIcon="rotate-right" onClick={reset}>
               {tc("tryAgain")}
             </Button>
             <Button href="/dashboard">{tc("goToDashboard")}</Button>

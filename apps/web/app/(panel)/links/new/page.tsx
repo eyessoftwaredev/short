@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { asc, eq, folders, getDb } from "@short/db";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { Hero } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { clearDraftDestination, readDraftDestination } from "@/lib/draft-link";
+import { listFolders } from "@/lib/folders";
 import { emptyLinkForm } from "@/lib/link-form";
 import { listWorkspaceDomains } from "@/lib/links";
 import { requireWorkspace } from "@/lib/session";
+import { getLinkFormDefaultsAction } from "../../settings/defaults-actions";
 import { LinkForm } from "../link-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,47 +16,49 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewLinkPage() {
-  const [context, t, tc, draft] = await Promise.all([
+  const [context, t, tn, draft] = await Promise.all([
     requireWorkspace(),
-    getTranslations("panel"),
-    getTranslations("common"),
+    getTranslations("links"),
+    getTranslations("nav"),
     readDraftDestination(),
   ]);
   if (draft) {
     await clearDraftDestination();
   }
 
-  const [domainRows, folderRows] = await Promise.all([
+  const [domainRows, folderRows, workspaceDefaults] = await Promise.all([
     listWorkspaceDomains(context.workspace.id),
-    getDb()
-      .select({ id: folders.id, name: folders.name })
-      .from(folders)
-      .where(eq(folders.workspaceId, context.workspace.id))
-      .orderBy(asc(folders.name)),
+    listFolders(context.workspace.id),
+    // Open mode, noindex, query forwarding, folder and UTM template from Settings.
+    getLinkFormDefaultsAction(),
   ]);
 
   const domains = domainRows.map((domain) => ({ id: domain.id, hostname: domain.hostname }));
   const defaultDomain = domainRows.find((domain) => domain.isDefault) ?? domainRows[0];
-  const defaults = emptyLinkForm(defaultDomain?.id ?? "");
+  const folders = folderRows.map((folder) => ({ id: folder.id, name: folder.name }));
+  const defaults = {
+    ...emptyLinkForm(defaultDomain?.id ?? ""),
+    ...(workspaceDefaults.ok ? workspaceDefaults.data : {}),
+  };
+  // A default folder that was deleted since must not preselect a missing option.
+  if (defaults.folderId && !folders.some((folder) => folder.id === defaults.folderId)) {
+    defaults.folderId = "";
+  }
   if (draft) {
     defaults.destination = draft;
   }
 
   return (
-    <PanelShell
-      title={tc("newLink")}
-      crumbs={[{ label: context.workspace.name }, { label: t("link"), href: "/links" }]}
-    >
-      <Hero
-        variant="compact"
-        eyebrow={t("newLinkEyebrow")}
-        title={t("newLinkTitle")}
-        description={t("newLinkDesc")}
+    <PanelShell title={t("form.newTitle")} crumbs={[{ label: context.workspace.name }, { label: tn("links"), href: "/links" }]}>
+      <PageHeader
+        back={{ href: "/links", label: tn("links") }}
+        title={t("form.newTitle")}
+        description={t("form.newDesc")}
       />
       <LinkForm
         mode="create"
         domains={domains}
-        folders={folderRows}
+        folders={folders}
         defaultValues={defaults}
         canTarget={context.plan.features.targeting}
         canAbTest={context.plan.features.abTesting}

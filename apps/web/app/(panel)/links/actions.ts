@@ -14,8 +14,10 @@ import {
   type DestinationRewriteResult,
 } from "@/lib/bulk-destinations";
 import {
+  evaluateSlugLength,
   linkInputSchema,
   normalizeHostInput,
+  validateSlug,
   type LinkInput,
   type PlanDefinition,
 } from "@short/core";
@@ -39,9 +41,12 @@ import { linkFormSchema, toLinkInput, type LinkFormValues } from "@/lib/link-for
 import {
   createLink,
   deleteLink,
+  findUsableDomain,
   getLink,
+  isSlugTaken,
   setLinkArchived,
   shortUrl,
+  SLUG_TAKEN_ERROR,
   toKvRecord,
   updateLink,
   type LinkWithDomain,
@@ -49,10 +54,30 @@ import {
 import { lookupThreat, scanDestination } from "@/lib/abuse";
 import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
+import { rateLimit } from "@/lib/redis";
 import { requireWorkspace, requireWorkspaceRole } from "@/lib/session";
 import { dispatchWebhook } from "@/lib/webhooks";
 
 export type SavedLink = { id: string; shortUrl: string };
+
+/**
+ * Save failures the editor can pin to a field. A taken slug used to surface as the
+ * generic "Something went wrong" because `toActionError` does not know the message.
+ */
+function linkSaveError(error: unknown): ActionResult<never> {
+  if (error instanceof Error) {
+    if (error.message === SLUG_TAKEN_ERROR) {
+      return fail("validation", { slug: ["slugTaken"] });
+    }
+    if (error.message === "Domain not found") {
+      return fail("validation", { domainId: ["pickDomain"] });
+    }
+    if (error.message === "Folder not found") {
+      return fail("validation", { folderId: ["folderMissing"] });
+    }
+  }
+  return toActionError(error);
+}
 
 export async function createLinkAction(values: LinkFormValues): Promise<ActionResult<SavedLink>> {
   try {
@@ -99,7 +124,7 @@ export async function createLinkAction(values: LinkFormValues): Promise<ActionRe
 
     return ok({ id: link.id, shortUrl: shortUrl(link.hostname, link.slug) });
   } catch (error) {
-    return toActionError(error);
+    return linkSaveError(error);
   }
 }
 
@@ -155,7 +180,7 @@ export async function updateLinkAction(
 
     return ok({ id: link.id, shortUrl: shortUrl(link.hostname, link.slug) });
   } catch (error) {
-    return toActionError(error);
+    return linkSaveError(error);
   }
 }
 
@@ -316,6 +341,8 @@ export async function duplicateLinkAction(linkId: string): Promise<ActionResult<
         noIndex: source.noIndex,
         forwardQuery: source.forwardQuery,
         openMode: source.openMode,
+        // The copy starts at zero clicks, so it gets the full cap again.
+        maxClicks: source.maxClicks,
         archived: false,
         utm: source.utm ?? null,
         rules: source.rules,
@@ -364,6 +391,64 @@ export async function duplicateLinkAction(linkId: string): Promise<ActionResult<
     revalidatePath("/links");
     revalidatePath("/dashboard");
     return ok({ id: link.id, shortUrl: shortUrl(link.hostname, link.slug) });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
+
+export type SlugAvailability =
+  | "available"
+  | "taken"
+  | "invalid"
+  | "reserved"
+  | "too_short"
+  | "premium"
+  /** Could not check right now (rate limit, unknown domain); the save still validates. */
+  | "unknown";
+
+const SLUG_CHECKS_PER_MINUTE = 90;
+
+/**
+ * Live hint for the editor's slug field. Advisory only: the unique index still decides
+ * on save, so a slug can be taken between this check and the submit.
+ */
+export async function checkSlugAvailabilityAction(
+  domainId: string,
+  slug: string,
+  linkId?: string,
+): Promise<ActionResult<SlugAvailability>> {
+  try {
+    const context = await requireWorkspace();
+    const value = typeof slug === "string" ? slug.trim() : "";
+    if (value === "" || value.length > 128) {
+      return ok(value === "" ? "available" : "invalid");
+    }
+    const format = validateSlug(value);
+    if (!format.ok) {
+      return ok(format.reason === "reserved" ? "reserved" : "invalid");
+    }
+
+    const existing =
+      typeof linkId === "string" && linkId !== "" ? await getLink(context.workspace.id, linkId) : null;
+    const length = evaluateSlugLength({
+      slug: value,
+      shortSlugs: context.plan.features.shortSlugs,
+      isSuperadmin: context.isSuperadmin,
+      previous: existing?.slug ?? null,
+    });
+    if (!length.ok) {
+      return ok(length.reason);
+    }
+
+    const limit = await rateLimit(`slug-check:${context.user.id}`, SLUG_CHECKS_PER_MINUTE, 60);
+    if (!limit.allowed) {
+      return ok("unknown");
+    }
+    const domain = typeof domainId === "string" ? await findUsableDomain(context.workspace.id, domainId) : null;
+    if (!domain) {
+      return ok("unknown");
+    }
+    return ok((await isSlugTaken(domain.id, value, existing?.id)) ? "taken" : "available");
   } catch (error) {
     return toActionError(error);
   }

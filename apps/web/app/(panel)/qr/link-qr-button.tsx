@@ -1,11 +1,9 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui";
+import { Button, Callout } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import { openQrCodeForLinkAction } from "./actions";
 
@@ -42,10 +40,9 @@ export function LinkQrButton({ linkId }: LinkQrButtonProps) {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Button size="sm" variant="primary" loading={pending} onClick={create}>
-          <Icon name="qrcode" className="text-sm" aria-hidden="true" />
+        <Button size="sm" leadingIcon="qrcode" loading={pending} onClick={create}>
           {pending ? t("linkCard.creating") : t("createCode")}
         </Button>
         <Button size="sm" variant="ghost" href={`/qr/new?linkId=${linkId}`}>
@@ -53,14 +50,17 @@ export function LinkQrButton({ linkId }: LinkQrButtonProps) {
         </Button>
       </div>
       {error ? (
-        <p role="alert" className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-danger">
-          <span className="min-w-0">{error.message}</span>
-          {error.quota ? (
-            <Link href="/billing" className="font-medium text-danger underline">
-              {t("linkCard.upgrade")}
-            </Link>
-          ) : null}
-        </p>
+        <Callout
+          tone="danger"
+          title={error.message}
+          actions={
+            error.quota ? (
+              <Button size="sm" leadingIcon="rocket" href="/billing">
+                {t("linkCard.upgrade")}
+              </Button>
+            ) : null
+          }
+        />
       ) : null}
     </div>
   );

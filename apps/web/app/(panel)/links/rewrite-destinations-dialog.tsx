@@ -1,35 +1,23 @@
 "use client";
 
-import { Icon } from "@/components/kit/icon";
 import { useActionMessage } from "@/lib/action-message";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Field, Input, Modal } from "@/components/ui";
+import { Button, Callout, Field, Input, Modal, toast } from "@/components/ui";
 import { applyDestinationRewriteAction, previewDestinationRewriteAction } from "./actions";
 import type { DestinationRewritePreview } from "@/lib/bulk-destinations";
-
-export function RewriteDestinationsButton() {
-  const t = useTranslations("links");
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <Button onClick={() => setOpen(true)}>
-        <Icon name="globe" className="text-sm" />
-        {t("rewriteDestinations")}
-      </Button>
-      <RewriteDestinationsDialog open={open} onClose={() => setOpen(false)} />
-    </>
-  );
-}
 
 type RewriteDestinationsDialogProps = {
   open: boolean;
   onClose: () => void;
 };
 
-function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogProps) {
+/**
+ * Replaces one destination hostname on every matching link: preview first (how many and
+ * which links), then apply. Opened from the links list's "More" menu.
+ */
+export function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogProps) {
   const t = useTranslations("links");
   const tc = useTranslations("common");
   const actionMessage = useActionMessage();
@@ -38,7 +26,6 @@ function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogP
   const [to, setTo] = useState("");
   const [preview, setPreview] = useState<DestinationRewritePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset(): void {
@@ -46,7 +33,6 @@ function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogP
     setTo("");
     setPreview(null);
     setError(null);
-    setNotice(null);
   }
 
   function close(): void {
@@ -59,7 +45,6 @@ function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogP
 
   function runPreview(): void {
     setError(null);
-    setNotice(null);
     startTransition(async () => {
       const result = await previewDestinationRewriteAction(from, to);
       if (!result.ok) {
@@ -82,17 +67,21 @@ function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogP
         setError(actionMessage(result.error));
         return;
       }
-      setNotice(t("rewriteResult", { links: result.data.links, domains: result.data.domains }));
-      setPreview(null);
+      toast.success(t("rewriteResult", { links: result.data.links, domains: result.data.domains }));
+      reset();
+      onClose();
       router.refresh();
     });
   }
 
   const matchCount = preview ? preview.links + preview.domains : 0;
+  const canPreview = from.trim() !== "" && to.trim() !== "";
 
   return (
     <Modal
       open={open}
+      icon="globe"
+      size="lg"
       title={t("rewriteTitle")}
       description={t("rewriteDesc")}
       onClose={close}
@@ -102,64 +91,76 @@ function RewriteDestinationsDialog({ open, onClose }: RewriteDestinationsDialogP
             {tc("cancel")}
           </Button>
           {preview && matchCount > 0 ? (
-            <Button variant="primary" disabled={pending} onClick={runApply}>
-              {pending ? tc("working") : t("rewriteApply", { count: preview.links })}
+            <Button variant="primary" loading={pending} onClick={runApply}>
+              {t("rewriteApply", { count: preview.links })}
             </Button>
           ) : (
-            <Button variant="primary" disabled={pending || from.trim() === "" || to.trim() === ""} onClick={runPreview}>
-              {pending ? tc("working") : t("rewritePreview")}
+            <Button variant="primary" loading={pending} disabled={!canPreview} onClick={runPreview}>
+              {t("rewritePreview")}
             </Button>
           )}
         </>
       }
     >
-      <div className="flex min-w-0 flex-col gap-4">
-        <p className="m-0 text-sm text-fg-muted">{t("rewriteWarning")}</p>
-        <Field label={t("rewriteFrom")}>
-          <Input
-            value={from}
-            placeholder={t("rewriteFromPlaceholder")}
-            autoComplete="off"
-            disabled={pending}
-            onChange={(event) => {
-              setFrom(event.target.value);
-              setPreview(null);
-              setNotice(null);
-            }}
-          />
-        </Field>
-        <Field label={t("rewriteTo")}>
-          <Input
-            value={to}
-            placeholder={t("rewriteToPlaceholder")}
-            autoComplete="off"
-            disabled={pending}
-            onChange={(event) => {
-              setTo(event.target.value);
-              setPreview(null);
-              setNotice(null);
-            }}
-          />
-        </Field>
+      <form
+        className="flex min-w-0 flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canPreview && !pending && !(preview && matchCount > 0)) {
+            runPreview();
+          }
+        }}
+      >
+        <Callout tone="warn" title={t("rewriteWarning")} />
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+          <Field label={t("rewriteFrom")} info={t("list.rewriteFromInfo")}>
+            <Input
+              value={from}
+              placeholder={t("rewriteFromPlaceholder")}
+              autoComplete="off"
+              className="font-mono"
+              disabled={pending}
+              onChange={(event) => {
+                setFrom(event.target.value);
+                setPreview(null);
+              }}
+            />
+          </Field>
+          <Field label={t("rewriteTo")} info={t("list.rewriteToInfo")}>
+            <Input
+              value={to}
+              placeholder={t("rewriteToPlaceholder")}
+              autoComplete="off"
+              className="font-mono"
+              disabled={pending}
+              onChange={(event) => {
+                setTo(event.target.value);
+                setPreview(null);
+              }}
+            />
+          </Field>
+        </div>
 
-        {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
-        {notice ? <p className="m-0 text-sm text-accent-ink">{notice}</p> : null}
+        {error ? <Callout tone="danger" title={error} /> : null}
 
-        {preview && matchCount === 0 ? <p className="m-0 text-sm text-fg-muted">{t("rewriteEmpty")}</p> : null}
+        {preview && matchCount === 0 ? <Callout tone="neutral" title={t("rewriteEmpty")} /> : null}
 
         {preview && matchCount > 0 ? (
           <div className="flex min-w-0 flex-col gap-2">
-            <span className="text-sm font-medium">{t("rewriteSamples")}</span>
-            <ul className="m-0 flex min-w-0 list-none flex-col gap-1 p-0">
+            <p className="m-0 text-sm text-ink">
+              {t("list.rewriteMatches", { links: preview.links, domains: preview.domains })}
+            </p>
+            <span className="text-[13px] font-medium text-fg-subtle">{t("rewriteSamples")}</span>
+            <ul className="m-0 flex min-w-0 list-none flex-col gap-1 rounded-md border border-border bg-surface-subtle p-3">
               {preview.samples.map((sample) => (
-                <li key={`${sample.hostname}/${sample.slug}`} className="min-w-0 truncate font-mono text-sm">
+                <li key={`${sample.hostname}/${sample.slug}`} className="min-w-0 truncate font-mono text-[13px] text-ink">
                   {sample.hostname}/{sample.slug}
                 </li>
               ))}
             </ul>
           </div>
         ) : null}
-      </div>
+      </form>
     </Modal>
   );
 }

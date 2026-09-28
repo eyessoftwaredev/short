@@ -39,6 +39,14 @@ function csvCell(raw: string): string {
   return value;
 }
 
+/**
+ * Undoes the export's formula guard, so a title like "-50% sale" survives an
+ * export/import round trip instead of coming back as "'-50% sale".
+ */
+function unguardCell(raw: string): string {
+  return /^'[=+\-@\t\r]/.test(raw) ? raw.slice(1) : raw;
+}
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let current: string[] = [];
@@ -185,10 +193,10 @@ export async function importLinksCsv(
           domainId,
           slug: slug?.data,
           destination: destination.data,
-          title: titleIdx >= 0 ? row[titleIdx]?.trim() || undefined : undefined,
+          title: titleIdx >= 0 ? unguardCell(row[titleIdx]?.trim() ?? "") || undefined : undefined,
           tags:
             tagsIdx >= 0
-              ? (row[tagsIdx] ?? "")
+              ? unguardCell(row[tagsIdx] ?? "")
                   .split(/[|,]/)
                   .map((tag) => tag.trim())
                   .filter((tag) => tag !== "")

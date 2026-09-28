@@ -1,17 +1,17 @@
-import { Icon } from "@/components/kit/icon";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { linkListQuerySchema } from "@short/core";
-import { chQuery, toClickhouseDateTime } from "@short/analytics";
 import { PanelShell } from "@/components/shell/panel-shell";
-import { Button, Hero } from "@/components/ui";
+import { Badge, Button, Callout, PageHeader } from "@/components/ui";
+import { loadLinkClickTotals } from "@/lib/analytics";
 import { listFolders } from "@/lib/folders";
-import { listLinks } from "@/lib/links";
-import { hasWorkspaceRole, requireWorkspace } from "@/lib/session";
-import { FoldersBar } from "./folders-bar";
-import { LinksCsvBar } from "./links-csv-bar";
+import { formatNumber } from "@/lib/format";
+import { countBrokenLinks, listLinks, listWorkspaceDomains, listWorkspaceTags } from "@/lib/links";
+import { canAdministerWorkspace, requireWorkspace } from "@/lib/session";
+import { linkStatusOf } from "./link-state";
+import { LinksFilters, type LinksFilterState, type StatusFilter } from "./links-filters";
 import { LinksTable, type LinkListRow } from "./links-table";
-import { RewriteDestinationsButton } from "./rewrite-destinations-dialog";
+import { LinksToolsMenu } from "./links-csv-bar";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -20,46 +20,18 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-/**
- * 90-day click totals for exactly the links on this page. A workspace-wide "top N"
- * query would leave every link outside the top N showing 0.
- */
-async function loadPageClickCounts(workspaceId: string, linkIds: string[]): Promise<Map<string, number>> {
-  if (linkIds.length === 0) {
-    return new Map();
-  }
-  const to = new Date();
-  const from = new Date(to.getTime() - 1000 * 60 * 60 * 24 * 90);
-  const rows = await chQuery<{ link_id: string; clicks: string }>(
-    `SELECT link_id, count() AS clicks
-     FROM events
-     WHERE workspace_id = {workspaceId:String}
-       AND ts >= {from:DateTime64(3)} AND ts < {to:DateTime64(3)}
-       AND is_bot = 0
-       AND link_id IN {linkIds:Array(String)}
-     GROUP BY link_id`,
-    {
-      workspaceId,
-      from: toClickhouseDateTime(from.toISOString()),
-      to: toClickhouseDateTime(to.toISOString()),
-      linkIds,
-    },
-  );
-  return new Map(rows.map((row) => [row.link_id, Number(row.clicks)]));
-}
-
 function single(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
 export default async function LinksPage({ searchParams }: { searchParams: SearchParams }) {
-  const [context, raw, tn, t, tc] = await Promise.all([
+  const [context, raw, tn, t] = await Promise.all([
     requireWorkspace(),
     searchParams,
     getTranslations("nav"),
     getTranslations("links"),
-    getTranslations("common"),
   ]);
+  const workspaceId = context.workspace.id;
 
   const requested = {
     search: single(raw.search),
@@ -70,28 +42,31 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
     domainId: single(raw.domainId),
     folderId: single(raw.folderId),
     tag: single(raw.tag),
+    health: single(raw.health),
+    clickLimit: single(raw.clickLimit),
   };
   // A hand-edited or stale URL (bad page, unknown status, deleted folder id) falls back
   // to the defaults instead of throwing the whole screen into the error boundary.
   const parsedQuery = linkListQuerySchema.safeParse(requested);
   const query = parsedQuery.success ? parsedQuery.data : linkListQuerySchema.parse({});
 
-  const [{ items, total }, folderRows] = await Promise.all([
-    listLinks(context.workspace.id, query),
-    listFolders(context.workspace.id),
+  const [{ items, total }, folderRows, tags, domainRows, brokenCount] = await Promise.all([
+    listLinks(workspaceId, query, { strictActive: true }),
+    listFolders(workspaceId),
+    listWorkspaceTags(workspaceId),
+    listWorkspaceDomains(workspaceId),
+    countBrokenLinks(workspaceId),
   ]);
 
-  // Click counts live in ClickHouse; one query covers exactly the rows on this page.
-  let clicksByLink = new Map<string, number>();
-  try {
-    clicksByLink = await loadPageClickCounts(
-      context.workspace.id,
-      items.map((link) => link.id),
-    );
-  } catch (error) {
-    console.error("failed to load click counts", error);
-  }
+  // Lifetime clicks + QR scans from the daily rollup: one cheap query for the page, and
+  // the same number the click limit is measured against. `null` = analytics unreachable,
+  // which the table shows as "—" rather than a misleading 0.
+  const totals = await loadLinkClickTotals(
+    workspaceId,
+    items.map((link) => link.id),
+  );
 
+  const folderNames = new Map(folderRows.map((folder) => [folder.id, folder.name]));
   const now = Date.now();
   const rows: LinkListRow[] = items.map((link) => ({
     id: link.id,
@@ -100,48 +75,94 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
     destination: link.destination,
     title: link.title,
     tags: link.tags,
-    archived: link.archived,
-    expired: link.expiresAt != null && link.expiresAt.getTime() <= now,
+    status: linkStatusOf(
+      {
+        archived: link.archived,
+        disabled: link.disabledAt != null,
+        limitReached: link.clickLimitReachedAt != null,
+        expiresAt: link.expiresAt?.toISOString() ?? null,
+        startsAt: link.startsAt?.toISOString() ?? null,
+      },
+      now,
+    ),
     startsAt: link.startsAt?.toISOString() ?? null,
+    broken: link.healthStatus === "broken",
+    healthStatusCode: link.healthStatusCode,
     hasRules: link.rules.length > 0,
+    hasAbTest: link.abVariants.length > 0,
     hasPassword: link.passwordHash != null,
+    hasAppLinks: link.iosDestination != null || link.androidDestination != null,
+    openMode: link.openMode,
+    folderName: link.folderId ? (folderNames.get(link.folderId) ?? null) : null,
     createdAt: link.createdAt.toISOString(),
-    clicks: clicksByLink.get(link.id) ?? 0,
+    clicks: totals ? (totals.get(link.id) ?? 0) : null,
+    maxClicks: link.maxClicks,
   }));
+
+  const statusFilter: StatusFilter =
+    query.health === "broken" ? "broken" : query.clickLimit === "reached" ? "limit" : query.status;
+  const filters: LinksFilterState = {
+    search: query.search ?? "",
+    status: statusFilter,
+    folderId: query.folderId ?? "",
+    tag: query.tag ?? "",
+    domainId: query.domainId ?? "",
+    sort: query.sort === "clicks_desc" ? "created_desc" : query.sort,
+  };
+  const filtered =
+    filters.search !== "" ||
+    statusFilter !== "all" ||
+    filters.folderId !== "" ||
+    filters.tag !== "" ||
+    filters.domainId !== "" ||
+    query.clickLimit != null ||
+    query.health != null;
+
+  const canAdmin = canAdministerWorkspace(context);
 
   return (
     // The filter bar below owns search on this screen, so the topbar's copy of
     // it is suppressed rather than sitting there doing the same job.
     <PanelShell title={tn("links")} crumbs={[{ label: context.workspace.name }]} searchable={false}>
-      <Hero
-        variant="compact"
-        eyebrow={t("count", { count: total })}
+      <PageHeader
         title={tn("links")}
-        description={t("description")}
+        meta={<Badge tone="neutral">{formatNumber(total)}</Badge>}
+        description={t("list.description")}
+        secondaryActions={canAdmin ? <LinksToolsMenu /> : null}
         actions={
-          <>
-            {hasWorkspaceRole(context.role, "admin") || context.isSuperadmin ? (
-              <>
-                <RewriteDestinationsButton />
-                <LinksCsvBar />
-              </>
-            ) : null}
-            <Button variant="primary" href="/links/new">
-              <Icon name="plus" className="text-sm" />
-              {tc("newLink")}
-            </Button>
-          </>
+          <Button variant="primary" leadingIcon="plus" href="/links/new">
+            {t("list.create")}
+          </Button>
         }
       />
-      <FoldersBar folders={folderRows.map((folder) => ({ id: folder.id, name: folder.name }))} />
+
+      {brokenCount > 0 && statusFilter !== "broken" ? (
+        <Callout
+          tone="warn"
+          title={t("list.brokenTitle", { count: brokenCount })}
+          actions={
+            <Button size="sm" href="/links?health=broken" leadingIcon="pulse">
+              {t("list.brokenShow")}
+            </Button>
+          }
+        >
+          {t("list.brokenBody")}
+        </Callout>
+      ) : null}
+
+      <LinksFilters
+        value={filters}
+        folders={folderRows.map((folder) => ({ id: folder.id, name: folder.name }))}
+        tags={tags}
+        domains={domainRows.map((domain) => ({ id: domain.id, hostname: domain.hostname }))}
+      />
+
       <LinksTable
         rows={rows}
         total={total}
         page={query.page}
         pageSize={query.pageSize}
-        search={query.search ?? ""}
-        status={query.status}
-        folderFiltered={query.folderId != null}
+        filtered={filtered || query.page > 1}
         canDelete={context.role !== "member" || context.isSuperadmin}
       />
     </PanelShell>
