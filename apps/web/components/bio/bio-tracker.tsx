@@ -26,7 +26,11 @@ function send(endpoint: string, payload: Record<string, string>): void {
  */
 export function BioTracker({ biopageId, endpoint }: BioTrackerProps) {
   useEffect(() => {
-    function onClick(event: MouseEvent): void {
+    function report(event: MouseEvent): void {
+      // `auxclick` fires for every non-primary button; only the middle one opens a tab.
+      if (event.type === "auxclick" && event.button !== 1) {
+        return;
+      }
       const target = event.target as HTMLElement | null;
       const anchor = target?.closest<HTMLAnchorElement>("a[data-bio-block]");
       if (!anchor) {
@@ -40,8 +44,12 @@ export function BioTracker({ biopageId, endpoint }: BioTrackerProps) {
       });
     }
 
-    document.addEventListener("click", onClick, { capture: true });
-    return () => document.removeEventListener("click", onClick, { capture: true });
+    document.addEventListener("click", report, { capture: true });
+    document.addEventListener("auxclick", report, { capture: true });
+    return () => {
+      document.removeEventListener("click", report, { capture: true });
+      document.removeEventListener("auxclick", report, { capture: true });
+    };
   }, [biopageId, endpoint]);
 
   return null;

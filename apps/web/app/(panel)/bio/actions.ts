@@ -16,8 +16,46 @@ import { toBiopageInput, type BioFormValues } from "@/lib/bio-form";
 import { assertOwnedMedia } from "@/lib/media";
 import { assertFeature, assertQuota, assertSlugLength } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
+import { handleStatus, suggestHandle, type HandleStatus } from "./handle";
 
 export type SavedBiopage = { id: string; handle: string };
+
+export type HandleCheck = { status: HandleStatus; suggestion: string | null };
+
+/**
+ * Live availability for the handle field. Mirrors the save action's rules, so
+ * "available" here means the save will not be rejected for the handle.
+ */
+export async function checkHandleAction(
+  handle: string,
+  domainId: string,
+  exceptId?: string,
+): Promise<ActionResult<HandleCheck>> {
+  try {
+    const context = await requireWorkspace();
+    const resolved = await resolveBiopageDomainId(context.workspace.id, domainId === "" ? null : domainId);
+    if (resolved === undefined) {
+      return fail("domain_invalid");
+    }
+    const existing = exceptId ? await getBiopage(context.workspace.id, exceptId) : null;
+    const shared = {
+      domainId: resolved,
+      exceptId: existing?.id,
+      previous: existing?.handle ?? null,
+      current: existing && (existing.domainId ?? null) === resolved ? existing.handle : null,
+      plan: context.plan,
+      isSuperadmin: context.isSuperadmin,
+    };
+    const status = await handleStatus(handle, shared);
+    const suggestion =
+      status === "taken" || status === "premium" || status === "reserved"
+        ? await suggestHandle(handle, shared)
+        : null;
+    return ok({ status, suggestion });
+  } catch (error) {
+    return toActionError(error);
+  }
+}
 
 async function assertBioMedia(workspaceId: string, input: ReturnType<typeof toBiopageInput>): Promise<void> {
   await assertOwnedMedia(workspaceId, input.avatarUrl);

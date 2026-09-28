@@ -390,23 +390,34 @@ async function brandingRemoved(workspaceId: string): Promise<boolean> {
   return row?.features.removeBranding ?? false;
 }
 
+/**
+ * Rewrites a page's blocks in one transaction, so a failed insert can never leave the
+ * page empty. Block ids are kept: click events and leads are keyed by block id, and a
+ * fresh id on every save would orphan the per-block stats and lead attribution.
+ */
 async function replaceBlocks(biopageId: string, blocks: BioBlock[]): Promise<void> {
-  const db = getDb();
-  await db.delete(bioBlocks).where(eq(bioBlocks.biopageId, biopageId));
-
-  if (blocks.length === 0) {
-    return;
-  }
-
-  await db.insert(bioBlocks).values(
-    blocks.map((block, index) => ({
+  const seen = new Set<string>();
+  const rows = blocks.map((block, index) => {
+    // Only a well-formed, unique uuid is reused; anything else gets a fresh one.
+    const keep = UUID.test(block.id) && !seen.has(block.id.toLowerCase());
+    const id = keep ? block.id.toLowerCase() : crypto.randomUUID();
+    seen.add(id);
+    return {
+      id,
       biopageId,
       type: block.type,
       position: index,
       visible: block.visible,
-      config: { ...block, position: index },
-    })),
-  );
+      config: { ...block, id, position: index },
+    };
+  });
+
+  await getDb().transaction(async (tx) => {
+    await tx.delete(bioBlocks).where(eq(bioBlocks.biopageId, biopageId));
+    if (rows.length > 0) {
+      await tx.insert(bioBlocks).values(rows);
+    }
+  });
 }
 
 /**
@@ -621,6 +632,16 @@ export async function createBioLead(input: {
     throw new Error("Failed to store lead");
   }
   return row;
+}
+
+/** A visitor who submits the same address twice is one lead, not two. */
+export async function bioLeadExists(biopageId: string, email: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: bioLeads.id })
+    .from(bioLeads)
+    .where(and(eq(bioLeads.biopageId, biopageId), eq(bioLeads.email, email)))
+    .limit(1);
+  return Boolean(row);
 }
 
 export async function listBioLeads(
