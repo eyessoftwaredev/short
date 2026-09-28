@@ -1,6 +1,6 @@
 import { Icon } from "@/components/kit/icon";
 import { BrandLockup } from "@/components/brand/brand-mark";
-import { EmptyState } from "@/components/ui";
+import { Button, EmptyState } from "@/components/ui";
 import { BrandPreload } from "@/components/brand/brand-preload";
 import { getPlatformBrand } from "@/lib/brand";
 import { getBrandLockupSources } from "@/lib/brand-assets";
@@ -8,9 +8,10 @@ import { serverEnv } from "@/lib/env";
 import { getTranslations } from "next-intl/server";
 
 export default async function HandleNotFound() {
-  const [brand, t, brandSources] = await Promise.all([
+  const [brand, t, tl, brandSources] = await Promise.all([
     getPlatformBrand(),
     getTranslations("panel"),
+    getTranslations("legal"),
     getBrandLockupSources(),
   ]);
   const home = serverEnv().APP_URL.replace(/\/$/, "") || "/";
@@ -34,6 +35,11 @@ export default async function HandleNotFound() {
           eyebrow="404"
           title={t("publicMissingTitle")}
           description={t("publicMissingBody")}
+          actions={
+            <Button href={home} leadingIcon="house">
+              {tl("backHome")}
+            </Button>
+          }
         />
       </main>
     </div>
