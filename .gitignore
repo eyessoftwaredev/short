@@ -33,3 +33,6 @@ coverage/
 
 tmp/
 *.zip
+
+# Local agent worktrees
+.claude/worktrees/
