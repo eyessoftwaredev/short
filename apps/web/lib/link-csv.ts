@@ -2,13 +2,14 @@ import { destinationSchema, linkInputSchema, slugSchema } from "@short/core";
 import { desc, domains, eq, folders, getDb, links } from "@short/db";
 import { putLinkRecords } from "./kv";
 import { createLink, toKvRecord, type LinkWithDomain } from "./links";
+import { applyLinkDefaults, getLinkDefaults } from "./workspace-settings";
 
 /** Rows a single import may create; each row is one insert, so this bounds the request. */
 export const CSV_IMPORT_MAX_ROWS = 1_000;
 /** Upper bound for one export so a huge workspace cannot exhaust the panel's memory. */
 const CSV_EXPORT_MAX_ROWS = 50_000;
 
-const HEADER = ["slug", "destination", "title", "tags", "folder", "open_mode"] as const;
+const HEADER = ["slug", "destination", "title", "tags", "folder", "open_mode", "max_clicks"] as const;
 
 export function linksToCsv(rows: LinkWithDomain[]): string {
   const lines = [
@@ -21,6 +22,7 @@ export function linksToCsv(rows: LinkWithDomain[]): string {
         csvCell(row.tags.join("|")),
         csvCell(row.folderId ?? ""),
         csvCell(row.openMode),
+        csvCell(row.maxClicks == null ? "" : String(row.maxClicks)),
       ].join(","),
     ),
   ];
@@ -118,10 +120,16 @@ export async function importLinksCsv(
   const folderIdx = index("folder");
   // Optional: files exported before the column existed import as `auto`.
   const openModeIdx = index("open_mode");
+  // Optional: blank means no click limit.
+  const maxClicksIdx = index("max_clicks");
 
   if (destIdx < 0) {
     return { created: 0, skipped: 0, errors: ["missing_destination"] };
   }
+
+  // Imported rows carry no noIndex / forwardQuery / UTM, and folder and open mode only
+  // when those columns exist, so the workspace's link defaults fill the rest.
+  const defaults = await getLinkDefaults(workspaceId);
 
   // The folder column may hold this workspace's folder id (as exported) or its name.
   // Anything else, e.g. an id exported from another workspace, is dropped, not trusted.
@@ -163,23 +171,36 @@ export async function importLinksCsv(
       continue;
     }
 
+    const rawMaxClicks = maxClicksIdx >= 0 ? (row[maxClicksIdx]?.trim() ?? "") : "";
+    if (rawMaxClicks !== "" && !/^\d{1,10}$/.test(rawMaxClicks)) {
+      skipped += 1;
+      errors.push(`row ${offset + 2}: max_clicks`);
+      continue;
+    }
+
     // Same schema as the editor and the API, so title/tag limits apply to imports too.
-    const input = linkInputSchema.safeParse({
-      domainId,
-      slug: slug?.data,
-      destination: destination.data,
-      title: titleIdx >= 0 ? row[titleIdx]?.trim() || undefined : undefined,
-      tags:
-        tagsIdx >= 0
-          ? (row[tagsIdx] ?? "")
-              .split(/[|,]/)
-              .map((tag) => tag.trim())
-              .filter((tag) => tag !== "")
-          : [],
-      folderId:
-        folderIdx >= 0 ? (folderLookup.get(row[folderIdx]?.trim().toLowerCase() ?? "") ?? null) : null,
-      openMode: openModeIdx >= 0 ? row[openModeIdx]?.trim().toLowerCase() || undefined : undefined,
-    });
+    const input = linkInputSchema.safeParse(
+      applyLinkDefaults(
+        {
+          domainId,
+          slug: slug?.data,
+          destination: destination.data,
+          title: titleIdx >= 0 ? row[titleIdx]?.trim() || undefined : undefined,
+          tags:
+            tagsIdx >= 0
+              ? (row[tagsIdx] ?? "")
+                  .split(/[|,]/)
+                  .map((tag) => tag.trim())
+                  .filter((tag) => tag !== "")
+              : [],
+          folderId:
+            folderIdx >= 0 ? (folderLookup.get(row[folderIdx]?.trim().toLowerCase() ?? "") ?? null) : undefined,
+          openMode: openModeIdx >= 0 ? row[openModeIdx]?.trim().toLowerCase() || undefined : undefined,
+          maxClicks: rawMaxClicks === "" ? null : Number(rawMaxClicks),
+        },
+        defaults,
+      ),
+    );
     if (!input.success) {
       skipped += 1;
       errors.push(`row ${offset + 2}: ${input.error.issues[0]?.path.join(".") || "invalid"}`);

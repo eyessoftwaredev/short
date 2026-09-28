@@ -1,3 +1,5 @@
+import { WEBHOOK_EVENTS } from "@short/core";
+
 /**
  * Hand-written OpenAPI 3.1 document. It is served verbatim at `/api/v1/openapi.json`
  * and must be updated alongside the route handlers in `route.ts`.
@@ -83,6 +85,18 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
               in: "query",
               schema: { type: "string", enum: ["all", "active", "archived", "expired", "scheduled"] },
             },
+            {
+              name: "health",
+              in: "query",
+              description: "Destination health from the link monitor.",
+              schema: { $ref: "#/components/schemas/HealthStatus" },
+            },
+            {
+              name: "clickLimit",
+              in: "query",
+              description: "`set`: links with a click limit. `reached`: links that used it up.",
+              schema: { type: "string", enum: ["set", "reached"] },
+            },
             { name: "page", in: "query", schema: { type: "integer", minimum: 1 } },
             { name: "pageSize", in: "query", schema: { type: "integer", minimum: 10, maximum: 100 } },
           ],
@@ -107,6 +121,8 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
         post: {
           tags: ["Links"],
           summary: "Create a link",
+          description:
+            "Fields left out of the body (openMode, noIndex, forwardQuery, folderId, utm) take the account's link defaults from Settings. Explicit values, including null and false, always win.",
           requestBody: {
             required: true,
             content: {
@@ -218,6 +234,33 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
         },
       },
     },
+    // Outgoing webhooks (configured in Settings), signed with x-short-signature.
+    webhooks: {
+      "link.broken": {
+        post: {
+          summary: "A link's destination failed two consecutive health checks",
+          description:
+            "`data` is the Link resource; `data.health` carries the status code and `brokenSince`. Sent once per transition to broken, not on every failed check.",
+          requestBody: {
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/WebhookEnvelope" } },
+            },
+          },
+          responses: { "200": { description: "Acknowledge with any 2xx" } },
+        },
+      },
+      "link.created": {
+        post: {
+          summary: "A link was created in the panel or through the API",
+          requestBody: {
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/WebhookEnvelope" } },
+            },
+          },
+          responses: { "200": { description: "Acknowledge with any 2xx" } },
+        },
+      },
+    },
     components: {
       securitySchemes: {
         ApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" },
@@ -253,6 +296,21 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
           description:
             "How phones are handed to the destination. auto: plain redirect. app: open well-known destinations (YouTube, Instagram, TikTok, X, Facebook, Spotify, LinkedIn, WhatsApp, Telegram, Pinterest) in their native app on iOS/Android, falling back to the web. browser: when opened inside a social app's in-app browser, offer to reopen the link in the phone's browser. Omit on PATCH to keep the current value.",
         },
+        HealthStatus: {
+          type: "string",
+          enum: ["unknown", "ok", "broken"],
+          description:
+            "Destination health. The monitor re-checks links every few hours; `broken` means two consecutive checks got a 404/410/5xx, a DNS failure or a timeout.",
+        },
+        LinkHealth: {
+          type: "object",
+          properties: {
+            status: { $ref: "#/components/schemas/HealthStatus" },
+            statusCode: { type: "integer", nullable: true },
+            checkedAt: { type: "string", format: "date-time", nullable: true },
+            brokenSince: { type: "string", format: "date-time", nullable: true },
+          },
+        },
         Link: {
           type: "object",
           properties: {
@@ -268,8 +326,25 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             expiresAt: { type: "string", format: "date-time", nullable: true },
             passwordProtected: { type: "boolean" },
             openMode: { $ref: "#/components/schemas/OpenMode" },
+            maxClicks: { type: "integer", nullable: true },
+            clickLimitReachedAt: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description: "Set once the click limit was reached; the link then behaves as expired.",
+            },
+            health: { $ref: "#/components/schemas/LinkHealth" },
             archived: { type: "boolean" },
             createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        WebhookEnvelope: {
+          type: "object",
+          required: ["event", "createdAt", "data"],
+          properties: {
+            event: { type: "string", enum: [...WEBHOOK_EVENTS] },
+            createdAt: { type: "string", format: "date-time" },
+            data: { type: "object" },
           },
         },
         LinkInput: {
@@ -298,6 +373,14 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             noIndex: { type: "boolean" },
             forwardQuery: { type: "boolean" },
             openMode: { $ref: "#/components/schemas/OpenMode" },
+            maxClicks: {
+              type: "integer",
+              minimum: 1,
+              maximum: 1000000000,
+              nullable: true,
+              description:
+                "Lifetime click limit (human clicks and QR scans; bots excluded). Once reached the link behaves as expired: expiredDestination if set, otherwise not found. Enforced every few minutes, so a busy link can overshoot slightly. null removes the limit; omit on PATCH to keep it.",
+            },
             archived: { type: "boolean" },
             utm: { type: "object", nullable: true },
             rules: {

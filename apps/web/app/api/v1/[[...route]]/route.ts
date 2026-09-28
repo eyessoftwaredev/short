@@ -50,6 +50,7 @@ import {
 import { QuotaError } from "@/lib/action-result";
 import { clampRangeToRetention, resolveRange } from "@/lib/stats";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { applyLinkDefaults, getLinkDefaults } from "@/lib/workspace-settings";
 import { openApiDocument } from "./openapi";
 
 export const runtime = "nodejs";
@@ -225,7 +226,10 @@ app.get("/links", async (c) => {
 
 app.post("/links", async (c) => {
   const context = c.get("api");
-  const parsed = linkInputSchema.safeParse(await readJsonObject(c.req));
+  // Fields the caller left out (openMode, noIndex, forwardQuery, folderId, utm) take the
+  // workspace's link defaults; anything sent explicitly, even null/false, wins.
+  const body = applyLinkDefaults(await readJsonObject(c.req), await getLinkDefaults(context.workspace.id));
+  const parsed = linkInputSchema.safeParse(body);
   if (!parsed.success) {
     throw parsed.error;
   }
@@ -316,6 +320,7 @@ app.patch("/links/:id", async (c) => {
     noIndex: existing.noIndex,
     forwardQuery: existing.forwardQuery,
     openMode: existing.openMode,
+    maxClicks: existing.maxClicks,
     archived: existing.archived,
     utm: existing.utm,
     rules: existing.rules,

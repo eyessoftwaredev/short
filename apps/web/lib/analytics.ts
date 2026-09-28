@@ -1,5 +1,6 @@
 import {
   getBreakdown,
+  getLinkClickTotals,
   getMonthlyClickTotal,
   getPlatformDailySeries,
   getPlatformTotals,
@@ -8,6 +9,7 @@ import {
   getTimeseries,
   getTopLinks,
   getVariantBreakdown,
+  type BreakdownDimension,
   type BreakdownRow,
   type Granularity,
   type PlatformTotals,
@@ -137,6 +139,29 @@ export async function loadBreakdownSet(scope: StatsScope, limit = 10): Promise<B
 
 export async function loadVariantBreakdown(scope: StatsScope) {
   return safe(getVariantBreakdown(scope), [], "variants");
+}
+
+export async function loadBreakdown(
+  scope: StatsScope,
+  dimension: BreakdownDimension,
+  limit = 10,
+): Promise<BreakdownRow[]> {
+  return safe(getBreakdown(scope, dimension, limit), [], `breakdown:${dimension}`);
+}
+
+/**
+ * Lifetime human clicks + QR scans per link (bots excluded), for click-limit progress
+ * ("412 / 500"). Links without traffic are absent from the map; `null` means ClickHouse
+ * could not be reached, which callers must not read as "zero clicks".
+ */
+export async function loadLinkClickTotals(
+  workspaceId: string,
+  linkIds: string[],
+): Promise<Map<string, number> | null> {
+  if (linkIds.length === 0) {
+    return new Map();
+  }
+  return safe<Map<string, number> | null>(getLinkClickTotals([workspaceId], linkIds), null, "linkClickTotals");
 }
 
 export type { BreakdownSet };

@@ -28,6 +28,7 @@ import {
   type DomainRow,
   type LinkRow,
 } from "@short/db";
+import { resolveClickLimitState } from "./click-limits";
 import { serverEnv } from "./env";
 import { deleteLinkRecord, putLinkRecord, replaceLinkRecord } from "./kv";
 
@@ -55,6 +56,7 @@ export function toKvRecord(link: LinkRow, hostname: string): LinkKvRecord {
     forwardQuery: link.forwardQuery,
     openMode: link.openMode,
     disabled: link.archived || link.disabledAt != null,
+    limitReached: link.clickLimitReachedAt != null,
     overQuota: false,
     title: link.title,
     description: link.description,
@@ -149,6 +151,8 @@ export async function createLink({
     noIndex: input.noIndex,
     forwardQuery: input.forwardQuery,
     openMode: input.openMode ?? "auto",
+    // A new link has no clicks yet, so a cap can never be reached on create.
+    maxClicks: input.maxClicks ?? null,
     archived: input.archived,
   };
 
@@ -210,6 +214,22 @@ export async function updateLink({
         ? await hashGatePassword(input.password)
         : existing.passwordHash;
 
+  // Omitted keeps the cap; null removes it. Raising/removing re-opens a used-up link.
+  const maxClicks = input.maxClicks === undefined ? existing.maxClicks : input.maxClicks;
+  const clickLimitReachedAt = await resolveClickLimitState(existing, maxClicks);
+
+  // A new destination has not been probed yet; its predecessor's verdict must not stick.
+  const health =
+    input.destination === existing.destination
+      ? {}
+      : {
+          healthStatus: "unknown" as const,
+          healthCheckedAt: null,
+          healthStatusCode: null,
+          healthFailures: 0,
+          brokenSince: null,
+        };
+
   try {
     const [updated] = await db
       .update(links)
@@ -238,6 +258,9 @@ export async function updateLink({
         forwardQuery: input.forwardQuery,
         // Omitted means unchanged, e.g. an editor that never loaded the setting.
         openMode: input.openMode ?? existing.openMode,
+        maxClicks,
+        clickLimitReachedAt,
+        ...health,
         archived: input.archived,
         updatedAt: new Date(),
       })
@@ -364,6 +387,15 @@ export async function listLinks(
   } else if (query.status === "scheduled") {
     filters.push(eq(links.archived, false));
     filters.push(gt(links.startsAt, new Date()));
+  }
+
+  if (query.health) {
+    filters.push(eq(links.healthStatus, query.health));
+  }
+  if (query.clickLimit === "set") {
+    filters.push(isNotNull(links.maxClicks));
+  } else if (query.clickLimit === "reached") {
+    filters.push(isNotNull(links.clickLimitReachedAt));
   }
 
   const where = and(...filters);
