@@ -27,7 +27,12 @@ const TONES: Record<string, "success" | "danger" | "muted" | "warn" | "info"> = 
 export function StatusBadge({ status }: { status: string }) {
   const t = useTranslations("common");
   const key = status.toLowerCase();
-  const label = key === "past_due" ? t("pastDue") : status.charAt(0).toUpperCase() + status.slice(1);
+  const label =
+    key === "past_due"
+      ? t("pastDue")
+      : t.has(`statusLabel.${key}`)
+        ? t(`statusLabel.${key}`)
+        : status.charAt(0).toUpperCase() + status.slice(1);
   return (
     <Badge tone={TONES[key] ?? "warn"} dot>
       {label}
