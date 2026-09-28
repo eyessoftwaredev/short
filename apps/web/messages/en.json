@@ -574,7 +574,7 @@
     "verifyRailBody": "Open the link we emailed. Until then the account stays locked.",
     "verifySentTo": "Sent to",
     "verifyStep1": "Open the verification link we just emailed you.",
-    "verifyStep2": "Name your account — that takes one field.",
+    "verifyStep2": "The link signs you in — your workspace is already set up.",
     "verifyStep2Invite": "Re-open the invite link after you confirm, then join the team.",
     "verifyStep3": "Create your first short link.",
     "verifySpamHint": "Nothing after a few minutes? Check spam, and make sure the address above is spelled correctly.",
