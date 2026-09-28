@@ -46,7 +46,9 @@ export function BioThumbnail({
     <div
       className={cn(
         `bio-theme-${look.theme}`,
-        "relative flex h-full w-full flex-col items-center overflow-hidden bg-bio-bg px-6 pt-6 text-bio-fg",
+        // Children must not shrink: the sketch is taller than most frames on purpose and is
+        // clipped at the bottom; shrinking instead squashed the truncated name to a sliver.
+        "relative flex h-full w-full flex-col items-center overflow-hidden bg-bio-bg px-6 pt-6 text-bio-fg *:shrink-0",
         usesThemeBackground(look) &&
           "bg-[radial-gradient(130%_60%_at_50%_0%,var(--bio-bg-alt)_0%,transparent_72%)]",
         className,
