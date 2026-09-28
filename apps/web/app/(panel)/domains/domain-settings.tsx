@@ -5,7 +5,7 @@ import { useActionMessage } from "@/lib/action-message";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, Field, Input, Switch } from "@/components/ui";
+import { Button, Card, Field, InfoTip, Input, Switch } from "@/components/ui";
 import { refreshDomainAction, removeDomainAction, updateDomainAction } from "./actions";
 import { domainActionError } from "./errors";
 import type { DomainRowView } from "./types";
@@ -69,7 +69,7 @@ export function DomainSettings({ domain, canManage }: DomainSettingsProps) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <Field label={t("rootDestination")} hint={t("rootHint")}>
+      <Field label={t("rootDestination")} info={t("rootDestinationInfo")} hint={t("rootHint")}>
         <Input
           placeholder="https://acme.com"
           value={root}
@@ -78,7 +78,7 @@ export function DomainSettings({ domain, canManage }: DomainSettingsProps) {
         />
       </Field>
 
-      <Field label={t("notFoundDestination")} hint={t("notFoundHint")}>
+      <Field label={t("notFoundDestination")} info={t("notFoundDestinationInfo")} hint={t("notFoundHint")}>
         <Input
           placeholder="https://acme.com/404"
           value={notFound}
@@ -89,7 +89,12 @@ export function DomainSettings({ domain, canManage }: DomainSettingsProps) {
 
       <Card staticHover className="flex-row items-center justify-between gap-4">
         <span className="min-w-0">
-          <span className="block text-sm font-medium">{t("defaultForNew")}</span>
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <span className="min-w-0">{t("defaultForNew")}</span>
+            <InfoTip inline label={t("defaultForNew")}>
+              {t("defaultForNewInfo")}
+            </InfoTip>
+          </span>
           <span className="block text-sm text-fg-muted">{t("defaultForNewHint")}</span>
         </span>
         <Switch checked={isDefault} disabled={readOnly} onCheckedChange={setIsDefault} />

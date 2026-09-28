@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Button, Field, Input, Switch } from "@/components/ui";
+import { Button, Field, InfoTip, Input, Switch } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 import { safeInternalPath } from "@/lib/two-factor";
 import { AuthAlert, AuthHeading } from "../_auth/auth-primitives";
@@ -62,7 +62,10 @@ export function TwoFactorForm() {
           void handleSubmit(event);
         }}
       >
-        <Field label={useBackup ? t("twoFactorBackup") : t("twoFactorCode")}>
+        <Field
+          label={useBackup ? t("twoFactorBackup") : t("twoFactorCode")}
+          info={useBackup ? t("twoFactorBackupInfo") : t("twoFactorCodeInfo")}
+        >
           <Input
             name="code"
             inputMode={useBackup ? "text" : "numeric"}
@@ -76,6 +79,9 @@ export function TwoFactorForm() {
         <label className="flex min-w-0 items-center gap-3 text-sm">
           <Switch checked={trustDevice} onCheckedChange={setTrustDevice} />
           <span className="min-w-0">{t("twoFactorTrustDevice")}</span>
+          <InfoTip inline label={t("twoFactorTrustDevice")}>
+            {t("twoFactorTrustDeviceInfo")}
+          </InfoTip>
         </label>
 
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending || code.trim() === ""}>

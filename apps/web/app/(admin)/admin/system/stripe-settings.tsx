@@ -89,7 +89,7 @@ export function StripeSettings({ status }: StripeSettingsProps) {
         {notice ? <p className="m-0 text-sm text-accent-ink">{notice}</p> : null}
 
         <div className="grid min-w-0 gap-4 md:grid-cols-2">
-          <Field label={t("stripeSecret")} hint={t("stripeSecretHint")}>
+          <Field label={t("stripeSecret")} info={t("stripeSecretInfo")} hint={t("stripeSecretHint")}>
             <Input
               type="password"
               autoComplete="off"
@@ -98,7 +98,7 @@ export function StripeSettings({ status }: StripeSettingsProps) {
               onChange={(event) => setSecretKey(event.target.value)}
             />
           </Field>
-          <Field label={t("stripeWebhook")} hint={t("stripeWebhookHint")}>
+          <Field label={t("stripeWebhook")} info={t("stripeWebhookInfo")} hint={t("stripeWebhookHint")}>
             <Input
               type="password"
               autoComplete="off"
@@ -111,6 +111,7 @@ export function StripeSettings({ status }: StripeSettingsProps) {
 
         <Field
           label={t("stripePublishable")}
+          info={t("stripePublishableInfo")}
           hint={
             status.publishableLast4
               ? t("stripePublishableSet", { last4: status.publishableLast4 })

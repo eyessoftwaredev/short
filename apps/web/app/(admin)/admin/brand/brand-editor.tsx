@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ChangeEvent } from "react";
 import { PLATFORM_ASSET_KINDS, type PlatformAssetKind } from "@short/db/constants";
-import { Button, Field, Input, SaveBar, Section, Select, Switch } from "@/components/ui";
+import { Button, Field, InfoTip, Input, SaveBar, Section, Select, Switch } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import type { PlatformBrand } from "@/lib/brand-fallback";
 import { updateBrandAction, uploadBrandAssetAction } from "./actions";
@@ -128,10 +128,10 @@ export function BrandEditor({ brand, presentAssets }: BrandEditorProps) {
 
       <Section title={t("identity")} description={t("identityDesc")}>
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <Field label={tNav("name")}>
+          <Field label={tNav("name")} info={t("nameInfo")}>
             <Input value={name} maxLength={40} onChange={(event) => setName(event.target.value)} />
           </Field>
-          <Field label={t("tagline")} hint={t("taglineHint")}>
+          <Field label={t("tagline")} info={t("taglineInfo")} hint={t("taglineHint")}>
             <Input
               value={tagline}
               maxLength={160}
@@ -143,7 +143,7 @@ export function BrandEditor({ brand, presentAssets }: BrandEditorProps) {
 
       <Section title={t("locale")} description={t("localeDesc")}>
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <Field label={t("defaultLanguage")}>
+          <Field label={t("defaultLanguage")} info={t("defaultLanguageInfo")}>
             <Select
               value={defaultLocale}
               onChange={(event) => setDefaultLocale(event.target.value === "tr" ? "tr" : "en")}
@@ -152,7 +152,7 @@ export function BrandEditor({ brand, presentAssets }: BrandEditorProps) {
               <option value="tr">Türkçe</option>
             </Select>
           </Field>
-          <Field label={t("languageSwitcher")} hint={t("languageSwitcherHint")}>
+          <Field label={t("languageSwitcher")} info={t("languageSwitcherInfo")} hint={t("languageSwitcherHint")}>
             <div className="flex min-h-10 items-center">
               <Switch
                 checked={localeSwitcherEnabled}
@@ -193,7 +193,12 @@ export function BrandEditor({ brand, presentAssets }: BrandEditorProps) {
                   )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-medium">{label}</span>
+                  <span className="flex items-center gap-1.5 text-sm font-medium">
+                    <span className="min-w-0">{label}</span>
+                    <InfoTip inline label={label}>
+                      {t(`assetInfo.${kind}`)}
+                    </InfoTip>
+                  </span>
                   <span className="text-xs text-fg-subtle">
                     {present ? t("uploaded") : isWordmarkKind(kind) ? t("fallbackName") : t("fallback")}
                   </span>

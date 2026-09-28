@@ -29,6 +29,8 @@ import { cn } from "@/lib/cx";
 import { getWorkspaceUsage } from "@/lib/quota";
 import { requireWorkspace } from "@/lib/session";
 import { readDraftDestination } from "@/lib/draft-link";
+import { GettingStartedCard } from "./getting-started-card";
+import { loadGettingStarted } from "./getting-started";
 import {
   clampRangeToRetention,
   countryName,
@@ -70,17 +72,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   const scope = { workspaceId: context.workspace.id, from: range.from, to: range.to };
 
-  const [summary, series, topLinks, recent, usage, draft, t, tc, ts] = await Promise.all([
-    loadSummary(scope),
-    loadTimeseries(scope, range.granularity),
-    loadTopLinks(scope, 8),
-    loadRecentEvents(scope, 8),
-    getWorkspaceUsage(context.workspace.id),
-    readDraftDestination(),
-    getTranslations("panel"),
-    getTranslations("common"),
-    getTranslations("stats"),
-  ]);
+  const [summary, series, topLinks, recent, usage, draft, gettingStarted, t, tc, ts] =
+    await Promise.all([
+      loadSummary(scope),
+      loadTimeseries(scope, range.granularity),
+      loadTopLinks(scope, 8),
+      loadRecentEvents(scope, 8),
+      getWorkspaceUsage(context.workspace.id),
+      readDraftDestination(),
+      loadGettingStarted(context),
+      getTranslations("panel"),
+      getTranslations("common"),
+      getTranslations("stats"),
+    ]);
   const rangeLabel = localizedRangeLabel(range, ts);
   const unknown = ts("unknown");
   const noneDelta = ts("deltaNone");
@@ -143,6 +147,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </Button>
         </div>
       ) : null}
+
+      {gettingStarted ? <GettingStartedCard steps={gettingStarted} /> : null}
 
       <Grid columns={4}>
         <Card

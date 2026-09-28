@@ -71,7 +71,7 @@ export function CreateTeamDialog({
         </>
       }
     >
-      <Field label={t("teamName")}>
+      <Field label={t("teamName")} info={t("teamNameInfo")}>
         <Input
           value={name}
           minLength={2}

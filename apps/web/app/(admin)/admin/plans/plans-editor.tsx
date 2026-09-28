@@ -10,6 +10,7 @@ import {
   Badge,
   Button,
   Field,
+  InfoTip,
   Input,
   Select,
   Sheet,
@@ -218,13 +219,13 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
         {draft ? (
           <div className="flex min-w-0 flex-col gap-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label={tNav("name")}>
+              <Field label={tNav("name")} info={t("nameInfo")}>
                 <Input
                   value={draft.name}
                   onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 />
               </Field>
-              <Field label={t("currency")}>
+              <Field label={t("currency")} info={t("currencyInfo")}>
                 <Select
                   value={draft.currency}
                   onChange={(event) =>
@@ -236,7 +237,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
                   <option value="TRY">TRY</option>
                 </Select>
               </Field>
-              <Field label={t("monthlyPrice")} hint={t("minorUnitsHint")}>
+              <Field label={t("monthlyPrice")} info={t("monthlyPriceInfo")} hint={t("minorUnitsHint")}>
                 <Input
                   type="number"
                   min={0}
@@ -246,7 +247,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
                   }
                 />
               </Field>
-              <Field label={t("yearlyPrice")} hint={t("minorUnitsHint")}>
+              <Field label={t("yearlyPrice")} info={t("yearlyPriceInfo")} hint={t("minorUnitsHint")}>
                 <Input
                   type="number"
                   min={0}
@@ -256,7 +257,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
                   }
                 />
               </Field>
-              <Field label={t("stripeMonthly")}>
+              <Field label={t("stripeMonthly")} info={t("stripeMonthlyInfo")}>
                 <Input
                   value={draft.stripePriceMonthlyId ?? ""}
                   placeholder={t("pricePlaceholder")}
@@ -265,7 +266,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
                   }
                 />
               </Field>
-              <Field label={t("stripeYearly")}>
+              <Field label={t("stripeYearly")} info={t("stripeYearlyInfo")}>
                 <Input
                   value={draft.stripePriceYearlyId ?? ""}
                   placeholder={t("pricePlaceholder")}
@@ -278,7 +279,12 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
 
             <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
               <span className="min-w-0">
-                <span className="block text-sm font-medium">{t("visible")}</span>
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <span className="min-w-0">{t("visible")}</span>
+                  <InfoTip inline label={t("visible")}>
+                    {t("visibleInfo")}
+                  </InfoTip>
+                </span>
                 <span className="block text-xs text-fg-subtle">
                   {isInternalPlan(draft.key) ? te("infinity_hidden") : t("hidePlanHint")}
                 </span>
@@ -299,6 +305,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
                   <Field
                     key={field.key}
                     label={t(field.labelKey)}
+                    info={t(`limitInfo.${field.key}`)}
                     hint={field.hintKey ? t(field.hintKey) : undefined}
                   >
                     <Input
@@ -323,7 +330,12 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
               </span>
               {FEATURE_FIELDS.map((field) => (
                 <div key={field.key} className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-sm text-fg-muted">{featureLabel(field)}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 text-sm text-fg-muted">
+                    <span className="min-w-0 truncate">{featureLabel(field)}</span>
+                    <InfoTip inline label={featureLabel(field)}>
+                      {t(`featureInfo.${field.key}`)}
+                    </InfoTip>
+                  </span>
                   <Switch
                     checked={draft.features[field.key]}
                     onCheckedChange={(checked) =>

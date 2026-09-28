@@ -191,7 +191,7 @@ export function UsersTable({ rows, currentUserId }: { rows: AdminUserView[]; cur
           </>
         }
       >
-        <Field label={t("reason")} hint={t("reasonHint")}>
+        <Field label={t("reason")} info={t("banReasonInfo")} hint={t("reasonHint")}>
           <Input
             value={reason}
             onChange={(event) => setReason(event.target.value)}

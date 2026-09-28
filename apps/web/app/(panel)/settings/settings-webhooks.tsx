@@ -12,6 +12,7 @@ import {
   CopyButton,
   EmptyState,
   Field,
+  InfoTip,
   Input,
   Paywall,
   Switch,
@@ -100,7 +101,7 @@ export function SettingsWebhooks({
             <h3 className="m-0 text-base font-semibold tracking-tight">{t("addEndpoint")}</h3>
           </div>
 
-          <Field label={t("endpointUrl")} hint={t("endpointUrlHint")}>
+          <Field label={t("endpointUrl")} info={t("endpointUrlInfo")} hint={t("endpointUrlHint")}>
             <Input
               type="url"
               inputMode="url"
@@ -112,7 +113,12 @@ export function SettingsWebhooks({
 
           <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
             <legend className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2 p-0 text-sm font-medium">
-              <span>{t("eventsToSend")}</span>
+              <span className="inline-flex items-center gap-1.5">
+                {t("eventsToSend")}
+                <InfoTip inline label={t("eventsToSend")}>
+                  {t("eventsToSendInfo")}
+                </InfoTip>
+              </span>
             </legend>
             <div className="flex min-w-0 flex-wrap gap-2">
               {WEBHOOK_EVENTS.map((event) => {
@@ -209,6 +215,9 @@ export function SettingsWebhooks({
                       }
                     />
                     <span>{row.enabled ? t("active") : t("paused")}</span>
+                    <InfoTip inline label={row.enabled ? t("active") : t("paused")}>
+                      {t("endpointToggleInfo")}
+                    </InfoTip>
                   </label>
                   {canManage ? (
                     <DangerButton

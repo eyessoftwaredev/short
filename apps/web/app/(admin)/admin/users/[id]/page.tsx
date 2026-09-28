@@ -12,6 +12,7 @@ import {
   EmptyState,
   Grid,
   Hero,
+  InfoTip,
   Section,
   Table,
   TableBody,
@@ -139,7 +140,14 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
               <TableRow>
                 <TableHeaderCell>{tNav("workspace")}</TableHeaderCell>
                 <TableHeaderCell>{tNav("role")}</TableHeaderCell>
-                <TableHeaderCell>{tNav("plan")}</TableHeaderCell>
+                <TableHeaderCell>
+                  <span className="inline-flex items-center gap-1.5">
+                    {tNav("plan")}
+                    <InfoTip inline label={tNav("plan")}>
+                      {t("workspacePlanInfo")}
+                    </InfoTip>
+                  </span>
+                </TableHeaderCell>
                 <TableHeaderCell className="text-right">{tn("links")}</TableHeaderCell>
                 <TableHeaderCell className="text-right">{t("bio")}</TableHeaderCell>
                 <TableHeaderCell className="text-right">{t("qr")}</TableHeaderCell>

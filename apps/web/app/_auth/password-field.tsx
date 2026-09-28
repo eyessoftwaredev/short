@@ -9,6 +9,8 @@ import { cn } from "@/lib/cx";
 
 type PasswordFieldProps = {
   label?: string;
+  /** Tooltip next to the label, e.g. the password policy on sign-up and reset. */
+  info?: string;
   value: string;
   onChange: (value: string) => void;
   autoComplete: "current-password" | "new-password";
@@ -40,6 +42,7 @@ function scorePassword(value: string, min: number): number {
 
 export function PasswordField({
   label,
+  info,
   value,
   onChange,
   autoComplete,
@@ -60,7 +63,7 @@ export function PasswordField({
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <Field label={resolvedLabel}>
+      <Field label={resolvedLabel} info={info}>
         <span className="relative flex min-w-0 items-center">
           <Input
             type={visible ? "text" : "password"}

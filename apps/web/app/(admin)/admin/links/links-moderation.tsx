@@ -162,7 +162,7 @@ export function LinksModeration({ rows }: { rows: AdminLinkView[] }) {
           </>
         }
       >
-        <Field label={t("reason")} hint={t("reasonHint")}>
+        <Field label={t("reason")} info={t("reasonInfo")} hint={t("reasonHint")}>
           <Input
             value={reason}
             onChange={(event) => setReason(event.target.value)}

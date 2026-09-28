@@ -33,27 +33,27 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "link") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("label")}>
+        <Field label={t("label")} info={t("labelInfo")}>
           <Input
             value={block.label}
             maxLength={120}
             onChange={(event) => onChange({ ...block, label: event.target.value })}
           />
         </Field>
-        <Field label={t("destination")}>
+        <Field label={t("destination")} info={t("destinationInfo")}>
           <Input
             value={block.destination}
             placeholder="https://acme.com/shop"
             onChange={(event) => onChange({ ...block, destination: event.target.value })}
           />
         </Field>
-        <Field label={t("icon")} hint={t("iconHint")}>
+        <Field label={t("icon")} info={t("iconInfo")} hint={t("iconHint")}>
           <ImageUpload
             value={block.iconUrl ?? ""}
             onChange={(url) => onChange({ ...block, iconUrl: url === "" ? null : url })}
           />
         </Field>
-        <Field label={t("emphasis")}>
+        <Field label={t("emphasis")} info={t("emphasisInfo")}>
           <Select
             value={block.highlighted ? "highlight" : "normal"}
             onChange={(event) =>
@@ -64,7 +64,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             <option value="highlight">{t("highlighted")}</option>
           </Select>
         </Field>
-        <Field label={t("iconName")} hint={t("iconNameHint")}>
+        <Field label={t("iconName")} info={t("iconNameInfo")} hint={t("iconNameHint")}>
           <Select
             value={block.iconName ?? ""}
             onChange={(event) =>
@@ -82,7 +82,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             ))}
           </Select>
         </Field>
-        <Field label={t("newTab")}>
+        <Field label={t("newTab")} info={t("newTabInfo")}>
           <Select
             value={block.newTab === false ? "same" : "new"}
             onChange={(event) =>
@@ -102,7 +102,11 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
       <div className="flex flex-col gap-3">
         {block.items.map((item, index) => (
           <div key={`${item.platform}-${index}`} className="flex flex-wrap items-end gap-2">
-            <Field label={index === 0 ? t("platform") : undefined} className="w-40">
+            <Field
+              label={index === 0 ? t("platform") : undefined}
+              info={index === 0 ? t("platformInfo") : undefined}
+              className="w-40"
+            >
               <Select
                 value={item.platform}
                 onChange={(event) => {
@@ -123,6 +127,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             </Field>
             <Field
               label={index === 0 ? t("urlOrHandle") : undefined}
+              info={index === 0 ? t("urlOrHandleInfo") : undefined}
               className="min-w-48 flex-1"
               hint={index === 0 ? t("urlOrHandleHint") : undefined}
             >
@@ -167,7 +172,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "text") {
     return (
       <div className="flex flex-col gap-4">
-        <Field label={t("body")}>
+        <Field label={t("body")} info={t("bodyInfo")}>
           <Textarea
             rows={4}
             maxLength={2000}
@@ -175,7 +180,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             onChange={(event) => onChange({ ...block, body: event.target.value })}
           />
         </Field>
-        <Field label={t("alignment")} className="max-w-40">
+        <Field label={t("alignment")} info={t("alignmentInfo")} className="max-w-40">
           <Select
             value={block.align}
             onChange={(event) =>
@@ -192,7 +197,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
 
   if (block.type === "header") {
     return (
-      <Field label={t("heading")}>
+      <Field label={t("heading")} info={t("headingInfo")}>
         <Input
           value={block.text}
           maxLength={120}
@@ -205,20 +210,25 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "image") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("image")}>
+        <Field label={t("image")} info={t("imageInfo")}>
           <ImageUpload
             value={block.url}
             onChange={(url) => onChange({ ...block, url })}
           />
         </Field>
-        <Field label={t("altText")} hint={t("altHint")}>
+        <Field label={t("altText")} info={t("altTextInfo")} hint={t("altHint")}>
           <Input
             value={block.alt}
             maxLength={255}
             onChange={(event) => onChange({ ...block, alt: event.target.value })}
           />
         </Field>
-        <Field label={t("linksTo")} className="sm:col-span-2" hint={t("linksToHint")}>
+        <Field
+          label={t("linksTo")}
+          info={t("linksToInfo")}
+          className="sm:col-span-2"
+          hint={t("linksToHint")}
+        >
           <Input
             value={block.href ?? ""}
             placeholder="https://acme.com/campaign"
@@ -234,7 +244,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "embed") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("provider")}>
+        <Field label={t("provider")} info={t("providerInfo")}>
           <Select
             value={block.provider}
             onChange={(event) =>
@@ -249,7 +259,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             <option value="vimeo">Vimeo</option>
           </Select>
         </Field>
-        <Field label={t("shareUrl")} hint={t("shareUrlHint")}>
+        <Field label={t("shareUrl")} info={t("shareUrlInfo")} hint={t("shareUrlHint")}>
           <Input
             value={block.url}
             onChange={(event) => onChange({ ...block, url: event.target.value })}
@@ -262,7 +272,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
   if (block.type === "form") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("formMode")}>
+        <Field label={t("formMode")} info={t("formModeInfo")}>
           <Select
             value={block.mode}
             onChange={(event) =>
@@ -276,14 +286,14 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             <option value="whatsapp">{t("formModeWhatsapp")}</option>
           </Select>
         </Field>
-        <Field label={t("formButton")}>
+        <Field label={t("formButton")} info={t("formButtonInfo")}>
           <Input
             value={block.buttonLabel}
             maxLength={40}
             onChange={(event) => onChange({ ...block, buttonLabel: event.target.value })}
           />
         </Field>
-        <Field label={t("formTitle")} className="sm:col-span-2">
+        <Field label={t("formTitle")} info={t("formTitleInfo")} className="sm:col-span-2">
           <Input
             value={block.title}
             maxLength={120}
@@ -291,7 +301,12 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
           />
         </Field>
         {block.mode === "whatsapp" ? (
-          <Field label={t("formWhatsapp")} hint={t("formWhatsappHint")} className="sm:col-span-2">
+          <Field
+            label={t("formWhatsapp")}
+            info={t("formWhatsappInfo")}
+            hint={t("formWhatsappHint")}
+            className="sm:col-span-2"
+          >
             <Input
               value={block.whatsappNumber ?? ""}
               placeholder="+905551112233"
@@ -304,7 +319,7 @@ export function BlockFields({ block, onChange }: BlockFieldsProps) {
             />
           </Field>
         ) : (
-          <Field label={t("formSuccess")} className="sm:col-span-2">
+          <Field label={t("formSuccess")} info={t("formSuccessInfo")} className="sm:col-span-2">
             <Input
               value={block.successMessage ?? ""}
               maxLength={200}

@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { PlanFeatures, PlanKey } from "@short/core";
 import { formatLimit } from "@short/core";
-import { Badge, Button, Chip } from "@/components/ui";
+import { Badge, Button, Chip, InfoTip } from "@/components/ui";
 import { useActionMessage } from "@/lib/action-message";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/cx";
@@ -146,6 +146,9 @@ export function PlanPicker({
               <span className="font-mono text-xs tabular-nums">−{bestDiscount}%</span>
             ) : null}
           </Chip>
+          <InfoTip inline label={t("billingInterval")}>
+            {t("billingIntervalInfo")}
+          </InfoTip>
         </div>
 
         {current ? (

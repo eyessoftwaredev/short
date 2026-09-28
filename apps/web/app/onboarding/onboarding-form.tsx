@@ -76,7 +76,7 @@ export function OnboardingForm({ suggestion }: { suggestion: string }) {
           </div>
         ) : null}
 
-        <Field label={t("nameLabel")}>
+        <Field label={t("nameLabel")} info={t("nameInfo")}>
           <Input
             name="name"
             required

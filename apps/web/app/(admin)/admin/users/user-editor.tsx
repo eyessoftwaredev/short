@@ -7,6 +7,7 @@ import {
   Badge,
   Button,
   Field,
+  InfoTip,
   Input,
   SaveBar,
   Select,
@@ -95,10 +96,10 @@ export function UserEditor({
       {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label={tNav("name")}>
+        <Field label={tNav("name")} info={t("nameInfo")}>
           <Input value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
-        <Field label={tNav("email")}>
+        <Field label={tNav("email")} info={t("emailInfo")}>
           <Input
             type="email"
             value={email}
@@ -106,7 +107,7 @@ export function UserEditor({
             autoComplete="off"
           />
         </Field>
-        <Field label={t("platformRole")}>
+        <Field label={t("platformRole")} info={t("platformRoleInfo")}>
           <Select
             value={role}
             disabled={isSelf}
@@ -119,14 +120,24 @@ export function UserEditor({
         <div className="flex min-w-0 flex-col justify-end gap-3">
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{t("emailVerified")}</span>
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <span className="min-w-0">{t("emailVerified")}</span>
+                <InfoTip inline label={t("emailVerified")}>
+                  {t("emailVerifiedInfo")}
+                </InfoTip>
+              </span>
               <span className="block text-xs text-fg-subtle">{t("emailVerifiedHint")}</span>
             </span>
             <Switch checked={emailVerified} onCheckedChange={setEmailVerified} />
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{t("banned")}</span>
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <span className="min-w-0">{t("banned")}</span>
+                <InfoTip inline label={t("banned")}>
+                  {t("bannedInfo")}
+                </InfoTip>
+              </span>
               <span className="block text-xs text-fg-subtle">
                 {isSelf ? t("cannotBanSelf") : t("bannedHint")}
               </span>
@@ -137,7 +148,7 @@ export function UserEditor({
       </div>
 
       {banned ? (
-        <Field label={t("banReason")} hint={t("reasonHint")}>
+        <Field label={t("banReason")} info={t("banReasonInfo")} hint={t("reasonHint")}>
           <Input
             value={banReason}
             onChange={(event) => setBanReason(event.target.value)}

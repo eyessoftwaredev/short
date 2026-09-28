@@ -317,7 +317,7 @@ function SetupPanel({
 
       {step === "password" ? (
         <>
-          <Field label={t("currentPassword")} hint={t("twoFactorPasswordHint")}>
+          <Field label={t("currentPassword")} info={t("twoFactorPasswordInfo")} hint={t("twoFactorPasswordHint")}>
             <Input
               type="password"
               autoComplete="current-password"
@@ -368,7 +368,7 @@ function SetupPanel({
 
       {step === "verify" ? (
         <>
-          <Field label={t("totpCode")} hint={t("twoFactorCodeHint")}>
+          <Field label={t("totpCode")} info={t("totpCodeInfo")} hint={t("twoFactorCodeHint")}>
             <Input
               value={totp}
               inputMode="numeric"
@@ -430,7 +430,7 @@ function EnabledPanel({
         </div>
       ) : null}
 
-      <Field label={t("currentPassword")} hint={t("twoFactorManageHint")}>
+      <Field label={t("currentPassword")} info={t("twoFactorManageInfo")} hint={t("twoFactorManageHint")}>
         <Input
           type="password"
           autoComplete="current-password"

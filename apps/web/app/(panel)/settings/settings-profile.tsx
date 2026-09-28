@@ -40,7 +40,7 @@ export function SettingsProfile({
               <span className="truncate font-mono text-xs text-fg-muted">{user.email}</span>
             </span>
           </span>
-          <Field label={t("displayName")} hint={t("displayNameHint")}>
+          <Field label={t("displayName")} info={t("displayNameInfo")} hint={t("displayNameHint")}>
             <Input
               value={displayName}
               minLength={2}
@@ -49,7 +49,7 @@ export function SettingsProfile({
               onChange={(event) => onDisplayNameChange(event.target.value)}
             />
           </Field>
-          <Field label={t("email")} hint={t("emailHint")}>
+          <Field label={t("email")} info={t("emailInfo")} hint={t("emailHint")}>
             <Input value={user.email} readOnly disabled autoComplete="email" />
           </Field>
         </SettingsCard>

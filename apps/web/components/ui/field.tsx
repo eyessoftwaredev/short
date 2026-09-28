@@ -1,18 +1,30 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cx";
+import { InfoTip } from "./info-tip";
 
 type FieldProps = {
   label?: ReactNode;
+  /** Explains what the setting does; shown in an "i" tooltip next to the label. */
+  info?: ReactNode;
   hint?: ReactNode;
   error?: ReactNode;
   children: ReactNode;
   className?: string;
 };
 
-export function Field({ label, hint, error, children, className }: FieldProps) {
+export function Field({ label, info, hint, error, children, className }: FieldProps) {
   return (
     <label className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      {label ? <span className="text-sm font-medium">{label}</span> : null}
+      {label ? (
+        <span className="flex items-center gap-1.5 text-sm font-medium">
+          <span className="min-w-0">{label}</span>
+          {info ? (
+            <InfoTip inline label={typeof label === "string" ? label : "Info"}>
+              {info}
+            </InfoTip>
+          ) : null}
+        </span>
+      ) : null}
       {children}
       {hint && !error ? <span className="text-xs text-fg-subtle">{hint}</span> : null}
       {error ? <span className="text-xs text-danger">{error}</span> : null}

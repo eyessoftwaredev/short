@@ -75,6 +75,7 @@ export function ResetForm({ token }: { token: string }) {
       >
         <PasswordField
           label={t("resetNewPassword")}
+          info={t("passwordPolicyInfo")}
           value={password}
           onChange={setPassword}
           autoComplete="new-password"

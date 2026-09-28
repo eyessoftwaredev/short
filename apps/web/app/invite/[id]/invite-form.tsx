@@ -263,6 +263,7 @@ export function InviteForm({
           </Field>
           <LockedEmailField email={invite.email} hint={t("inviteLockedEmailHint")} />
           <PasswordField
+            info={t("passwordPolicyInfo")}
             value={password}
             onChange={setPassword}
             autoComplete="new-password"

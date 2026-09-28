@@ -130,7 +130,12 @@ export function SettingsApi({
             <p className="m-0 text-sm text-fg-muted">{t("keyOnceHint")}</p>
           </div>
           <div className="flex min-w-0 flex-wrap items-end gap-3">
-            <Field label={t("keyName")} className="min-w-56 flex-1" hint={t("keyNameHint")}>
+            <Field
+              label={t("keyName")}
+              info={t("keyNameInfo")}
+              className="min-w-56 flex-1"
+              hint={t("keyNameHint")}
+            >
               <Input
                 placeholder={t("keyNamePlaceholder")}
                 value={keyName}

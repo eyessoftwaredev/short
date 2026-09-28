@@ -80,7 +80,7 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
           />
         </Field>
 
-        <Field label={t("workEmail")}>
+        <Field label={t("workEmail")} info={t("workEmailInfo")}>
           <Input
             type="email"
             name="email"
@@ -93,6 +93,7 @@ export function RegisterForm({ inviteId = "" }: { inviteId?: string }) {
         </Field>
 
         <PasswordField
+          info={t("passwordPolicyInfo")}
           value={password}
           onChange={setPassword}
           autoComplete="new-password"

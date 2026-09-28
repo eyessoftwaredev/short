@@ -37,7 +37,7 @@ export function AddDomainForm({ cloudflareConfigured }: AddDomainFormProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label={t("hostname")} error={error ?? undefined}>
+      <Field label={t("hostname")} info={t("hostnameInfo")} error={error ?? undefined}>
         <Input
           name="hostname"
           placeholder={t("placeholder")}

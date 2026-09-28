@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@/components/ui";
+import { Chip, InfoTip } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -34,6 +34,9 @@ export function StatsToggles() {
       <Chip active={includeBots} onClick={() => setParam("includeBots", includeBots ? null : "1")}>
         {t("includeBots")}
       </Chip>
+      <InfoTip inline label={t("filtersInfoLabel")}>
+        {t("filtersInfo")}
+      </InfoTip>
     </div>
   );
 }

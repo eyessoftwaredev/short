@@ -4,7 +4,7 @@ import { Icon, type IconName } from "@/components/kit/icon";
 
 import { useTranslations } from "next-intl";
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Button, CopyButton, Field, Input, Modal, Switch } from "@/components/ui";
+import { Button, CopyButton, Field, InfoTip, Input, Modal, Switch } from "@/components/ui";
 import { cn } from "@/lib/cx";
 import type { ConfirmRequest } from "./settings-types";
 
@@ -143,6 +143,9 @@ export function SecretModal({ open, kind, secret, usage, onDismiss }: SecretModa
             aria-label={t("secretAck")}
           />
           <span className="min-w-0 text-sm">{t("secretAck")}</span>
+          <InfoTip inline label={t("secretAck")}>
+            {t("secretAckInfo")}
+          </InfoTip>
         </label>
       </div>
     </Modal>
@@ -208,7 +211,7 @@ export function ConfirmDialog({ request, pending, onCancel }: ConfirmDialogProps
           </div>
         ) : null}
         {needsPassword ? (
-          <Field label={t("deleteAccountPassword")}>
+          <Field label={t("deleteAccountPassword")} info={t("deleteAccountPasswordInfo")}>
             <Input
               type="password"
               autoComplete="current-password"

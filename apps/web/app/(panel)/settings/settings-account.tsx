@@ -28,7 +28,7 @@ export function SettingsAccount({
     <SettingsCard title={t("securityTitle")} description={t("securityDesc")}>
       <div className="flex min-w-0 flex-col gap-5">
         <div className="flex min-w-0 flex-col gap-3">
-          <Field label={t("changeEmail")}>
+          <Field label={t("changeEmail")} info={t("changeEmailInfo")}>
             <Input
               type="email"
               value={nextEmail}
@@ -45,7 +45,7 @@ export function SettingsAccount({
         </div>
 
         <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-5">
-          <Field label={t("currentPassword")}>
+          <Field label={t("currentPassword")} info={t("currentPasswordInfo")}>
             <Input
               type="password"
               autoComplete="current-password"
@@ -53,7 +53,7 @@ export function SettingsAccount({
               onChange={(event) => setCurrentPassword(event.target.value)}
             />
           </Field>
-          <Field label={t("newPassword")}>
+          <Field label={t("newPassword")} info={t("newPasswordInfo")}>
             <Input
               type="password"
               autoComplete="new-password"

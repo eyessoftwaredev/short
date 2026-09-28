@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Field, Input, SecretInput, Switch } from "@/components/ui";
+import { Button, Field, InfoTip, Input, SecretInput, Switch } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { savePixelAction } from "./pixel-actions";
@@ -56,10 +56,10 @@ export function SettingsPixels({
         ) : undefined
       }
     >
-      <Field label={t("metaPixelId")}>
+      <Field label={t("metaPixelId")} info={t("metaPixelIdInfo")}>
         <Input value={pixelId} onChange={(event) => setPixelId(event.target.value)} disabled={!canManage} />
       </Field>
-      <Field label={t("metaCapiToken")} hint={t("metaCapiHint")}>
+      <Field label={t("metaCapiToken")} info={t("metaCapiTokenInfo")} hint={t("metaCapiHint")}>
         <SecretInput
           domName="meta-capi-token"
           blockAutofill={false}
@@ -71,6 +71,9 @@ export function SettingsPixels({
       <label className="flex items-center gap-2 text-sm">
         <Switch checked={enabled} disabled={!canManage} onCheckedChange={setEnabled} />
         {t("pixelsEnabled")}
+        <InfoTip inline label={t("pixelsEnabled")}>
+          {t("pixelsEnabledInfo")}
+        </InfoTip>
       </label>
     </SettingsCard>
   );

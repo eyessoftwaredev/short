@@ -9,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/cx";
 import { CreateTeamDialog } from "./create-team-dialog";
 import { AccountRestoredBanner } from "./account-restored-banner";
+import { CommandPalette } from "./command-palette";
 import { ImpersonationBanner } from "./impersonation-banner";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { MobileNavDrawer, Sidebar } from "./sidebar";
@@ -23,9 +24,12 @@ type PanelShellProps = {
   crumbs?: Crumb[];
   children: ReactNode;
   topbarActions?: ReactNode;
-  /** Placeholder for the topbar search field, e.g. "Search domains". */
+  /** Label of the topbar command palette trigger. */
   searchPlaceholder?: string;
-  /** Set false on screens that already own a search field, e.g. the links list. */
+  /**
+   * Set false on screens that already own a search field, e.g. the links list: the
+   * topbar then shows a compact palette button and `/` is left to the page.
+   */
   searchable?: boolean;
   /** Extra classes on the `<main>` content column. */
   contentClassName?: string;
@@ -43,6 +47,7 @@ export function PanelShell({
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const session = usePanelSession();
@@ -58,6 +63,7 @@ export function PanelShell({
 
   useEffect(() => {
     setMobileNavOpen(false);
+    setPaletteOpen(false);
   }, [pathname]);
 
   const toggleCollapsed = useCallback(() => {
@@ -148,6 +154,7 @@ export function PanelShell({
           searchPlaceholder={searchPlaceholder}
           searchable={searchable}
           onMenuClick={() => setMobileNavOpen(true)}
+          onOpenPalette={() => setPaletteOpen(true)}
         />
         <main
           id="panel-content"
@@ -164,6 +171,12 @@ export function PanelShell({
       </div>
 
       <MobileTabBar />
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        slashShortcut={searchable !== false}
+      />
 
       <CreateTeamDialog
         open={createTeamOpen}

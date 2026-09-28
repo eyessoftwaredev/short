@@ -82,7 +82,7 @@ export function SettingsTeam({
             }
           >
             {canCreateTeam ? (
-              <Field label={t("teamName")}>
+              <Field label={t("teamName")} info={t("teamNameInfo")}>
                 <Input
                   value={newTeamName}
                   minLength={2}
@@ -111,6 +111,7 @@ export function SettingsTeam({
         <SettingsCard title={t("workspaceName")} description={t("workspaceCodeHint")}>
           <Field
             label={t("workspaceName")}
+            info={t("workspaceNameInfo")}
             hint={canManage ? t("workspaceNameHint") : t("workspaceNameLocked")}
           >
             <Input

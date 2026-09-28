@@ -123,7 +123,7 @@ export function VerifyPending({ email, inviteId = "" }: VerifyPendingProps) {
           }}
         >
           <p className="m-0 text-sm text-fg-muted">{t("verifyChangeHint")}</p>
-          <Field label={t("verifyNewEmail")}>
+          <Field label={t("verifyNewEmail")} info={t("verifyNewEmailInfo")}>
             <Input
               type="email"
               name="new-email"
@@ -133,7 +133,7 @@ export function VerifyPending({ email, inviteId = "" }: VerifyPendingProps) {
               onChange={(event) => setNewEmail(event.target.value)}
             />
           </Field>
-          <Field label={t("verifyCurrentPassword")}>
+          <Field label={t("verifyCurrentPassword")} info={t("verifyCurrentPasswordInfo")}>
             <Input
               type="password"
               name="current-password"

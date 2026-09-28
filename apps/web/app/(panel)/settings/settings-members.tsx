@@ -95,7 +95,7 @@ export function SettingsMembers({
         <QuotaMeter label={t("seats")} used={memberUsed} limit={memberLimit} />
         {canManage ? (
           <div className="flex min-w-0 flex-wrap items-end gap-3">
-            <Field label={t("inviteEmail")} className="min-w-56 flex-1">
+            <Field label={t("inviteEmail")} info={t("inviteEmailInfo")} className="min-w-56 flex-1">
               <Input
                 type="email"
                 autoComplete="off"
