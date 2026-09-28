@@ -313,3 +313,74 @@ export function titleCase(value: string, unknown: string): string {
   }
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
+
+/** Product names are spelled the way their makers do and never translated. */
+const OS_DISPLAY: Record<string, string> = {
+  ios: "iOS",
+  android: "Android",
+  windows: "Windows",
+  macos: "macOS",
+  linux: "Linux",
+  chromeos: "ChromeOS",
+};
+
+const BROWSER_DISPLAY: Record<string, string> = {
+  chrome: "Chrome",
+  safari: "Safari",
+  firefox: "Firefox",
+  edge: "Edge",
+  opera: "Opera",
+  samsung: "Samsung Internet",
+  ie: "Internet Explorer",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  messenger: "Messenger",
+  tiktok: "TikTok",
+  snapchat: "Snapchat",
+  linkedin: "LinkedIn",
+  twitter: "X (Twitter)",
+  line: "LINE",
+  wechat: "WeChat",
+  pinterest: "Pinterest",
+};
+
+/** Translated names for the generic buckets; build once per render with `clientLabels`. */
+export type ClientLabels = {
+  unknown: string;
+  other: string;
+  mobile: string;
+  tablet: string;
+  desktop: string;
+};
+
+/** Reads the labels from the `stats` namespace (`getTranslations("stats")` / `useTranslations("stats")`). */
+export function clientLabels(ts: (key: string) => string): ClientLabels {
+  return {
+    unknown: ts("unknown"),
+    other: ts("otherValue"),
+    mobile: ts("deviceName.mobile"),
+    tablet: ts("deviceName.tablet"),
+    desktop: ts("deviceName.desktop"),
+  };
+}
+
+function genericLabel(value: string, labels: ClientLabels): string {
+  return value === "other" ? labels.other : titleCase(value, labels.unknown);
+}
+
+/** "mobile" → "Mobile" / "Mobil". */
+export function deviceLabel(value: string, labels: ClientLabels): string {
+  return value === "mobile" || value === "tablet" || value === "desktop"
+    ? labels[value]
+    : genericLabel(value, labels);
+}
+
+/** "ios" → "iOS", "macos" → "macOS". */
+export function osLabel(value: string, labels: ClientLabels): string {
+  return OS_DISPLAY[value] ?? genericLabel(value, labels);
+}
+
+/** "samsung" → "Samsung Internet", in-app webviews by their app name. */
+export function browserLabel(value: string, labels: ClientLabels): string {
+  return BROWSER_DISPLAY[value] ?? genericLabel(value, labels);
+}

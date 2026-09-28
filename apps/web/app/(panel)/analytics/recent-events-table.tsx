@@ -13,7 +13,7 @@ import {
 import { Icon } from "@/components/kit/icon";
 import { formatDateTime, parseClickhouseDate, truncateMiddle } from "@/lib/format";
 import { browserIcon, countryFlag, deviceIcon, osIcon } from "@/lib/stats-icons";
-import { countryName, titleCase } from "@/lib/stats";
+import { browserLabel, clientLabels, countryName, deviceLabel, osLabel } from "@/lib/stats";
 
 type RecentEventsTableProps = {
   events: RecentEventRow[];
@@ -35,6 +35,7 @@ function typeLabel(
 export async function RecentEventsTable({ events, showLink = false, bare = false }: RecentEventsTableProps) {
   const [locale, ts] = await Promise.all([getLocale(), getTranslations("stats")]);
   const unknown = ts("unknown");
+  const labels = clientLabels(ts);
 
   if (events.length === 0) {
     return (
@@ -107,8 +108,8 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
                     {browserIcon(event.browser)}
                   </span>
                   <span className="min-w-0 truncate">
-                    {titleCase(event.device, unknown)} · {titleCase(event.os, unknown)} ·{" "}
-                    {titleCase(event.browser, unknown)}
+                    {deviceLabel(event.device, labels)} · {osLabel(event.os, labels)} ·{" "}
+                    {browserLabel(event.browser, labels)}
                   </span>
                 </span>
               </TableCell>

@@ -283,6 +283,12 @@
     "rangeDays": "{count, plural, one {# day} other {# days}}",
     "deltaNone": "no change",
     "unknown": "Unknown",
+    "otherValue": "Other",
+    "deviceName": {
+      "mobile": "Mobile",
+      "tablet": "Tablet",
+      "desktop": "Desktop"
+    },
     "geography": "Geography",
     "source": "Source",
     "region": "Region",

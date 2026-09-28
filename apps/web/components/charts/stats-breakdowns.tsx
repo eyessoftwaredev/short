@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { BreakdownList, Grid, TabPanel, Tabs, type TabItem } from "@/components/ui";
 import { browserIcon, countryFlag, deviceIcon, osIcon } from "@/lib/stats-icons";
-import { countryName, languageName, titleCase } from "@/lib/stats";
+import { browserLabel, clientLabels, countryName, deviceLabel, languageName, osLabel, titleCase } from "@/lib/stats";
 
 export type BreakdownSet = {
   country: BreakdownRow[];
@@ -42,6 +42,7 @@ export function StatsBreakdowns({ data, includeBots = false }: StatsBreakdownsPr
   const t = useTranslations("stats");
   const locale = useLocale();
   const unknown = t("unknown");
+  const labels = clientLabels(t);
   const [group, setGroup] = useState<GroupId>("geography");
 
   const tabs: readonly TabItem<GroupId>[] = [
@@ -60,21 +61,21 @@ export function StatsBreakdowns({ data, includeBots = false }: StatsBreakdownsPr
 
   const deviceRows = data.device.map((row) => ({
     key: row.key,
-    label: titleCase(row.key, unknown),
+    label: deviceLabel(row.key, labels),
     value: row.clicks,
     badge: deviceIcon(row.key),
   }));
 
   const osRows = data.os.map((row) => ({
     key: row.key,
-    label: titleCase(row.key, unknown),
+    label: osLabel(row.key, labels),
     value: row.clicks,
     badge: osIcon(row.key),
   }));
 
   const browserRows = data.browser.map((row) => ({
     key: row.key,
-    label: titleCase(row.key, unknown),
+    label: browserLabel(row.key, labels),
     value: row.clicks,
     badge: browserIcon(row.key),
   }));

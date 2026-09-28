@@ -38,14 +38,15 @@ import { loadGettingStarted } from "./getting-started";
 import { loadAttention, type AttentionLink } from "./attention";
 import {
   clampRangeToRetention,
+  clientLabels,
   countryName,
   deltaPercent,
+  deviceLabel,
   formatRelativeTime,
   formatShare,
   localizedRangeLabel,
   previousTotalEvents,
   resolveRange,
-  titleCase,
   totalEvents,
   trendOf,
 } from "@/lib/stats";
@@ -113,6 +114,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   ]);
   const rangeLabel = localizedRangeLabel(range, ts);
   const unknown = ts("unknown");
+  const labels = clientLabels(ts);
   const noneDelta = ts("deltaNone");
 
   const linkLimit = context.plan.limits.links;
@@ -486,7 +488,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         <span className="shrink-0 text-fg-subtle">·</span>
                         <span className="flex shrink-0 items-center gap-1 text-[13px] text-fg-muted">
                           {deviceIcon(event.device)}
-                          {titleCase(event.device, unknown)}
+                          {deviceLabel(event.device, labels)}
                         </span>
                       </span>
                       <span className="truncate text-xs text-fg-subtle">
@@ -529,7 +531,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             title={t("topDevices")}
             rows={devices.map((row) => ({
               key: row.key,
-              label: titleCase(row.key, unknown),
+              label: deviceLabel(row.key, labels),
               value: row.clicks,
               badge: deviceIcon(row.key) ?? <Icon name="laptop" className="text-xs text-fg-subtle" />,
             }))}

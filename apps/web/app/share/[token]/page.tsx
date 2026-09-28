@@ -19,12 +19,14 @@ import { clientIp } from "@/lib/abuse";
 import { formatNumber } from "@/lib/format";
 import { browserIcon, countryFlag, deviceIcon } from "@/lib/stats-icons";
 import {
+  browserLabel,
+  clientLabels,
   countryName,
   deltaPercent,
+  deviceLabel,
   firstParam,
   formatRelativeTime,
   formatShare,
-  titleCase,
   trendOf,
 } from "@/lib/stats";
 import { getSharedStats, SHARE_RANGE_KEYS, type SharedStats } from "@/lib/stats-shares";
@@ -94,6 +96,7 @@ export default async function SharedStatsPage({
 
   const { stats } = result;
   const unknown = t("unknown");
+  const labels = clientLabels(ts);
   // The chart counts every visit to the link, QR scans included, so the headline does too.
   const clicks = stats.totals.clicks + stats.totals.qrScans;
   const previousClicks = stats.totals.previousClicks + (stats.totals.previousQrScans ?? 0);
@@ -236,7 +239,7 @@ export default async function SharedStatsPage({
             title={t("devices")}
             rows={toRows(
               stats.devices,
-              (key) => titleCase(key, unknown),
+              (key) => deviceLabel(key, labels),
               (key) => iconBadge(deviceIcon(key), "laptop"),
             )}
             total={clicks}
@@ -246,7 +249,7 @@ export default async function SharedStatsPage({
             title={t("browsers")}
             rows={toRows(
               stats.browsers,
-              (key) => titleCase(key, unknown),
+              (key) => browserLabel(key, labels),
               (key) => iconBadge(browserIcon(key), "compass"),
             )}
             total={clicks}

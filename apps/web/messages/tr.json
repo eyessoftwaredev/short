@@ -283,6 +283,12 @@
     "rangeDays": "{count, plural, one {# gün} other {# gün}}",
     "deltaNone": "değişiklik yok",
     "unknown": "Bilinmiyor",
+    "otherValue": "Diğer",
+    "deviceName": {
+      "mobile": "Mobil",
+      "tablet": "Tablet",
+      "desktop": "Masaüstü"
+    },
     "geography": "Coğrafya",
     "source": "Kaynak",
     "region": "Bölge",
