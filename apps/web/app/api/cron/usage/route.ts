@@ -6,14 +6,34 @@ import { refreshPendingDomains } from "@/lib/domains";
 import { hasBearerSecret } from "@/lib/api-auth";
 import { serverEnv } from "@/lib/env";
 import { resyncWorkspaceLinks } from "@/lib/links";
-import { currentPeriod } from "@/lib/quota";
+import { currentPeriod, workspaceOverClickQuota } from "@/lib/quota";
+import { cacheGet, cacheSet } from "@/lib/redis";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Longer than a billing month, so a month's state is still known when it rolls over. */
+const QUOTA_STATE_TTL_SECONDS = 40 * 24 * 60 * 60;
+
 /**
- * Rolls click totals from ClickHouse into `usage_counters` so quota checks stay cheap.
- * Schedule it hourly (Coolify cron or an external pinger) with the CRON_SECRET bearer.
+ * Link KV records carry the workspace's over-quota flag, so they must be rewritten when
+ * it flips — and only then. Rewriting every link every hour cost links × 24 KV writes a
+ * day, against a free-plan budget of 1,000 writes for the whole account. Every panel
+ * write already stamps the current state; an unknown previous state (first run, Redis
+ * flushed) therefore only needs a resync when the workspace is over quota.
+ */
+async function quotaStateChanged(workspaceId: string): Promise<boolean> {
+  const over = await workspaceOverClickQuota(workspaceId);
+  const key = `kv-quota-state:${workspaceId}`;
+  const previous = await cacheGet<boolean>(key);
+  await cacheSet(key, over, QUOTA_STATE_TTL_SECONDS);
+  return previous === null ? over : previous !== over;
+}
+
+/**
+ * Rolls click totals from ClickHouse into `usage_counters` so quota checks stay cheap,
+ * and pushes a changed over-quota flag to the edge. Scheduled hourly in Coolify with the
+ * CRON_SECRET bearer.
  */
 export async function POST(request: NextRequest) {
   const env = serverEnv();
@@ -27,12 +47,16 @@ export async function POST(request: NextRequest) {
   const workspaces = await getDb().select({ id: organization.id }).from(organization);
 
   let synced = 0;
+  let resynced = 0;
   const failures: string[] = [];
 
   for (const workspace of workspaces) {
     try {
       await syncClickUsage(workspace.id, period);
-      await resyncWorkspaceLinks(workspace.id);
+      if (await quotaStateChanged(workspace.id)) {
+        await resyncWorkspaceLinks(workspace.id);
+        resynced += 1;
+      }
       synced += 1;
     } catch (error) {
       console.error("usage sync failed", workspace.id, error);
@@ -54,6 +78,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     period,
     synced,
+    resynced,
     failures: failures.length,
     deactivated,
     domainsRefreshed,

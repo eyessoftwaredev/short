@@ -326,7 +326,12 @@ export async function refreshDomain(
     .returning();
 
   const updated = row ?? domain;
-  await putDomainRecord(toDomainKvRecord(updated));
+  // The setup page polls this every few seconds; rewriting an unchanged record would
+  // spend the KV write budget (1,000 a day on the free plan) on nothing.
+  const record = toDomainKvRecord(updated);
+  if (JSON.stringify(record) !== JSON.stringify(toDomainKvRecord(domain))) {
+    await putDomainRecord(record);
+  }
 
   // Fires once, on the check that flips the hostname to active.
   if (domain.status !== "active" && updated.status === "active") {

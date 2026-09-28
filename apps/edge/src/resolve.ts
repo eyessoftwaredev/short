@@ -27,8 +27,72 @@ async function readKv<T>(env: EdgeEnv, key: string): Promise<T | null> {
 }
 
 /**
+ * Second-level cache in front of the origin, for everything KV does not hold: records
+ * the panel never wrote under this exact host (aliases) and "does not exist" answers.
+ * It used to live in KV too, but KV writes are the scarce resource (1,000 a day on the
+ * free plan, account-wide): every scanner probe for `/wp-login.php` or `/.env` became a
+ * write. The Cache API is free, local to the data centre and needs no cleanup. KV stays
+ * the source the panel writes to, and it is always read first, so a link the panel just
+ * created is seen immediately even if a "missing" answer is still cached here.
+ */
+const EDGE_CACHE_PREFIX = "/__short-edge-cache/";
+/** Origin answers cached at the edge. Short, so alias records cannot go stale for long. */
+const POSITIVE_CACHE_SECONDS = 300;
+
+function edgeCache(): Cache | null {
+  try {
+    return typeof caches === "undefined" ? null : caches.default;
+  } catch {
+    return null;
+  }
+}
+
+function edgeCacheRequest(hostname: string, key: string): Request {
+  return new Request(`https://${hostname}${EDGE_CACHE_PREFIX}${encodeURIComponent(key)}`);
+}
+
+async function readEdgeCache<T>(hostname: string, key: string): Promise<T | null> {
+  const cache = edgeCache();
+  if (!cache) {
+    return null;
+  }
+  try {
+    const hit = await cache.match(edgeCacheRequest(hostname, key));
+    if (!hit) {
+      return null;
+    }
+    const value: unknown = await hit.json();
+    return isCurrentKvRecord(value) ? (value as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeEdgeCache(hostname: string, key: string, value: unknown, seconds: number): Promise<void> {
+  const cache = edgeCache();
+  if (!cache) {
+    return;
+  }
+  try {
+    await cache.put(
+      edgeCacheRequest(hostname, key),
+      new Response(JSON.stringify(value), {
+        headers: { "content-type": "application/json", "cache-control": `max-age=${seconds}` },
+      }),
+    );
+  } catch {
+    // Best effort: without it the next request simply asks the origin again.
+  }
+}
+
+/** KV first (what the panel wrote), then the edge cache (origin answers, misses). */
+async function readRecord<T>(env: EdgeEnv, hostname: string, key: string): Promise<T | null> {
+  return (await readKv<T>(env, key)) ?? (await readEdgeCache<T>(hostname, key));
+}
+
+/**
  * Asks the panel to resolve a hostname/slug pair that is not in KV yet. The result is
- * written back into KV so only the first visitor after a cold start pays this cost.
+ * kept in the edge cache so only the first visitor per data centre pays this cost.
  */
 async function lookupOrigin(
   env: EdgeEnv,
@@ -50,8 +114,8 @@ async function lookupOrigin(
       return null;
     }
 
-    // The origin is trusted but not infallible, and whatever comes back is cached in KV
-    // for an hour. A record that does not match the key it would be stored under, or
+    // The origin is trusted but not infallible, and whatever comes back is cached at
+    // the edge. A record that does not match the key it would be stored under, or
     // that predates the current schema, is discarded rather than poisoning the cache.
     const body = (await response.json()) as Partial<OriginLookup>;
     const domain = isCurrentKvRecord(body.domain) ? (body.domain as DomainKvRecord) : null;
@@ -87,40 +151,30 @@ async function backfill(
   slug: string,
   domainWasCached: boolean,
 ): Promise<void> {
-  const ttl = kvTtlSeconds(env);
+  const ttl = Math.min(kvTtlSeconds(env), POSITIVE_CACHE_SECONDS);
   const writes: Promise<unknown>[] = [];
   const miss: NegativeKvRecord = { v: KV_SCHEMA_VERSION, miss: true };
 
   // An unknown hostname would otherwise cost a panel round trip on every request. The
-  // panel's own write on domain creation replaces this marker.
+  // panel's own KV write on domain creation takes precedence over this marker.
   if (!lookup.domain) {
     if (!domainWasCached) {
-      writes.push(
-        env.LINKS.put(domainKey(hostname), JSON.stringify(miss), { expirationTtl: NEGATIVE_TTL_SECONDS }),
-      );
+      writes.push(writeEdgeCache(hostname, domainKey(hostname), miss, NEGATIVE_TTL_SECONDS));
     }
     await Promise.allSettled(writes);
     return;
   }
 
-  // KV allows one write per second per key; re-writing an already cached domain record
-  // on every miss burns that budget and gets the hot key throttled.
   if (!domainWasCached) {
-    writes.push(env.LINKS.put(domainKey(hostname), JSON.stringify(lookup.domain), { expirationTtl: ttl }));
+    writes.push(writeEdgeCache(hostname, domainKey(hostname), lookup.domain, ttl));
   }
 
   if (lookup.link) {
-    writes.push(env.LINKS.put(linkKey(hostname, slug), JSON.stringify(lookup.link), { expirationTtl: ttl }));
+    writes.push(writeEdgeCache(hostname, linkKey(hostname, slug), lookup.link, ttl));
   } else if (lookup.biopage) {
-    writes.push(
-      env.LINKS.put(biopageKey(hostname, slug), JSON.stringify(lookup.biopage), { expirationTtl: ttl }),
-    );
+    writes.push(writeEdgeCache(hostname, biopageKey(hostname, slug), lookup.biopage, ttl));
   } else if (slug !== "") {
-    writes.push(
-      env.LINKS.put(linkKey(hostname, slug), JSON.stringify(miss), {
-        expirationTtl: NEGATIVE_TTL_SECONDS,
-      }),
-    );
+    writes.push(writeEdgeCache(hostname, linkKey(hostname, slug), miss, NEGATIVE_TTL_SECONDS));
   }
 
   await Promise.allSettled(writes);
@@ -151,11 +205,13 @@ export async function resolveTarget(
 
   const lookupSlug = slug === "" ? null : slug;
   const [cachedDomain, cached, biopage] = await Promise.all([
-    readKv<unknown>(env, domainKey(hostname)),
-    lookupSlug === null ? Promise.resolve(null) : readKv<unknown>(env, linkKey(hostname, lookupSlug)),
+    readRecord<unknown>(env, hostname, domainKey(hostname)),
     lookupSlug === null
       ? Promise.resolve(null)
-      : readKv<BiopageKvRecord>(env, biopageKey(hostname, lookupSlug)),
+      : readRecord<unknown>(env, hostname, linkKey(hostname, lookupSlug)),
+    lookupSlug === null
+      ? Promise.resolve(null)
+      : readRecord<BiopageKvRecord>(env, hostname, biopageKey(hostname, lookupSlug)),
   ]);
 
   // The origin already said this hostname is not a customer domain.

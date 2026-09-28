@@ -32,7 +32,7 @@ import {
 } from "@short/db";
 import { resolveClickLimitState } from "./click-limits";
 import { serverEnv } from "./env";
-import { deleteLinkRecord, putLinkRecord, replaceLinkRecord } from "./kv";
+import { deleteLinkRecord, putLinkRecord, putLinkRecords, replaceLinkRecord } from "./kv";
 
 export type LinkWithDomain = LinkRow & { hostname: string };
 
@@ -548,8 +548,7 @@ export async function resyncWorkspaceLinks(workspaceId: string): Promise<number>
     .innerJoin(domains, eq(links.domainId, domains.id))
     .where(and(eq(links.workspaceId, workspaceId), isNull(links.disabledAt)));
 
-  for (const row of rows) {
-    await putLinkRecord(toKvRecord(row.link, row.hostname));
-  }
+  // One bulk request per 500 records instead of one request per link.
+  await putLinkRecords(rows.map((row) => toKvRecord(row.link, row.hostname)));
   return rows.length;
 }

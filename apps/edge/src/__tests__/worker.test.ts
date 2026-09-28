@@ -7,6 +7,7 @@ import {
   domainRecord,
   edgeRequest,
   fakeCtx,
+  edgeCacheKeys,
   fakeKv,
   fakeQueue,
   keys,
@@ -280,8 +281,48 @@ describe("origin fallback", () => {
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer internal-token");
 
     await ctx.settled();
-    expect(kv.puts).toContain(keys.domainKey("go.test"));
-    expect(kv.puts).toContain(keys.linkKey("go.test", "promo"));
+    // Origin answers go to the free edge cache; KV writes are left to the panel.
+    expect(kv.puts).toEqual([]);
+    expect(edgeCacheKeys()).toContain(keys.domainKey("go.test"));
+    expect(edgeCacheKeys()).toContain(keys.linkKey("go.test", "promo"));
+  });
+
+  it("serves the second request from the edge cache without asking the panel", async () => {
+    const kv = fakeKv({});
+    const env = makeEnv(kv, fakeQueue());
+    const fetchMock = vi.fn(async () =>
+      Response.json({ link: linkRecord(), domain: domainRecord(), biopage: null }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ctx = fakeCtx();
+    await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+    await ctx.settled();
+    const second = await worker.fetch(edgeRequest("https://go.test/promo"), env, fakeCtx());
+    expect(second.headers.get("location")).toBe("https://example.com/landing");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(kv.puts).toEqual([]);
+  });
+
+  it("caches a missing slug at the edge, not in KV, and KV still wins", async () => {
+    const kv = fakeKv({ ...domainSeed });
+    const env = makeEnv(kv, fakeQueue());
+    const fetchMock = vi.fn(async () => Response.json({ link: null, domain: domainRecord(), biopage: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ctx = fakeCtx();
+    const first = await worker.fetch(edgeRequest("https://go.test/wp-login.php"), env, ctx);
+    expect(first.headers.get("location")).toBe("https://short.test/404");
+    await ctx.settled();
+    expect(kv.puts).toEqual([]);
+
+    await worker.fetch(edgeRequest("https://go.test/wp-login.php"), env, fakeCtx());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // The panel creates the link: its KV write is seen immediately despite the cached miss.
+    kv.store.set(keys.linkKey("go.test", "wp-login.php"), JSON.stringify(linkRecord({ slug: "wp-login.php" })));
+    const created = await worker.fetch(edgeRequest("https://go.test/wp-login.php"), env, fakeCtx());
+    expect(created.headers.get("location")).toBe("https://example.com/landing");
   });
 
   it("falls back to the default 404 when the panel is unreachable", async () => {
@@ -361,7 +402,8 @@ describe("biopages", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("bio");
     await ctx.settled();
-    expect(kv.puts).toContain(keys.biopageKey("go.test", "acme"));
+    expect(edgeCacheKeys()).toContain(keys.biopageKey("go.test", "acme"));
+    expect(kv.puts).toEqual([]);
   });
 
   it("still proxies a bio when the link key is a cached miss", async () => {
@@ -710,7 +752,8 @@ describe("hardening", () => {
 
     await worker.fetch(edgeRequest("https://unknown.test/a"), env, ctx);
     await ctx.settled();
-    expect(kv.puts).toContain(keys.domainKey("unknown.test"));
+    expect(edgeCacheKeys()).toContain(keys.domainKey("unknown.test"));
+    expect(kv.puts).toEqual([]);
 
     const second = await worker.fetch(edgeRequest("https://unknown.test/b"), env, ctx);
     expect(second.headers.get("location")).toBe("https://short.test/404");

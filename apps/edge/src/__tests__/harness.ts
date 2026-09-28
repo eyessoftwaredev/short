@@ -42,6 +42,31 @@ export function fakeKv(seed: Record<string, unknown> = {}): FakeKv {
   };
 }
 
+/** Stand-in for `caches.default`, keyed by URL, reinstalled for every test env. */
+export type FakeEdgeCache = { store: Map<string, string>; puts: string[] };
+
+let currentEdgeCache: FakeEdgeCache = { store: new Map(), puts: [] };
+
+export function edgeCacheKeys(): string[] {
+  return currentEdgeCache.puts.map((url) => decodeURIComponent(url.split("/__short-edge-cache/")[1] ?? ""));
+}
+
+function installEdgeCache(): void {
+  const fake: FakeEdgeCache = { store: new Map(), puts: [] };
+  currentEdgeCache = fake;
+  const cache = {
+    async match(request: Request) {
+      const body = fake.store.get(request.url);
+      return body === undefined ? undefined : new Response(body);
+    },
+    async put(request: Request, response: Response) {
+      fake.store.set(request.url, await response.text());
+      fake.puts.push(request.url);
+    },
+  };
+  (globalThis as { caches?: unknown }).caches = { default: cache };
+}
+
 export type FakeQueue = { sent: TrackedEvent[]; send: (event: TrackedEvent) => Promise<void> };
 
 export function fakeQueue(): FakeQueue {
@@ -72,6 +97,7 @@ export function fakeCtx(): FakeCtx {
 }
 
 export function makeEnv(kv: FakeKv, queue: FakeQueue): EdgeEnv {
+  installEdgeCache();
   return {
     LINKS: kv as unknown as KVNamespace,
     CLICK_QUEUE: queue as unknown as Queue<TrackedEvent>,
