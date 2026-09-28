@@ -1,7 +1,7 @@
 "use client";
 
 import { UTM_KEYS, type LinkOpenMode } from "@short/core";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   Badge,
@@ -80,6 +80,7 @@ function DefaultsCard({
   folders: FolderOption[];
   canManage: boolean;
 }) {
+  const locale = useLocale();
   const t = useTranslations("settings");
   const { pending, run } = useSettingsAction();
   const saved = draftFrom(settings);
@@ -117,7 +118,7 @@ function DefaultsCard({
             <span className="mr-auto text-[13px] text-fg-subtle">
               {canManage
                 ? settings.updatedAt
-                  ? t("defaultsUpdated", { date: formatDate(settings.updatedAt) })
+                  ? t("defaultsUpdated", { date: formatDate(settings.updatedAt, locale) })
                   : t("defaultsNeverSaved")
                 : t("defaultsLocked")}
             </span>

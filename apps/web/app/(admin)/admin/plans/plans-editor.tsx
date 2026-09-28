@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import type { PlanFeatures, PlanKey, PlanLimits } from "@short/core";
@@ -165,6 +165,7 @@ function SheetSection({ title, description, children }: { title: string; descrip
 }
 
 export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
+  const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("admin.plans");
   const tNav = useTranslations("admin.nav");
@@ -188,7 +189,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
     if (value === -1) {
       return tc("unlimited");
     }
-    return key === "retentionDays" ? tc("days", { count: value }) : formatNumber(value);
+    return key === "retentionDays" ? tc("days", { count: value }) : formatNumber(value, locale);
   }
 
   function setLimit(key: LimitKey, value: number): void {
@@ -293,7 +294,7 @@ export function PlansEditor({ rows }: { rows: PlanEditorRow[] }) {
               <TableCell numeric className="hidden lg:table-cell">
                 {limitLabel(row.limits.clicksPerMonth, "clicksPerMonth")}
               </TableCell>
-              <TableCell numeric>{formatNumber(row.subscribers)}</TableCell>
+              <TableCell numeric>{formatNumber(row.subscribers, locale)}</TableCell>
               <TableCell align="right">
                 <Button
                   size="sm"

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Icon, type IconName } from "@/components/kit/icon";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Badge, Callout, Card, Grid, PageHeader, StatCard } from "@/components/ui";
@@ -33,6 +33,7 @@ const STATE_META: Record<
 };
 
 export default async function AdminSystemPage() {
+  const locale = await getLocale();
   await requireSuperadmin();
   const [t, tNav] = await Promise.all([getTranslations("admin.system"), getTranslations("admin.nav")]);
 
@@ -76,7 +77,7 @@ export default async function AdminSystemPage() {
       )}
 
       {lagging ? (
-        <Callout tone="warn" icon="clock" title={t("lagAlert", { seconds: formatNumber(lag.lagSeconds ?? 0) })}>
+        <Callout tone="warn" icon="clock" title={t("lagAlert", { seconds: formatNumber(lag.lagSeconds ?? 0, locale) })}>
           {t("lagAlertBody")}
         </Callout>
       ) : null}
@@ -86,16 +87,16 @@ export default async function AdminSystemPage() {
           icon="clock"
           label={t("ingestLag")}
           info={t("ingestLagInfo")}
-          value={lag.lagSeconds === null ? "—" : `${formatNumber(lag.lagSeconds)}s`}
+          value={lag.lagSeconds === null ? "—" : `${formatNumber(lag.lagSeconds, locale)}s`}
           deltaLabel={
-            lag.lastEventAt ? t("lastEvent", { when: formatDateTime(lag.lastEventAt) }) : t("noEvents")
+            lag.lastEventAt ? t("lastEvent", { when: formatDateTime(lag.lastEventAt, locale) }) : t("noEvents")
           }
         />
         <StatCard
           icon="pulse"
           label={t("eventsHour")}
           info={t("eventsHourInfo")}
-          value={formatNumber(lag.eventsLastHour)}
+          value={formatNumber(lag.eventsLastHour, locale)}
           deltaLabel={t("eventsHourDelta")}
         />
         <StatCard

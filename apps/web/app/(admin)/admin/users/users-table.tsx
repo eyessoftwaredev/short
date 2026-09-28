@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Avatar,
   Badge,
@@ -59,6 +59,7 @@ export function UserStatusBadges({ user }: { user: Pick<AdminUserView, "banned" 
 }
 
 export function UsersTable({ rows, currentUserId }: { rows: AdminUserView[]; currentUserId: string }) {
+  const locale = useLocale();
   const t = useTranslations("admin.users");
   const tNav = useTranslations("admin.nav");
 
@@ -100,10 +101,10 @@ export function UsersTable({ rows, currentUserId }: { rows: AdminUserView[]; cur
               <UserStatusBadges user={row} />
             </TableCell>
             <TableCell numeric className="hidden text-fg-muted md:table-cell">
-              {formatNumber(row.workspaces)}
+              {formatNumber(row.workspaces, locale)}
             </TableCell>
             <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted sm:table-cell">
-              {formatDate(row.createdAt)}
+              {formatDate(row.createdAt, locale)}
             </TableCell>
             <TableCell align="right">
               <UserActions user={row} currentUserId={currentUserId} />

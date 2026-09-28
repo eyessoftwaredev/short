@@ -1,8 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cx";
+import { formatNumber } from "@/lib/format";
 import { Progress } from "./progress";
 
 export type BreakdownRow = {
@@ -25,8 +26,6 @@ type BreakdownListProps = {
   className?: string;
 };
 
-const numberFormat = new Intl.NumberFormat("en-US");
-
 export function BreakdownList({
   title,
   rows,
@@ -38,6 +37,7 @@ export function BreakdownList({
   className,
 }: BreakdownListProps) {
   const t = useTranslations("common");
+  const locale = useLocale();
   const resolvedEmpty = emptyLabel ?? t("noDataInRange");
   const visible = limit ? rows.slice(0, limit) : rows;
   const sum = total ?? rows.reduce((acc, row) => acc + row.value, 0);
@@ -54,7 +54,7 @@ export function BreakdownList({
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-semibold text-ink">{title}</span>
         {meta ?? (
-          <span className="numeric text-xs text-fg-subtle">{numberFormat.format(sum)}</span>
+          <span className="numeric text-xs text-fg-subtle">{formatNumber(sum, locale)}</span>
         )}
       </div>
 
@@ -73,7 +73,7 @@ export function BreakdownList({
                 <span className="flex items-center justify-between gap-2.5 text-sm">
                   <span className="truncate">{row.label}</span>
                   <span className="numeric shrink-0 font-medium text-ink">
-                    {numberFormat.format(row.value)}
+                    {formatNumber(row.value, locale)}
                     {sum > 0 ? (
                       <span className="font-normal text-fg-subtle">
                         {" · "}

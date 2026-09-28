@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/components/kit/icon";
 import {
   Badge,
@@ -25,6 +25,7 @@ type DomainsListProps = {
 };
 
 export function DomainsList({ rows, canManage }: DomainsListProps) {
+  const locale = useLocale();
   const t = useTranslations("domains");
   const router = useRouter();
 
@@ -90,7 +91,7 @@ export function DomainsList({ rows, canManage }: DomainsListProps) {
                 {t(DOMAIN_STATE_KEYS[state].next)}
               </TableCell>
               <TableCell numeric className="hidden text-fg-muted sm:table-cell">
-                {formatNumber(row.linkCount)}
+                {formatNumber(row.linkCount, locale)}
               </TableCell>
               <TableCell align="right">
                 <Button

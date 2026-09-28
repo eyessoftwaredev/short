@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { PlanFeatures, PlanKey } from "@short/core";
 import { Icon } from "@/components/kit/icon";
 import { Badge, Button, Callout, Card, InfoTip, Segmented } from "@/components/ui";
@@ -82,6 +82,7 @@ export function PlanPicker({
   hasBillingAccount,
   stripeConfigured,
 }: PlanPickerProps) {
+  const locale = useLocale();
   const t = useTranslations("billing");
   const tc = useTranslations("common");
   const actionMessage = useActionMessage();
@@ -126,7 +127,7 @@ export function PlanPicker({
     if (key === "retentionDays") {
       return tc("days", { count: value });
     }
-    return formatNumber(value);
+    return formatNumber(value, locale);
   }
 
   return (

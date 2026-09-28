@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/kit/icon";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { initials } from "@/components/providers/session-provider";
 import {
@@ -69,6 +69,7 @@ export function SettingsMembers({
   memberLimit,
   memberUsed,
 }: SettingsMembersProps) {
+  const locale = useLocale();
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const { pending, run } = useSettingsAction();
@@ -265,7 +266,7 @@ export function SettingsMembers({
                     )}
                   </TableCell>
                   <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
-                    {formatDate(row.joinedAt)}
+                    {formatDate(row.joinedAt, locale)}
                   </TableCell>
                   <TableCell align="right">
                     {removable ? (
@@ -334,7 +335,7 @@ export function SettingsMembers({
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{invite.email}</span>
                   <Badge tone="muted">{inviteRoleCopy ? t(inviteRoleCopy.label) : invite.role}</Badge>
                   <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
-                    {t("inviteExpires", { date: formatDate(invite.expiresAt) })}
+                    {t("inviteExpires", { date: formatDate(invite.expiresAt, locale) })}
                   </span>
                   {canManage ? (
                     <Button

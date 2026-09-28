@@ -177,13 +177,13 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
       ),
       copy: link.destination,
     },
-    { id: "created", label: t("colCreated"), value: formatDate(link.createdAt) },
+    { id: "created", label: t("colCreated"), value: formatDate(link.createdAt, locale) },
   ];
   if (link.startsAt) {
-    details.push({ id: "starts", label: t("startsAt"), value: formatDateTime(link.startsAt) });
+    details.push({ id: "starts", label: t("startsAt"), value: formatDateTime(link.startsAt, locale) });
   }
   if (link.expiresAt) {
-    details.push({ id: "expires", label: t("expiresAt"), value: formatDateTime(link.expiresAt) });
+    details.push({ id: "expires", label: t("expiresAt"), value: formatDateTime(link.expiresAt, locale) });
   }
   if (folderName) {
     details.push({ id: "folder", label: t("folder"), value: folderName });
@@ -267,7 +267,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
         <Callout
           tone="warn"
           icon="gauge-high"
-          title={t("detail.limitReachedTitle", { limit: formatNumber(link.maxClicks ?? 0) })}
+          title={t("detail.limitReachedTitle", { limit: formatNumber(link.maxClicks ?? 0, locale) })}
           actions={
             <Button size="sm" href={editHref}>
               {t("detail.raiseLimit")}
@@ -280,7 +280,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
         <Callout
           tone="neutral"
           icon="clock"
-          title={t("detail.expiredTitle", { date: formatDateTime(link.expiresAt ?? new Date()) })}
+          title={t("detail.expiredTitle", { date: formatDateTime(link.expiresAt ?? new Date(), locale) })}
           actions={
             <Button size="sm" href={editHref}>
               {t("detail.extend")}
@@ -290,7 +290,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
           {link.expiredDestination ? t("detail.expiredRedirect") : t("detail.expiredBody")}
         </Callout>
       ) : status === "scheduled" && link.startsAt ? (
-        <Callout tone="info" icon="calendar" title={t("detail.scheduledTitle", { date: formatDateTime(link.startsAt) })}>
+        <Callout tone="info" icon="calendar" title={t("detail.scheduledTitle", { date: formatDateTime(link.startsAt, locale) })}>
           {t("detail.scheduledBody")}
         </Callout>
       ) : status === "archived" ? (
@@ -336,8 +336,8 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
                 </span>
                 <span className="numeric font-medium text-ink">
                   {limit.clicks == null
-                    ? t("detail.limitUnknown", { limit: formatNumber(limit.maxClicks) })
-                    : t("detail.limitUsed", { used: formatNumber(limit.clicks), limit: formatNumber(limit.maxClicks) })}
+                    ? t("detail.limitUnknown", { limit: formatNumber(limit.maxClicks, locale) })
+                    : t("detail.limitUsed", { used: formatNumber(limit.clicks, locale), limit: formatNumber(limit.maxClicks, locale) })}
                 </span>
               </span>
               {limit.clicks != null ? (
@@ -373,7 +373,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
           icon="arrow-pointer"
           label={ts("clicks")}
           info={t("detail.clicksInfo")}
-          value={formatNumber(visits)}
+          value={formatNumber(visits, locale)}
           delta={range.comparePrevious ? deltaText(visits, previousVisits) : undefined}
           trend={range.comparePrevious ? trendOf(visits, previousVisits) : "neutral"}
           deltaLabel={comparison}
@@ -383,7 +383,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
           icon="users"
           label={tp("uniqueVisitors")}
           info={tp("visitorsInfo")}
-          value={formatNumber(summary.visitors)}
+          value={formatNumber(summary.visitors, locale)}
           delta={range.comparePrevious ? deltaText(summary.visitors, summary.previousVisitors) : undefined}
           trend={range.comparePrevious ? trendOf(summary.visitors, summary.previousVisitors) : "neutral"}
           deltaLabel={comparison}
@@ -393,14 +393,14 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
           icon="repeat"
           label={ts("repeatClicks")}
           info={t("detail.repeatInfo")}
-          value={formatNumber(returning)}
+          value={formatNumber(returning, locale)}
           deltaLabel={ts("repeatClicksDelta")}
         />
         <StatCard
           icon="earth"
           label={ts("countries")}
           info={tp("countriesInfo")}
-          value={formatNumber(summary.countries)}
+          value={formatNumber(summary.countries, locale)}
           deltaLabel={ts("distinctCountries")}
         />
       </Grid>
@@ -415,7 +415,7 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
         description={
           series.length > 0
             ? `${range.granularity === "hour" ? tp("clickTrendDescHour") : tp("clickTrendDescDay")} · ${tp("peak", {
-                value: formatNumber(peakClicks),
+                value: formatNumber(peakClicks, locale),
                 granularity: granularityLabel,
               })}`
             : range.granularity === "hour"
@@ -482,8 +482,8 @@ export default async function LinkStatsPage({ params, searchParams }: { params: 
                         ) : null}
                       </span>
                     </TableCell>
-                    <TableCell numeric>{formatNumber(row?.clicks ?? 0)}</TableCell>
-                    <TableCell numeric>{formatNumber(row?.visitors ?? 0)}</TableCell>
+                    <TableCell numeric>{formatNumber(row?.clicks ?? 0, locale)}</TableCell>
+                    <TableCell numeric>{formatNumber(row?.visitors ?? 0, locale)}</TableCell>
                     <TableCell numeric>{Math.round((row?.share ?? 0) * 100)}%</TableCell>
                   </TableRow>
                 );

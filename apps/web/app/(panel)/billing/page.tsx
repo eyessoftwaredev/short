@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Icon, type IconName } from "@/components/kit/icon";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { StatusBadge } from "@/components/shell/status-badge";
@@ -38,6 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type SearchParams = Promise<{ checkout?: string }>;
 
 export default async function BillingPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   const context = await requireWorkspace();
   const { checkout } = await searchParams;
   const [t, tc] = await Promise.all([getTranslations("billing"), getTranslations("common")]);
@@ -144,11 +145,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
   let nextPaymentValue: string;
   if (cancelling && periodEnd) {
     nextPaymentLabel = t("kvAccessUntil");
-    nextPaymentValue = formatDate(periodEnd);
+    nextPaymentValue = formatDate(periodEnd, locale);
   } else if (priceNow && periodEnd) {
     nextPaymentValue = t("kvNextPaymentValue", {
       amount: formatCurrency(priceNow, plan.currency),
-      date: formatDate(periodEnd),
+      date: formatDate(periodEnd, locale),
     });
   } else if (priceNow) {
     nextPaymentValue = t("noRenewalDate");
@@ -235,7 +236,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
         <Callout
           tone="warn"
           icon="calendar"
-          title={t("planEnds", { name: plan.name, date: formatDate(periodEnd) })}
+          title={t("planEnds", { name: plan.name, date: formatDate(periodEnd, locale) })}
           actions={canManage ? <ManageBillingButton label={t("resumePlan")} /> : null}
         >
           {t("planEndsBody")}
@@ -458,7 +459,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
                     <span className="block max-w-40 truncate">{invoice.number}</span>
                   </TableCell>
                   <TableCell className="numeric whitespace-nowrap text-fg-muted">
-                    {formatDate(invoice.created)}
+                    {formatDate(invoice.created, locale)}
                   </TableCell>
                   <TableCell numeric>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
                   <TableCell>

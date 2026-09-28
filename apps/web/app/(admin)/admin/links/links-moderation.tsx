@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/kit/icon";
@@ -35,6 +35,7 @@ export type AdminLinkView = {
 };
 
 export function LinksModeration({ rows }: { rows: AdminLinkView[] }) {
+  const locale = useLocale();
   const router = useRouter();
   const t = useTranslations("admin.links");
   const tNav = useTranslations("admin.nav");
@@ -134,7 +135,7 @@ export function LinksModeration({ rows }: { rows: AdminLinkView[] }) {
               </TableCell>
               <TableCell className="hidden text-[13px] text-fg-muted sm:table-cell">{row.workspaceName}</TableCell>
               <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted lg:table-cell">
-                {formatDate(row.createdAt)}
+                {formatDate(row.createdAt, locale)}
               </TableCell>
               <TableCell align="right">
                 {row.flagged ? (

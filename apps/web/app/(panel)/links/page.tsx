@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { linkListQuerySchema } from "@short/core";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Badge, Button, Callout, PageHeader } from "@/components/ui";
@@ -25,6 +25,7 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function LinksPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   const [context, raw, tn, t] = await Promise.all([
     requireWorkspace(),
     searchParams,
@@ -126,7 +127,7 @@ export default async function LinksPage({ searchParams }: { searchParams: Search
     <PanelShell title={tn("links")} crumbs={[{ label: context.workspace.name }]} searchable={false}>
       <PageHeader
         title={tn("links")}
-        meta={<Badge tone="neutral">{formatNumber(total)}</Badge>}
+        meta={<Badge tone="neutral">{formatNumber(total, locale)}</Badge>}
         description={t("list.description")}
         secondaryActions={canAdmin ? <LinksToolsMenu /> : null}
         actions={

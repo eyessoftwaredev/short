@@ -148,7 +148,7 @@ export default async function SharedStatsPage({
           icon="arrow-pointer"
           label={t("clicks")}
           info={t("clicksInfo")}
-          value={formatNumber(clicks)}
+          value={formatNumber(clicks, locale)}
           delta={compare ? deltaText(clicks, previousClicks) : undefined}
           trend={compare ? trendOf(clicks, previousClicks) : "neutral"}
           deltaLabel={compare ? t("vsPrevious") : rangeName}
@@ -157,7 +157,7 @@ export default async function SharedStatsPage({
           icon="users"
           label={t("visitors")}
           info={t("visitorsInfo")}
-          value={formatNumber(stats.totals.visitors)}
+          value={formatNumber(stats.totals.visitors, locale)}
           delta={compare ? deltaText(stats.totals.visitors, stats.totals.previousVisitors) : undefined}
           trend={compare ? trendOf(stats.totals.visitors, stats.totals.previousVisitors) : "neutral"}
           deltaLabel={compare ? t("vsPrevious") : rangeName}
@@ -166,7 +166,7 @@ export default async function SharedStatsPage({
           icon="qrcode"
           label={t("qrScans")}
           info={t("qrScansInfo")}
-          value={formatNumber(stats.totals.qrScans)}
+          value={formatNumber(stats.totals.qrScans, locale)}
           deltaLabel={t("qrShare", { share: formatShare(stats.totals.qrScans, clicks) })}
         />
       </Grid>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { isWithinLimit } from "@short/core";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, EmptyState, PageHeader } from "@/components/ui";
@@ -17,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewBioPage() {
+  const locale = await getLocale();
   const [context, t, tc] = await Promise.all([
     requireWorkspace(),
     getTranslations("bio"),
@@ -37,7 +38,7 @@ export default async function NewBioPage() {
         <PageHeader back={{ href: "/bio", label: t("title") }} title={t("create.title")} />
         <EmptyState
           icon="rocket"
-          title={t("create.limitTitle", { limit: formatNumber(limit), plan: context.plan.name })}
+          title={t("create.limitTitle", { limit: formatNumber(limit, locale), plan: context.plan.name })}
           description={t("create.limitBody")}
           actions={
             <>

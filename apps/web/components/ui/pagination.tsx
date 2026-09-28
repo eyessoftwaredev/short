@@ -2,11 +2,10 @@
 
 import { Icon } from "@/components/kit/icon";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cx";
-
-const numberFormat = new Intl.NumberFormat("en-US");
+import { formatNumber } from "@/lib/format";
 
 type PaginationProps = {
   page: number;
@@ -33,6 +32,7 @@ export function Pagination({
   className,
 }: PaginationProps) {
   const t = useTranslations("common");
+  const locale = useLocale();
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   if (total === 0) {
     return null;
@@ -48,9 +48,9 @@ export function Pagination({
     >
       <p className="m-0 text-[13px] text-fg-subtle">
         <span className="numeric font-medium text-ink">
-          {numberFormat.format(first)}–{numberFormat.format(last)}
+          {formatNumber(first, locale)}–{formatNumber(last, locale)}
         </span>{" "}
-        {t("of")} <span className="numeric font-medium text-ink">{numberFormat.format(total)}</span>
+        {t("of")} <span className="numeric font-medium text-ink">{formatNumber(total, locale)}</span>
         {itemLabel ? ` ${itemLabel}` : null}
       </p>
       <div className="flex items-center gap-2">

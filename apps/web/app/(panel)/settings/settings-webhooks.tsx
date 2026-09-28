@@ -3,7 +3,7 @@
 import { Icon } from "@/components/kit/icon";
 import { WEBHOOK_EVENTS, type WebhookEvent } from "@short/core";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   Badge,
@@ -261,6 +261,7 @@ function EndpointCard({
   canManage: boolean;
   requestConfirm: ReturnType<typeof useSettingsConfirm>["requestConfirm"];
 }) {
+  const locale = useLocale();
   const t = useTranslations("settings");
   const router = useRouter();
   const actionMessage = useActionMessage();
@@ -319,7 +320,7 @@ function EndpointCard({
           </Badge>
           <span className="text-[13px] text-fg-subtle tabular-nums">
             {row.lastDeliveryAt
-              ? t("lastDelivery", { when: formatDateTime(row.lastDeliveryAt) })
+              ? t("lastDelivery", { when: formatDateTime(row.lastDeliveryAt, locale) })
               : t("nothingSent")}
           </span>
         </span>
@@ -422,7 +423,7 @@ function EndpointCard({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs whitespace-nowrap text-fg-muted tabular-nums">
-                  {formatDateTime(delivery.createdAt)}
+                  {formatDateTime(delivery.createdAt, locale)}
                 </TableCell>
                 <TableCell
                   truncate

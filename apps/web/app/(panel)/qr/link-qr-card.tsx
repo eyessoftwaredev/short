@@ -1,6 +1,6 @@
 import { Icon } from "@/components/kit/icon";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Button, Card } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { getLatestQrCodeForLink, qrPayload } from "@/lib/qr-codes";
@@ -17,6 +17,7 @@ type LinkQrCardProps = {
  * shortcut into the designer, or a one-click create when there is none yet.
  */
 export async function LinkQrCard({ workspaceId, linkId }: LinkQrCardProps) {
+  const locale = await getLocale();
   const [t, { latest, total }] = await Promise.all([
     getTranslations("qr"),
     getLatestQrCodeForLink(workspaceId, linkId),
@@ -64,7 +65,7 @@ export async function LinkQrCard({ workspaceId, linkId }: LinkQrCardProps) {
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <p className="m-0 text-[13px] leading-5 text-fg-muted">
-            {latest ? t("created", { date: formatDate(latest.createdAt) }) : t("linkCard.emptyDesc")}
+            {latest ? t("created", { date: formatDate(latest.createdAt, locale) }) : t("linkCard.emptyDesc")}
           </p>
           {total > 1 ? (
             <p className="m-0 text-xs text-fg-subtle">{t("linkCard.moreCodes", { count: total })}</p>

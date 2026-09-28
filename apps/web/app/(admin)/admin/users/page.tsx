@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -17,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type SearchParams = Promise<{ q?: string; status?: string; page?: string }>;
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   const context = await requireSuperadmin();
   const { q, status, page } = await searchParams;
   const [t, tNav, tn] = await Promise.all([
@@ -62,7 +63,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
     >
       <PageHeader
         title={tn("admin-users")}
-        meta={<Badge tone="neutral">{t("accounts", { count: formatNumber(total) })}</Badge>}
+        meta={<Badge tone="neutral">{t("accounts", { count: formatNumber(total, locale) })}</Badge>}
         description={t("description")}
       />
 

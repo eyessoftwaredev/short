@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -32,6 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type SearchParams = Promise<{ status?: string; page?: string }>;
 
 export default async function AdminDomainsPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   await requireSuperadmin();
   const { status, page } = await searchParams;
   const [t, tNav, tn] = await Promise.all([
@@ -60,7 +61,7 @@ export default async function AdminDomainsPage({ searchParams }: { searchParams:
     <PanelShell title={t("title")} crumbs={[{ label: tNav("admin"), href: "/admin" }]}>
       <PageHeader
         title={t("title")}
-        meta={<Badge tone="neutral">{t("hostnames", { count: formatNumber(total) })}</Badge>}
+        meta={<Badge tone="neutral">{t("hostnames", { count: formatNumber(total, locale) })}</Badge>}
         description={t("description")}
       />
 
@@ -69,20 +70,20 @@ export default async function AdminDomainsPage({ searchParams }: { searchParams:
           icon="globe"
           label={t("customDomains")}
           info={t("customDomainsInfo")}
-          value={formatNumber(counts.customDomains)}
+          value={formatNumber(counts.customDomains, locale)}
         />
         <StatCard
           icon="clock"
           label={t("awaitingDns")}
           info={t("awaitingDnsInfo")}
-          value={formatNumber(counts.pendingDomains)}
+          value={formatNumber(counts.pendingDomains, locale)}
           deltaLabel={counts.pendingDomains > 0 ? t("customerAction") : t("allClear")}
           href={counts.pendingDomains > 0 ? "/admin/domains?status=pending" : undefined}
         />
         <StatCard
           icon="building"
           label={tn("admin-workspaces")}
-          value={formatNumber(counts.workspaces)}
+          value={formatNumber(counts.workspaces, locale)}
           href="/admin/workspaces"
         />
       </Grid>
@@ -142,10 +143,10 @@ export default async function AdminDomainsPage({ searchParams }: { searchParams:
                     {row.isPlatform ? t("sslManaged") : row.sslStatus}
                   </TableCell>
                   <TableCell numeric className="hidden sm:table-cell">
-                    {formatNumber(row.linkCount)}
+                    {formatNumber(row.linkCount, locale)}
                   </TableCell>
                   <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted lg:table-cell">
-                    {row.lastCheckedAt ? formatDateTime(row.lastCheckedAt) : "—"}
+                    {row.lastCheckedAt ? formatDateTime(row.lastCheckedAt, locale) : "—"}
                   </TableCell>
                   <TableCell align="right">
                     <Button

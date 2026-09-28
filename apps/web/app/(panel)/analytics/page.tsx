@@ -249,7 +249,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           icon="arrow-pointer"
           label={eventType ? ts(`typeLong.${eventType}`) : ts("totalClicks")}
           info={ts("totalClicksInfo")}
-          value={formatNumber(total)}
+          value={formatNumber(total, locale)}
           delta={deltaText(total, previousTotal)}
           trend={trend(total, previousTotal)}
           deltaLabel={comparison}
@@ -263,7 +263,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           icon="users"
           label={t("uniqueVisitors")}
           info={t("visitorsInfo")}
-          value={formatNumber(summary.visitors)}
+          value={formatNumber(summary.visitors, locale)}
           delta={deltaText(summary.visitors, summary.previousVisitors)}
           trend={trend(summary.visitors, summary.previousVisitors)}
           deltaLabel={comparison}
@@ -284,7 +284,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           icon="earth"
           label={ts("countries")}
           info={ts("countriesInfo")}
-          value={formatNumber(summary.countries)}
+          value={formatNumber(summary.countries, locale)}
           deltaLabel={ts("distinctCountries")}
         />
       </Grid>
@@ -295,7 +295,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             icon="link"
             label={ts("typeLong.click")}
             info={ts("linkClicksInfo")}
-            value={formatNumber(summary.clicks)}
+            value={formatNumber(summary.clicks, locale)}
             delta={deltaText(summary.clicks, summary.previousClicks)}
             trend={trend(summary.clicks, summary.previousClicks)}
             deltaLabel={formatShare(summary.clicks, total)}
@@ -305,7 +305,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             icon="qrcode"
             label={ts("typeLong.qr_scan")}
             info={ts("qrScansInfo")}
-            value={formatNumber(summary.qrScans)}
+            value={formatNumber(summary.qrScans, locale)}
             delta={deltaText(summary.qrScans, summary.previousQrScans)}
             trend={trend(summary.qrScans, summary.previousQrScans)}
             deltaLabel={formatShare(summary.qrScans, total)}
@@ -315,7 +315,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             icon="address-card"
             label={ts("typeLong.bio_view")}
             info={ts("bioViewsInfo")}
-            value={formatNumber(summary.bioViews)}
+            value={formatNumber(summary.bioViews, locale)}
             delta={deltaText(summary.bioViews, summary.previousBioViews)}
             trend={trend(summary.bioViews, summary.previousBioViews)}
             deltaLabel={formatShare(summary.bioViews, total)}
@@ -325,7 +325,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             icon="arrow-pointer"
             label={ts("typeLong.bio_click")}
             info={ts("bioClicksInfo")}
-            value={formatNumber(summary.bioClicks)}
+            value={formatNumber(summary.bioClicks, locale)}
             delta={deltaText(summary.bioClicks, summary.previousBioClicks)}
             trend={trend(summary.bioClicks, summary.previousBioClicks)}
             deltaLabel={formatShare(summary.bioClicks, total)}
@@ -346,7 +346,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             ? `${range.granularity === "hour" ? ts("trafficOverTimeHour") : ts("trafficOverTimeDay")} · ${t(
                 "peak",
                 {
-                  value: formatNumber(peakClicks),
+                  value: formatNumber(peakClicks, locale),
                   granularity: granularityLabel,
                 },
               )}`
@@ -470,9 +470,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
                         <span className="font-medium">{row.slug}</span>
                       </Link>
                     </TableCell>
-                    <TableCell numeric>{formatNumber(row.clicks)}</TableCell>
+                    <TableCell numeric>{formatNumber(row.clicks, locale)}</TableCell>
                     <TableCell numeric className="text-fg-muted">
-                      {formatNumber(row.visitors)}
+                      {formatNumber(row.visitors, locale)}
                     </TableCell>
                     <TableCell>
                       <span className="flex items-center gap-2.5">

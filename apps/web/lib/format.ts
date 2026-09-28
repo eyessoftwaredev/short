@@ -1,22 +1,38 @@
-const NUMBER = new Intl.NumberFormat("en-US");
-const DATE = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-const DATE_TIME = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>();
 
-export function formatNumber(value: number): string {
-  return NUMBER.format(value);
+function formatter<T>(cache: Map<string, T>, locale: string, make: (locale: string) => T): T {
+  let value = cache.get(locale);
+  if (!value) {
+    value = make(locale);
+    cache.set(locale, value);
+  }
+  return value;
 }
 
-export function formatDate(value: Date | string): string {
-  return DATE.format(typeof value === "string" ? new Date(value) : value);
+/**
+ * Pass the viewer's locale (`getLocale()` / `useLocale()`): Turkish reads "1,318" as a
+ * decimal and needs month names in Turkish. Without one the output stays English.
+ */
+export function formatNumber(value: number, locale = "en-US"): string {
+  return formatter(numberFormats, locale, (tag) => new Intl.NumberFormat(tag)).format(value);
 }
 
-export function formatDateTime(value: Date | string): string {
-  return DATE_TIME.format(typeof value === "string" ? new Date(value) : value);
+export function formatDate(value: Date | string, locale = "en-GB"): string {
+  return formatter(
+    dateFormats,
+    locale,
+    (tag) => new Intl.DateTimeFormat(tag, { day: "2-digit", month: "short", year: "numeric" }),
+  ).format(typeof value === "string" ? new Date(value) : value);
+}
+
+export function formatDateTime(value: Date | string, locale = "en-GB"): string {
+  return formatter(
+    dateTimeFormats,
+    locale,
+    (tag) => new Intl.DateTimeFormat(tag, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
+  ).format(typeof value === "string" ? new Date(value) : value);
 }
 
 /** ClickHouse hands back naive UTC (`2026-09-14 17:02:11`); without the `Z` it reads as local. */

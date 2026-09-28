@@ -181,7 +181,7 @@ export default async function BioStatsPage({
             icon="eye"
             label={t("statsPage.views")}
             info={t("statsPage.viewsInfo")}
-            value={formatNumber(summary.bioViews)}
+            value={formatNumber(summary.bioViews, locale)}
             delta={deltaText(summary.bioViews, summary.previousBioViews)}
             trend={range.comparePrevious ? trendOf(summary.bioViews, summary.previousBioViews) : "neutral"}
             deltaLabel={comparison}
@@ -190,7 +190,7 @@ export default async function BioStatsPage({
             icon="arrow-pointer"
             label={t("statsPage.taps")}
             info={t("statsPage.tapsInfo")}
-            value={formatNumber(summary.bioClicks)}
+            value={formatNumber(summary.bioClicks, locale)}
             delta={deltaText(summary.bioClicks, summary.previousBioClicks)}
             trend={range.comparePrevious ? trendOf(summary.bioClicks, summary.previousBioClicks) : "neutral"}
             deltaLabel={comparison}
@@ -220,7 +220,7 @@ export default async function BioStatsPage({
             icon="users"
             label={t("statsPage.visitors")}
             info={t("statsPage.visitorsInfo")}
-            value={formatNumber(summary.visitors)}
+            value={formatNumber(summary.visitors, locale)}
             delta={deltaText(summary.visitors, summary.previousVisitors)}
             trend={range.comparePrevious ? trendOf(summary.visitors, summary.previousVisitors) : "neutral"}
             deltaLabel={comparison}

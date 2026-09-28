@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { PLAN_KEYS, getPlan } from "@short/core";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -56,6 +56,7 @@ function workspaceRoleLabel(
 }
 
 export default async function AdminUserDetailPage({ params }: { params: Params }) {
+  const locale = await getLocale();
   const context = await requireSuperadmin();
   const { id } = await params;
   const [detail, t, tNav, tn, tc] = await Promise.all([
@@ -77,7 +78,7 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
     if (total <= shown) {
       return fallback;
     }
-    return t("showingOf", { shown: formatNumber(shown), total: formatNumber(total) });
+    return t("showingOf", { shown: formatNumber(shown, locale), total: formatNumber(total, locale) });
   }
 
   /** Same frame for the four asset lists: a flush table, or a small empty state. */
@@ -125,10 +126,10 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
       ) : null}
 
       <Grid columns={4}>
-        <StatCard icon="building" label={t("workspacesCard")} value={formatNumber(detail.workspaces.length)} />
-        <StatCard icon="link" label={t("linksCreated")} value={formatNumber(detail.linksTotal)} />
-        <StatCard icon="address-card" label={t("bioPages")} value={formatNumber(detail.biopagesTotal)} />
-        <StatCard icon="qrcode" label={t("qrCodes")} value={formatNumber(detail.qrCodesTotal)} />
+        <StatCard icon="building" label={t("workspacesCard")} value={formatNumber(detail.workspaces.length, locale)} />
+        <StatCard icon="link" label={t("linksCreated")} value={formatNumber(detail.linksTotal, locale)} />
+        <StatCard icon="address-card" label={t("bioPages")} value={formatNumber(detail.biopagesTotal, locale)} />
+        <StatCard icon="qrcode" label={t("qrCodes")} value={formatNumber(detail.qrCodesTotal, locale)} />
       </Grid>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
@@ -150,8 +151,8 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
           <KeyValue
             items={[
               { id: "id", label: t("userId"), value: account.id, mono: true, copy: account.id },
-              { id: "joined", label: tNav("joined"), value: formatDate(account.createdAt) },
-              { id: "updated", label: t("lastUpdated"), value: formatDateTime(account.updatedAt) },
+              { id: "joined", label: tNav("joined"), value: formatDate(account.createdAt, locale) },
+              { id: "updated", label: t("lastUpdated"), value: formatDateTime(account.updatedAt, locale) },
               {
                 id: "verified",
                 label: t("emailVerified"),
@@ -231,13 +232,13 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
                     )}
                   </TableCell>
                   <TableCell numeric className="hidden md:table-cell">
-                    {formatNumber(row.links)}
+                    {formatNumber(row.links, locale)}
                   </TableCell>
                   <TableCell numeric className="hidden lg:table-cell">
-                    {formatNumber(row.biopages)}
+                    {formatNumber(row.biopages, locale)}
                   </TableCell>
                   <TableCell numeric className="hidden lg:table-cell">
-                    {formatNumber(row.qrCodes)}
+                    {formatNumber(row.qrCodes, locale)}
                   </TableCell>
                   <TableCell align="right">
                     <Button
@@ -297,7 +298,7 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
                   </TableCell>
                   <TableCell className="hidden text-[13px] sm:table-cell">{row.workspaceName}</TableCell>
                   <TableCell className="numeric text-[13px] whitespace-nowrap text-fg-muted">
-                    {formatDate(row.createdAt)}
+                    {formatDate(row.createdAt, locale)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -335,7 +336,7 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
                       {row.handle}
                     </TableCell>
                     <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted sm:table-cell">
-                      {formatDate(row.createdAt)}
+                      {formatDate(row.createdAt, locale)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -364,7 +365,7 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
                       {row.hostname}/{row.slug}
                     </TableCell>
                     <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted sm:table-cell">
-                      {formatDate(row.createdAt)}
+                      {formatDate(row.createdAt, locale)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -396,7 +397,7 @@ export default async function AdminUserDetailPage({ params }: { params: Params }
                   </TableCell>
                   <TableCell className="hidden text-[13px] sm:table-cell">{row.workspaceName}</TableCell>
                   <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted sm:table-cell">
-                    {formatDate(row.createdAt)}
+                    {formatDate(row.createdAt, locale)}
                   </TableCell>
                 </TableRow>
               ))}

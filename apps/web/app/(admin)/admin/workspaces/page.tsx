@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PLAN_KEYS, getPlan } from "@short/core";
 import { Icon } from "@/components/kit/icon";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
@@ -36,6 +36,7 @@ export default async function AdminWorkspacesPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const locale = await getLocale();
   await requireSuperadmin();
   const { q, plan, page } = await searchParams;
   const [t, tNav, tn, tc] = await Promise.all([
@@ -68,7 +69,7 @@ export default async function AdminWorkspacesPage({
     >
       <PageHeader
         title={tn("admin-workspaces")}
-        meta={<Badge tone="neutral">{t("count", { count: formatNumber(total) })}</Badge>}
+        meta={<Badge tone="neutral">{t("count", { count: formatNumber(total, locale) })}</Badge>}
         description={t("description")}
       />
 
@@ -140,13 +141,13 @@ export default async function AdminWorkspacesPage({
                     </span>
                   </TableCell>
                   <TableCell numeric className="hidden sm:table-cell">
-                    {formatNumber(row.members)}
+                    {formatNumber(row.members, locale)}
                   </TableCell>
                   <TableCell numeric className="hidden sm:table-cell">
-                    {formatNumber(row.links)}
+                    {formatNumber(row.links, locale)}
                   </TableCell>
                   <TableCell className="numeric hidden text-[13px] whitespace-nowrap text-fg-muted md:table-cell">
-                    {formatDate(row.createdAt)}
+                    {formatDate(row.createdAt, locale)}
                   </TableCell>
                   <TableCell align="right">
                     <span className="flex justify-end gap-1">

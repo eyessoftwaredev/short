@@ -161,7 +161,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           ? item.statusCode
             ? t("attentionBrokenStatus", { status: item.statusCode })
             : t("attentionBrokenNoAnswer")
-          : t("attentionLimitReached", { limit: formatNumber(item.maxClicks ?? 0) })}
+          : t("attentionLimitReached", { limit: formatNumber(item.maxClicks ?? 0, locale) })}
         {item.since ? ` · ${formatRelativeTime(new Date(item.since), locale, now)}` : ""}
       </span>
     </li>
@@ -199,8 +199,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           tone={overQuota ? "danger" : "warn"}
           title={
             overQuota
-              ? t("quotaOver", { limit: formatNumber(linkLimit), plan: context.plan.name })
-              : t("quotaNear", { limit: formatNumber(linkLimit), plan: context.plan.name })
+              ? t("quotaOver", { limit: formatNumber(linkLimit, locale), plan: context.plan.name })
+              : t("quotaNear", { limit: formatNumber(linkLimit, locale), plan: context.plan.name })
           }
           actions={
             <Button size="sm" href="/billing" leadingIcon="rocket">
@@ -249,7 +249,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           icon="arrow-pointer"
           label={ts("clicks")}
           info={t("clicksInfo")}
-          value={formatNumber(total)}
+          value={formatNumber(total, locale)}
           delta={range.comparePrevious ? deltaText(total, previousTotal) : undefined}
           trend={range.comparePrevious ? trendOf(total, previousTotal) : "neutral"}
           deltaLabel={comparison}
@@ -264,7 +264,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           icon="users"
           label={t("uniqueVisitors")}
           info={t("visitorsInfo")}
-          value={formatNumber(summary.visitors)}
+          value={formatNumber(summary.visitors, locale)}
           delta={range.comparePrevious ? deltaText(summary.visitors, summary.previousVisitors) : undefined}
           trend={range.comparePrevious ? trendOf(summary.visitors, summary.previousVisitors) : "neutral"}
           deltaLabel={comparison}
@@ -305,10 +305,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           info={t("linksUsedInfo")}
           value={
             <>
-              {formatNumber(usage.links)}
+              {formatNumber(usage.links, locale)}
               <span className="text-base font-medium text-fg-subtle">
                 {" / "}
-                {linkLimit === -1 ? tc("unlimited") : formatNumber(linkLimit)}
+                {linkLimit === -1 ? tc("unlimited") : formatNumber(linkLimit, locale)}
               </span>
             </>
           }
@@ -336,7 +336,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         description={
           hasTraffic
             ? `${trendDescription} · ${t("peak", {
-                value: formatNumber(peakClicks),
+                value: formatNumber(peakClicks, locale),
                 granularity: range.granularity === "hour" ? ts("hour") : ts("day"),
               })}`
             : trendDescription
@@ -432,9 +432,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         <span className="min-w-0 truncate">{row.slug}</span>
                       </Link>
                     </TableCell>
-                    <TableCell numeric>{formatNumber(row.clicks)}</TableCell>
+                    <TableCell numeric>{formatNumber(row.clicks, locale)}</TableCell>
                     <TableCell numeric className="text-fg-muted">
-                      {formatNumber(row.visitors)}
+                      {formatNumber(row.visitors, locale)}
                     </TableCell>
                   </TableRow>
                 ))}

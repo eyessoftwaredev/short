@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -22,6 +22,7 @@ type SearchParams = Promise<{
 }>;
 
 export default async function AdminLinksPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   await requireSuperadmin();
   const { q, status, workspace, page } = await searchParams;
   const [t, tNav] = await Promise.all([getTranslations("admin.links"), getTranslations("admin.nav")]);
@@ -71,7 +72,7 @@ export default async function AdminLinksPage({ searchParams }: { searchParams: S
     <PanelShell title={t("title")} crumbs={[{ label: tNav("admin"), href: "/admin" }]} searchable={false}>
       <PageHeader
         title={t("title")}
-        meta={<Badge tone="neutral">{t("count", { count: formatNumber(total) })}</Badge>}
+        meta={<Badge tone="neutral">{t("count", { count: formatNumber(total, locale) })}</Badge>}
         description={t("description")}
       />
 

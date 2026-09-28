@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PanelShell } from "@/components/shell/panel-shell";
 import {
   Badge,
@@ -34,6 +34,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const SHOWN_LIMIT = 500;
 
 export default async function BioLeadsPage({ params }: { params: Params }) {
+  const locale = await getLocale();
   const context = await requireWorkspace();
   const { id } = await params;
   const [page, leads, t, tc] = await Promise.all([
@@ -71,7 +72,7 @@ export default async function BioLeadsPage({ params }: { params: Params }) {
       <PageHeader
         back={{ href: `/bio/${page.id}/edit`, label: page.displayName }}
         title={t("leadsTitle")}
-        meta={leads.length > 0 ? <Badge tone="neutral">{formatNumber(leads.length)}</Badge> : null}
+        meta={leads.length > 0 ? <Badge tone="neutral">{formatNumber(leads.length, locale)}</Badge> : null}
         description={t("leads.description")}
         actions={
           leads.length > 0 ? (
@@ -101,20 +102,20 @@ export default async function BioLeadsPage({ params }: { params: Params }) {
           icon="inbox"
           label={t("leads.total")}
           info={t("leads.totalInfo")}
-          value={formatNumber(leads.length)}
+          value={formatNumber(leads.length, locale)}
           deltaLabel={leads.length >= SHOWN_LIMIT ? t("leads.shownLimit", { count: SHOWN_LIMIT }) : undefined}
         />
         <StatCard
           icon="calendar"
           label={t("leads.lastWeek")}
           info={t("leads.lastWeekInfo")}
-          value={formatNumber(lastWeek)}
+          value={formatNumber(lastWeek, locale)}
         />
         <StatCard
           icon="clock"
           label={t("leads.latest")}
           info={t("leads.latestInfo")}
-          value={latest ? formatDate(latest) : "—"}
+          value={latest ? formatDate(latest, locale) : "—"}
         />
       </Grid>
 
@@ -165,7 +166,7 @@ export default async function BioLeadsPage({ params }: { params: Params }) {
                     {formTitles.get(row.blockId) ?? t("leads.removedForm")}
                   </TableCell>
                   <TableCell align="right" className="numeric text-[13px] whitespace-nowrap text-fg-muted">
-                    {formatDateTime(row.createdAt)}
+                    {formatDateTime(row.createdAt, locale)}
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
 import { QueryPagination } from "@/components/shell/query-pagination";
 import { PanelShell } from "@/components/shell/panel-shell";
@@ -69,6 +69,7 @@ function describeMetadata(metadata: Record<string, unknown>): string {
 }
 
 export default async function AdminAuditPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   await requireSuperadmin();
   const { status, workspace, page } = await searchParams;
   const [t, tNav] = await Promise.all([getTranslations("admin.audit"), getTranslations("admin.nav")]);
@@ -94,7 +95,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
     <PanelShell title={t("title")} crumbs={[{ label: tNav("admin"), href: "/admin" }]}>
       <PageHeader
         title={t("title")}
-        meta={<Badge tone="neutral">{t("entries", { count: formatNumber(total) })}</Badge>}
+        meta={<Badge tone="neutral">{t("entries", { count: formatNumber(total, locale) })}</Badge>}
         description={t("description")}
       />
 
@@ -154,7 +155,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: S
                     <TableCell className="align-top">
                       <span className="flex flex-col gap-0.5">
                         <span className="numeric text-[13px] whitespace-nowrap text-ink">
-                          {formatDateTime(row.createdAt)}
+                          {formatDateTime(row.createdAt, locale)}
                         </span>
                         {row.ipAddress ? (
                           <span className="font-mono text-xs text-fg-subtle">{row.ipAddress}</span>

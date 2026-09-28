@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { isWithinLimit } from "@short/core";
 import { BioThumbnail } from "@/components/bio/bio-thumbnail";
 import { Icon, type IconName } from "@/components/kit/icon";
@@ -40,6 +40,7 @@ const HOW_IT_WORKS: { key: "stepLook" | "stepLinks" | "stepShare"; icon: IconNam
 ];
 
 export default async function BioListPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   const [context, t, tc] = await Promise.all([
     requireWorkspace(),
     getTranslations("bio"),
@@ -61,7 +62,7 @@ export default async function BioListPage({ searchParams }: { searchParams: Sear
     <PanelShell title={t("title")} crumbs={[{ label: context.workspace.name }]}>
       <PageHeader
         title={t("title")}
-        meta={total > 0 ? <Badge tone="neutral">{formatNumber(total)}</Badge> : null}
+        meta={total > 0 ? <Badge tone="neutral">{formatNumber(total, locale)}</Badge> : null}
         description={t("list.description")}
         actions={
           <Button variant="primary" leadingIcon="plus" href="/bio/new">
@@ -73,7 +74,7 @@ export default async function BioListPage({ searchParams }: { searchParams: Sear
       {atLimit && total > 0 ? (
         <Callout
           tone="warn"
-          title={t("list.limitTitle", { limit: formatNumber(limit), plan: context.plan.name })}
+          title={t("list.limitTitle", { limit: formatNumber(limit, locale), plan: context.plan.name })}
           actions={
             <Button size="sm" href="/billing" leadingIcon="rocket">
               {tc("seePlans")}
@@ -206,7 +207,7 @@ export default async function BioListPage({ searchParams }: { searchParams: Sear
                       </Link>
                       <span className="truncate text-[13px] text-fg-subtle">
                         {t("blocksCount", { count: item.blockCount })} ·{" "}
-                        {t("list.updated", { date: formatDate(item.updatedAt) })}
+                        {t("list.updated", { date: formatDate(item.updatedAt, locale) })}
                       </span>
                     </div>
                     <CopyField

@@ -68,7 +68,7 @@ export async function RecentEventsTable({ events, showLink = false, bare = false
           return (
             <TableRow key={`${event.ts}-${event.ip}-${index}`}>
               <TableCell className="numeric font-mono text-xs whitespace-nowrap text-fg-muted">
-                {formatDateTime(parseClickhouseDate(event.ts))}
+                {formatDateTime(parseClickhouseDate(event.ts), locale)}
               </TableCell>
               <TableCell className="text-fg-muted">{typeLabel(event.type, ts)}</TableCell>
               {showLink ? (

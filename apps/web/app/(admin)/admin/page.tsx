@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { isPaidPublicPlan } from "@short/core";
 import { TimeseriesChart } from "@/components/charts/timeseries-chart";
 import { Icon, type IconName } from "@/components/kit/icon";
@@ -30,6 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminOverviewPage() {
+  const locale = await getLocale();
   // The layout gates too, but pages and layouts render independently — never rely on it alone.
   await requireSuperadmin();
   const to = new Date();
@@ -104,22 +105,22 @@ export default async function AdminOverviewPage() {
           label={t("mrr")}
           info={t("mrrInfo")}
           value={formatCurrency(mrr)}
-          deltaLabel={t("paid", { count: formatNumber(paidWorkspaces) })}
+          deltaLabel={t("paid", { count: formatNumber(paidWorkspaces, locale) })}
           href="/admin/workspaces"
         />
         <StatCard
           icon="arrow-pointer"
           label={t("clicks30d")}
           info={t("clicksInfo")}
-          value={formatNumber(totals.clicks)}
-          deltaLabel={t("visitors", { count: formatNumber(totals.visitors) })}
+          value={formatNumber(totals.clicks, locale)}
+          deltaLabel={t("visitors", { count: formatNumber(totals.visitors, locale) })}
         />
         <StatCard
           icon="users"
           label={tn("admin-users")}
           info={t("usersInfo")}
-          value={formatNumber(counts.users)}
-          delta={counts.newUsers7d > 0 ? `+${formatNumber(counts.newUsers7d)}` : undefined}
+          value={formatNumber(counts.users, locale)}
+          delta={counts.newUsers7d > 0 ? `+${formatNumber(counts.newUsers7d, locale)}` : undefined}
           trend={counts.newUsers7d > 0 ? "up" : "neutral"}
           deltaLabel={t("lastWeek")}
           href="/admin/users"
@@ -128,8 +129,8 @@ export default async function AdminOverviewPage() {
           icon="link"
           label={tn("links")}
           info={t("linksInfo")}
-          value={formatNumber(counts.links)}
-          delta={counts.newLinks7d > 0 ? `+${formatNumber(counts.newLinks7d)}` : undefined}
+          value={formatNumber(counts.links, locale)}
+          delta={counts.newLinks7d > 0 ? `+${formatNumber(counts.newLinks7d, locale)}` : undefined}
           trend={counts.newLinks7d > 0 ? "up" : "neutral"}
           deltaLabel={t("lastWeek")}
           href="/admin/links"
@@ -165,7 +166,7 @@ export default async function AdminOverviewPage() {
                       {row.name}
                     </Link>
                   </TableCell>
-                  <TableCell numeric>{formatNumber(row.workspaces)}</TableCell>
+                  <TableCell numeric>{formatNumber(row.workspaces, locale)}</TableCell>
                   <TableCell numeric className="text-fg-muted">
                     {formatCurrency(row.mrr)}
                   </TableCell>
@@ -190,7 +191,7 @@ export default async function AdminOverviewPage() {
                     <Icon name={item.icon} className="text-xs" />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm">{item.label}</span>
-                  <Badge tone={item.alert && item.value > 0 ? "warn" : "neutral"}>{formatNumber(item.value)}</Badge>
+                  <Badge tone={item.alert && item.value > 0 ? "warn" : "neutral"}>{formatNumber(item.value, locale)}</Badge>
                   <Icon name="chevron-right" className="shrink-0 text-[10px] text-fg-subtle" />
                 </Link>
               </li>

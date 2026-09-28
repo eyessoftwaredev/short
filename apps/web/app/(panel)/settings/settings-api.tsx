@@ -2,7 +2,7 @@
 
 import { Icon } from "@/components/kit/icon";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import {
   Badge,
@@ -39,6 +39,7 @@ type SettingsApiProps = {
 };
 
 export function SettingsApi({ apiKeys, apiBaseUrl, apiRateLimit, hasFeature, canManage }: SettingsApiProps) {
+  const locale = useLocale();
   const t = useTranslations("settings");
   const router = useRouter();
   const actionMessage = useActionMessage();
@@ -102,7 +103,7 @@ export function SettingsApi({ apiKeys, apiBaseUrl, apiRateLimit, hasFeature, can
           <span className="numeric text-sm font-medium text-ink">
             {apiRateLimit === -1
               ? t("rateLimitUnlimited")
-              : t("rateLimitHour", { count: formatNumber(apiRateLimit) })}
+              : t("rateLimitHour", { count: formatNumber(apiRateLimit, locale) })}
           </span>
         </SettingsRow>
         <SettingsRow label={t("apiDocs")} description={t("apiDocsDesc")}>
@@ -229,16 +230,16 @@ export function SettingsApi({ apiKeys, apiBaseUrl, apiRateLimit, hasFeature, can
                         {row.start ? `${row.start}••••••••` : t("hidden")}
                       </code>
                     </TableCell>
-                    <TableCell numeric>{formatNumber(row.requestCount)}</TableCell>
+                    <TableCell numeric>{formatNumber(row.requestCount, locale)}</TableCell>
                     <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
                       {row.lastRequest ? (
-                        formatDateTime(row.lastRequest)
+                        formatDateTime(row.lastRequest, locale)
                       ) : (
                         <span className="text-fg-subtle">{t("neverUsed")}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap text-fg-muted tabular-nums">
-                      {formatDate(row.createdAt)}
+                      {formatDate(row.createdAt, locale)}
                     </TableCell>
                     <TableCell align="right">
                       {canManage && row.enabled ? (
@@ -255,7 +256,7 @@ export function SettingsApi({ apiKeys, apiBaseUrl, apiRateLimit, hasFeature, can
                               description: t("revokeBody"),
                               consequences: [
                                 t("revokeUndo"),
-                                t("revokeUsage", { count: formatNumber(row.requestCount) }),
+                                t("revokeUsage", { count: formatNumber(row.requestCount, locale) }),
                               ],
                               confirmLabel: t("revokeConfirm"),
                               onConfirm: () => run(() => revokeApiKeyAction(row.id), t("keyRevoked")),

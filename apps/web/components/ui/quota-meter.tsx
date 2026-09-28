@@ -1,6 +1,6 @@
 import { formatLimit, isWithinLimit } from "@short/core";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Progress } from "./progress";
 import { InfoTip } from "./info-tip";
 import { formatNumber } from "@/lib/format";
@@ -29,6 +29,7 @@ export function QuotaMeter({
   compact = false,
   className,
 }: QuotaMeterProps) {
+  const locale = useLocale();
   const t = useTranslations("common");
   const unlimited = limit === -1;
   const ratio = unlimited || limit === 0 ? 0 : used / limit;
@@ -49,7 +50,7 @@ export function QuotaMeter({
           {info ? <InfoTip label={label}>{info}</InfoTip> : null}
         </span>
         <span className={cn("numeric shrink-0 font-medium text-ink", compact ? "text-xs" : "text-sm")}>
-          {formatNumber(used)}
+          {formatNumber(used, locale)}
           <span className="font-normal text-fg-subtle"> / {unlimited ? t("unlimited") : formatLimit(limit)}</span>
         </span>
       </div>
@@ -65,7 +66,7 @@ export function QuotaMeter({
               )}
             >
               <span>
-                {exceeded ? t("quotaReached") : t("quotaLeft", { count: formatNumber(remaining) })}
+                {exceeded ? t("quotaReached") : t("quotaLeft", { count: formatNumber(remaining, locale) })}
               </span>
               {upgradeHref && tone !== "accent" ? (
                 <Link href={upgradeHref} className="font-medium text-accent-ink">

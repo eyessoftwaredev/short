@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { Button, Callout, Card, KeyValue, PageHeader } from "@/components/ui";
@@ -41,6 +41,7 @@ export default async function DomainDetailPage({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
+  const locale = await getLocale();
   const [{ id }, context, t, tn, query] = await Promise.all([
     params,
     requireWorkspace(),
@@ -103,21 +104,21 @@ export default async function DomainDetailPage({
                 items={[
                   { id: "status", label: t("status"), value: <DomainStatusBadge state={state} /> },
                   { id: "ssl", label: t("detailSsl"), value: t("detailSslActive"), info: t("detailSslInfo") },
-                  { id: "links", label: t("detailLinks"), value: formatNumber(linkCount) },
+                  { id: "links", label: t("detailLinks"), value: formatNumber(linkCount, locale) },
                   {
                     id: "added",
                     label: t("detailAdded"),
-                    value: row.createdAt ? formatDate(row.createdAt) : "—",
+                    value: row.createdAt ? formatDate(row.createdAt, locale) : "—",
                   },
                   {
                     id: "verified",
                     label: t("detailVerified"),
-                    value: row.verifiedAt ? formatDate(row.verifiedAt) : "—",
+                    value: row.verifiedAt ? formatDate(row.verifiedAt, locale) : "—",
                   },
                   {
                     id: "checked",
                     label: t("detailLastCheck"),
-                    value: row.lastCheckedAt ? formatDateTime(row.lastCheckedAt) : t("detailNever"),
+                    value: row.lastCheckedAt ? formatDateTime(row.lastCheckedAt, locale) : t("detailNever"),
                   },
                 ]}
               />

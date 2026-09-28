@@ -1,7 +1,7 @@
 import { QR_PAYLOAD_KINDS } from "@short/core";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Icon } from "@/components/kit/icon";
 import { PanelShell } from "@/components/shell/panel-shell";
 import { QueryFilterBar } from "@/components/shell/query-filter-bar";
@@ -51,6 +51,7 @@ function thumbnail(item: QrCodeWithTarget): string | null {
 }
 
 export default async function QrListPage({ searchParams }: { searchParams: SearchParams }) {
+  const locale = await getLocale();
   const [context, t, tc] = await Promise.all([
     requireWorkspace(),
     getTranslations("qr"),
@@ -92,7 +93,7 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
     <PanelShell title={t("title")} crumbs={[{ label: context.workspace.name }]} searchable={false}>
       <PageHeader
         title={t("title")}
-        meta={allTotal > 0 ? <Badge tone="neutral">{formatNumber(allTotal)}</Badge> : null}
+        meta={allTotal > 0 ? <Badge tone="neutral">{formatNumber(allTotal, locale)}</Badge> : null}
         description={t("listDesc")}
         actions={
           <Button variant="primary" leadingIcon="plus" href={createHref}>
@@ -306,7 +307,7 @@ export default async function QrListPage({ searchParams }: { searchParams: Searc
                       ) : (
                         <span />
                       )}
-                      <span className="numeric">{formatDate(item.createdAt)}</span>
+                      <span className="numeric">{formatDate(item.createdAt, locale)}</span>
                     </div>
                   </div>
                 </Card>
