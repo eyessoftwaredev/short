@@ -61,7 +61,7 @@ export function SectionCard({
       )}
     >
       <header className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-border-subtle px-5 py-4 sm:px-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
           <Heading
             id={headingId}
             className={cn(
