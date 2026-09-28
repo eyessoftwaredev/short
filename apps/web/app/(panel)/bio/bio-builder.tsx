@@ -31,7 +31,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useForm, type FieldErrors } from "react-hook-form";
 import { BioPageView } from "@/components/bio/bio-page-view";
 import { BioThumbnail } from "@/components/bio/bio-thumbnail";
@@ -508,6 +508,9 @@ export function BioBuilder({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  // dnd-kit numbers its aria-describedby ids from a module counter, which differs between
+  // the server render and hydration; a React id keeps both sides identical.
+  const dndId = useId();
 
   const hostname = useMemo(
     () => domains.find((domain) => domain.id === values.domainId)?.hostname ?? platformHostname,
@@ -990,7 +993,7 @@ export function BioBuilder({
                 </div>
               ) : (
                 <>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                  <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                     <SortableContext
                       items={values.blocks.map((block) => block.id)}
                       strategy={verticalListSortingStrategy}

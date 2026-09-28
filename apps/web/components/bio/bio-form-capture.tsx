@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type CSSProperties } from "react";
+import { useId, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cx";
 
@@ -66,6 +66,30 @@ function WhatsAppGlyph() {
   );
 }
 
+/**
+ * The builder preview renders this inside the editor's own `<form>`, and nested forms are
+ * invalid HTML (React reports a hydration error). The inert preview uses a plain `<div>`.
+ */
+function FormShell({
+  interactive,
+  className,
+  onSubmit,
+  children,
+}: {
+  interactive: boolean;
+  className: string;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  children: ReactNode;
+}) {
+  return interactive ? (
+    <form className={className} onSubmit={onSubmit}>
+      {children}
+    </form>
+  ) : (
+    <div className={className}>{children}</div>
+  );
+}
+
 export function BioFormCapture({
   biopageId,
   blockId,
@@ -100,11 +124,12 @@ export function BioFormCapture({
       : "#";
 
     return (
-      <form
+      <FormShell
+        interactive={interactive}
         className={card}
         onSubmit={(event) => {
           event.preventDefault();
-          if (interactive && number) {
+          if (number) {
             window.open(href, "_blank", "noopener,noreferrer");
           }
         }}
@@ -124,7 +149,7 @@ export function BioFormCapture({
           className={cn(INPUT_CLASSES, "h-auto min-h-24 resize-none py-3 leading-6")}
         />
         <button
-          type="submit"
+          type={interactive ? "submit" : "button"}
           className={submitClasses}
           style={buttonStyle}
           disabled={!interactive || number === ""}
@@ -132,7 +157,7 @@ export function BioFormCapture({
           <WhatsAppGlyph />
           {buttonLabel}
         </button>
-      </form>
+      </FormShell>
     );
   }
 
@@ -161,11 +186,12 @@ export function BioFormCapture({
             : null;
 
   return (
-    <form
+    <FormShell
+      interactive={interactive}
       className={card}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!interactive || status === "saving") {
+        if (status === "saving") {
           return;
         }
         setStatus("saving");
@@ -217,7 +243,7 @@ export function BioFormCapture({
         className={INPUT_CLASSES}
       />
       <button
-        type="submit"
+        type={interactive ? "submit" : "button"}
         className={submitClasses}
         style={buttonStyle}
         disabled={!interactive || status === "saving"}
@@ -234,6 +260,6 @@ export function BioFormCapture({
           </span>
         ) : null}
       </p>
-    </form>
+    </FormShell>
   );
 }
