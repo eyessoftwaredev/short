@@ -2845,6 +2845,13 @@
       "eventsHourDelta": "Worker → Queue → ClickHouse",
       "dependencies": "Dependencies",
       "dependenciesDesc": "Round-trip latency measured from the panel.",
+      "checkDetail": {
+        "redis": "REDIS_URL not set — rate limits fail open",
+        "kv": "Cloudflare credentials not set — edge cache disabled",
+        "stripe": "Keys not set — billing disabled",
+        "email": "RESEND_API_KEY not set — mail is logged only",
+        "emailConfigured": "API key configured"
+      },
       "edge": "Edge components",
       "edgeDesc": "The redirect worker and queue consumer are deployed with Wrangler and report through the ingest lag above.",
       "redirectWorker": "Redirect worker",

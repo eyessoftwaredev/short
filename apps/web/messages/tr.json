@@ -2845,6 +2845,13 @@
       "eventsHourDelta": "Worker → Kuyruk → ClickHouse",
       "dependencies": "Bağımlılıklar",
       "dependenciesDesc": "Panelden ölçülen gidiş-dönüş gecikmesi.",
+      "checkDetail": {
+        "redis": "REDIS_URL tanımlı değil — hız limitleri devre dışı, istekler geçer",
+        "kv": "Cloudflare bilgileri tanımlı değil — edge önbelleği kapalı",
+        "stripe": "Anahtarlar tanımlı değil — faturalandırma kapalı",
+        "email": "RESEND_API_KEY tanımlı değil — e-postalar yalnızca log’a yazılır",
+        "emailConfigured": "API anahtarı tanımlı"
+      },
       "edge": "Kenar bileşenleri",
       "edgeDesc": "Yönlendirme worker’ı ve kuyruk tüketicisi Wrangler ile dağıtılır; durumları yukarıdaki ingest gecikmesinden okunur.",
       "redirectWorker": "Yönlendirme worker’ı",

@@ -112,6 +112,14 @@ export default async function AdminSystemPage() {
         <ul className="m-0 flex list-none flex-col divide-y divide-border-subtle p-0">
           {checks.map((check) => {
             const meta = STATE_META[check.state];
+            // Fixed "not configured" notes come from lib/health in English; live error text stays as-is.
+            const detailKey =
+              check.state === "disabled"
+                ? `checkDetail.${check.id}`
+                : check.id === "email" && check.state === "ok"
+                  ? "checkDetail.emailConfigured"
+                  : null;
+            const detail = detailKey && t.has(detailKey) ? t(detailKey) : check.detail;
             return (
               <li key={check.id} className="flex min-w-0 flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
                 <span
@@ -122,8 +130,8 @@ export default async function AdminSystemPage() {
                 </span>
                 <span className="flex min-w-0 flex-1 basis-48 flex-col">
                   <span className="truncate text-sm font-medium text-ink">{check.label}</span>
-                  <span className="truncate text-xs text-fg-muted" title={check.detail}>
-                    {check.detail}
+                  <span className="truncate text-xs text-fg-muted" title={detail}>
+                    {detail}
                   </span>
                 </span>
                 {check.latencyMs === null ? null : (
