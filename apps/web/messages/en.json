@@ -3072,6 +3072,7 @@
     "providerLabel": "Where is your DNS managed?",
     "providerInfo": "Usually where you bought the domain. Pick one to see where the settings are — the records are the same everywhere.",
     "providerHowTo": "How to add records in {provider}",
+    "providerHowToOther": "How to add the records",
     "providerCloudflare": "Cloudflare",
     "providerGodaddy": "GoDaddy",
     "providerNamecheap": "Namecheap",

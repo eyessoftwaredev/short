@@ -533,7 +533,13 @@ export function DomainSetup({
               ))}
             </Select>
           </Field>
-          <Callout tone="neutral" icon="circle-info" title={t("providerHowTo", { provider: t(providerKeys.label) })}>
+          <Callout
+            tone="neutral"
+            icon="circle-info"
+            title={
+              provider === "other" ? t("providerHowToOther") : t("providerHowTo", { provider: t(providerKeys.label) })
+            }
+          >
             {t(providerKeys.hint, { apex })}
           </Callout>
         </div>

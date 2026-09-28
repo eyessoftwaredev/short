@@ -3072,6 +3072,7 @@
     "providerLabel": "DNS'in nerede yönetiliyor?",
     "providerInfo": "Genelde domaini satın aldığın yer. Ayarların nerede olduğunu görmek için birini seç — kayıtlar her yerde aynı.",
     "providerHowTo": "{provider} üzerinde kayıt nasıl eklenir",
+    "providerHowToOther": "Kayıtlar nasıl eklenir",
     "providerCloudflare": "Cloudflare",
     "providerGodaddy": "GoDaddy",
     "providerNamecheap": "Namecheap",
