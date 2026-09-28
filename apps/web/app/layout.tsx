@@ -1,4 +1,4 @@
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { cookies } from "next/headers";
@@ -10,15 +10,16 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// Inter: the variable face reads cleanly at 13–14px UI sizes and ships the
+// latin-ext glyphs Turkish needs (ğ, ş, ı, İ).
+const interSans = Inter({
+  subsets: ["latin", "latin-ext"],
   variable: "--font-sans",
   display: "swap",
 });
 
 const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500"],
   variable: "--font-mono",
   display: "swap",
@@ -60,7 +61,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang={locale} className={defaultDark ? "dark" : undefined} suppressHydrationWarning>
-      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
+      <body className={`${interSans.variable} ${plexMono.variable} antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider defaultDark={defaultDark}>
             {children}

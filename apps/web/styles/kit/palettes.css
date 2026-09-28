@@ -19,12 +19,13 @@
 }
 
 .eyesone.dark[data-palette="teal"] {
-  --accent: #12857C;
-  --accent-hover: #16A79B;
-  --accent-ink: #7FD1C4;
-  --accent-surface: #10322F;
-  --accent-surface-hover: #14403B;
-  --accent-tint: #0E2523;
+  --accent: #2EB5A5;
+  --accent-hover: #4CC7B8;
+  --accent-ink: #5FD3C4;
+  --accent-surface: #173532;
+  --accent-surface-hover: #1D423E;
+  --accent-tint: #182A2A;
+  --on-accent: #04211E;
   --accent-bright: #0F766E;
   --accent-sheen: rgba(127, 209, 196, 0.1);
 }

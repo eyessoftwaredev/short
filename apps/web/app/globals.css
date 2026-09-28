@@ -2,86 +2,146 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  Design tokens — the only colour source for the panel.
+ *
+ *  Layering model (light → dark):
+ *    --canvas     page background behind everything      #F5F6F8 → #15171C
+ *    --bg         cards, inputs, table bodies (surface)   #FFFFFF → #1C1F26
+ *    --elevated   menus, popovers, modals, toasts         #FFFFFF → #232730
+ *    --surface    quiet fill inside a card (hover, track) #F2F4F7 → #252A33
+ *
+ *  Components never use raw hex. See components/DESIGN.md for the full table,
+ *  and run `node scripts/check-contrast.mjs` after retuning any value.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 :root {
+  /* Surfaces */
+  --canvas: #f5f6f8;
   --bg: #ffffff;
-  --surface: #f5f7fa;
-  --surface-subtle: #fafbfc;
-  --border: #e3e8ee;
-  --border-subtle: #eef2f6;
-  --border-strong: #cbd5e1;
-  --border-hover: #8494a8;
-  --ink: #171717;
+  --elevated: #ffffff;
+  --surface: #f2f4f7;
+  --surface-subtle: #f9fafb;
+  --surface-strong: #eaecf0;
+  --sidebar: #f5f6f8;
+
+  /* Borders */
+  --border: #e4e7ec;
+  --border-subtle: #eef0f3;
+  --border-strong: #d0d5dd;
+  --border-hover: #aeb6c2;
+
+  /* Text */
+  --ink: #101828;
+  --fg-muted: #5b6472;
+  --fg-subtle: #667085;
+  --fg-disabled: #98a2b3;
+  --fg-faint: #d0d5dd;
+
+  /* Text on an always-dark fill (legacy "ink" chips, code blocks). */
   --on-ink: #ffffff;
-  --on-ink-dim: #d4d4d4;
+  --on-ink-dim: #d0d5dd;
   --on-ink-soft: rgba(255, 255, 255, 0.08);
-  --on-ink-border: #525252;
-  --fg-muted: #525252;
-  --fg-subtle: #737373;
-  --fg-disabled: #a3a3a3;
-  --fg-faint: #d4d4d4;
+  --on-ink-border: #475467;
+
+  /* Brand accent — teal. One accent only; everything else is neutral or semantic. */
   --accent: #0f766e;
-  --accent-hover: #0b5952;
-  --accent-ink: #0b5952;
-  --accent-surface: #e6f2f0;
-  --accent-surface-hover: #d3e9e5;
-  --accent-tint: #f7fbfa;
-  --accent-bright: #7fd1c4;
+  --accent-hover: #0c6159;
+  --accent-ink: #0b5f58;
+  --accent-surface: #e7f5f3;
+  --accent-surface-hover: #d3ede9;
+  --accent-tint: #f2faf9;
+  --accent-border: #a9dcd5;
+  --accent-bright: #5cc6b7;
   --on-accent: #ffffff;
+  /* Text that sits on `--accent-surface`. */
+  --accent-on-surface: #0b5952;
+  /* Focus halo for inputs (box-shadow) — the outline ring uses `--accent`. */
+  --ring: rgba(15, 118, 110, 0.22);
+
+  /* Semantic — success */
+  --success: #067647;
+  --success-ink: #085d3a;
+  --success-surface: #ecfdf3;
+  --success-border: #abefc6;
+
+  /* Semantic — warning */
+  --warn: #b54708;
+  --warn-ink: #93370d;
+  --warn-surface: #fffaeb;
+  --warn-border: #fedf89;
+
+  /* Semantic — danger */
+  --danger: #b42318;
+  --danger-hover: #912018;
+  --danger-ink: #912018;
+  --danger-surface: #fef3f2;
+  --danger-border: #fecdca;
+
+  /* Semantic — info */
+  --info: #175cd3;
+  --info-ink: #1849a9;
+  --info-surface: #eff8ff;
+  --info-border: #b2ddff;
+
+  /* Third-party brand fill (Cloudflare connect button). */
   --cloudflare: #f6821f;
   --cloudflare-hover: #d96e12;
   --on-cloudflare: #ffffff;
-  --danger: #b42318;
-  --danger-hover: #911a12;
-  --danger-surface: #fef3f2;
-  --danger-border: #f1d3d3;
-  --warn: #b4530a;
-  --warn-ink: #7a3a06;
-  --warn-surface: #fdf6e9;
-  --warn-border: #e8c98a;
-  --inverse: #171717;
+
+  /* Inverse — a dark block that stays dark in both themes. */
+  --inverse: #101828;
   --on-inverse: #ffffff;
-  --on-inverse-dim: #d4d4d4;
+  --on-inverse-dim: #d0d5dd;
   --on-inverse-soft: rgba(255, 255, 255, 0.1);
-  --on-inverse-border: #737373;
-  --overlay: rgba(23, 23, 23, 0.45);
-  --shadow-lift: 0 12px 28px rgba(23, 23, 23, 0.08);
-  --shadow-pop: 0 8px 24px rgba(23, 23, 23, 0.12);
-  --shadow-toast: 0 10px 30px rgba(23, 23, 23, 0.14);
-  --shadow-modal: 0 20px 60px rgba(23, 23, 23, 0.25);
-  --radius: 8px;
-  --radius-xs: 5px;
+  --on-inverse-border: #475467;
+
+  --switch-knob: #ffffff;
+  --overlay: rgba(16, 24, 40, 0.42);
+
+  /* Elevation — soft, layered, never a hard drop shadow. */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.03);
+  --shadow-lift: 0 4px 12px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --shadow-pop: 0 12px 24px -6px rgba(16, 24, 40, 0.12), 0 4px 8px -4px rgba(16, 24, 40, 0.05);
+  --shadow-toast: 0 16px 32px -8px rgba(16, 24, 40, 0.16), 0 4px 8px -4px rgba(16, 24, 40, 0.06);
+  --shadow-modal: 0 24px 48px -12px rgba(16, 24, 40, 0.24);
+
+  /* Radius — 6 / 8 / 10 / 12 / 16. */
+  --radius-xs: 4px;
   --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-pill: 999px;
 
-  /* Text that sits on `--accent-surface`. `--accent-hover` is tuned for solid
-     fills and drops under 4.5:1 on the tinted surface in dark mode. */
-  --accent-on-surface: #0b5952;
+  /* Row states for data tables. Kept apart from `--surface` so a hovered row
+     and a selected row never collapse into the same value. */
+  --row-hover: #f9fafb;
+  --row-selected: #f2faf9;
 
-  /* Row states for data tables. Kept separate from `--surface` so a hovered row
-     and a striped/selected row never collapse into the same value. */
-  --row-hover: #fafbfc;
-  --row-selected: #f7fbfa;
-
-  /* Chart series. Anchored to the brand but spaced so that consecutive series
-     differ in hue *and* lightness — they stay separable under deuteranopia,
-     protanopia and in plain greyscale. 1/2 are the pair used by the click
-     timeseries, so they are the most strongly contrasted. */
-  --chart-1: var(--accent);
-  --chart-2: var(--warn);
-  --chart-3: #1e5fa8;
-  --chart-4: #6d46b8;
-  --chart-5: #a8347a;
+  /* Chart series (validated for CVD + contrast on --bg; see DESIGN.md).
+     Fixed order: teal, amber, blue, pink, violet. Never cycle a 6th hue. */
+  --chart-1: #0d9488;
+  --chart-2: #d97706;
+  --chart-3: #2563eb;
+  --chart-4: #db2777;
+  --chart-5: #7c3aed;
+  --chart-muted: #98a2b3;
   --chart-grid: var(--border-subtle);
   --chart-track: var(--surface);
   --chart-cursor: var(--border-strong);
 
-  --skeleton-from: #f1f4f8;
-  --skeleton-to: #e7ecf2;
+  --skeleton-from: #f0f2f5;
+  --skeleton-to: #e4e7ec;
 
   /* Shell metrics. Declared once so a sticky table header can work out how
      much viewport is actually left to it. */
   --topbar-h: 3.5rem;
   --page-gutter: 1.5rem;
+  --content-max: 80rem;
 
   /* Stacking order, layered so a pinned table header slides under an open menu
      and every overlay sits above both. Mirrored into the Tailwind `z-*` scale. */
@@ -92,74 +152,116 @@
 }
 
 .dark {
-  --bg: #111111;
-  --surface: #1a1a1a;
-  --surface-subtle: #161616;
-  --border: #2a2a2a;
-  --border-subtle: #222222;
-  --border-strong: #3d3d3d;
-  --border-hover: #525252;
-  --ink: #f2f2f2;
-  --fg-muted: #a3a3a3;
-  --fg-subtle: #737373;
-  --fg-disabled: #525252;
-  --fg-faint: #3d3d3d;
-  --accent: #12857c;
-  --accent-hover: #16a79b;
-  --accent-ink: #7fd1c4;
-  --accent-surface: #10322f;
-  --accent-surface-hover: #14403b;
-  --accent-tint: #0e2523;
-  --accent-bright: #0f766e;
-  --danger: #f2837a;
-  --danger-hover: #f9a9a2;
-  --danger-surface: #2b1513;
-  --danger-border: #4a211d;
-  --warn: #e0a050;
-  --warn-ink: #f2cc93;
-  --warn-surface: #2a1e0d;
-  --warn-border: #4a3517;
-  --inverse: #0a0a0a;
-  --on-inverse: #f2f2f2;
-  --on-inverse-dim: #a3a3a3;
-  --on-inverse-soft: rgba(255, 255, 255, 0.08);
-  --on-inverse-border: #55647a;
-  --overlay: rgba(0, 0, 0, 0.65);
-  --shadow-lift: 0 12px 28px rgba(0, 0, 0, 0.45);
-  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --shadow-toast: 0 10px 30px rgba(0, 0, 0, 0.55);
-  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.7);
+  /* Surfaces — charcoal/slate, never pure black. */
+  --canvas: #15171c;
+  --bg: #1c1f26;
+  --elevated: #232730;
+  --surface: #252a33;
+  --surface-subtle: #20232b;
+  --surface-strong: #2b303a;
+  --sidebar: #15171c;
 
-  --accent-on-surface: #7fd1c4;
+  --border: #2e333d;
+  --border-subtle: #272b33;
+  --border-strong: #3b414d;
+  --border-hover: #525a68;
+
+  --ink: #eceef1;
+  --fg-muted: #a1a8b3;
+  --fg-subtle: #8b93a1;
+  --fg-disabled: #5e6573;
+  --fg-faint: #3b414d;
+
+  --on-ink: #ffffff;
+  --on-ink-dim: #d0d5dd;
+  --on-ink-soft: rgba(255, 255, 255, 0.08);
+  --on-ink-border: #475467;
+
+  /* Brighter teal: solid fills carry dark text, text links stay ≥ 4.5:1. */
+  --accent: #2eb5a5;
+  --accent-hover: #4cc7b8;
+  --accent-ink: #5fd3c4;
+  --accent-surface: #173532;
+  --accent-surface-hover: #1d423e;
+  --accent-tint: #182a2a;
+  --accent-border: #24605a;
+  --accent-bright: #0f766e;
+  --on-accent: #04211e;
+  --accent-on-surface: #7adccf;
+  --ring: rgba(46, 181, 165, 0.3);
+
+  --success: #47cd89;
+  --success-ink: #75e0a7;
+  --success-surface: #13291f;
+  --success-border: #1f4d36;
+
+  --warn: #fdb022;
+  --warn-ink: #fec84b;
+  --warn-surface: #2a2111;
+  --warn-border: #5c4415;
+
+  --danger: #f97066;
+  --danger-hover: #fda29b;
+  --danger-ink: #fda29b;
+  --danger-surface: #2d1b1b;
+  --danger-border: #5a2a27;
+
+  --info: #53b1fd;
+  --info-ink: #84caff;
+  --info-surface: #142336;
+  --info-border: #1f3f66;
+
   --cloudflare: #f6821f;
   --cloudflare-hover: #ff9a3d;
-  --on-cloudflare: #171717;
+  --on-cloudflare: #1a1206;
 
-  --row-hover: #191919;
-  --row-selected: #13302d;
+  --inverse: #0e1014;
+  --on-inverse: #eceef1;
+  --on-inverse-dim: #a1a8b3;
+  --on-inverse-soft: rgba(255, 255, 255, 0.08);
+  --on-inverse-border: #3b414d;
 
-  /* Same series order as light, re-lit for a #111 ground. */
-  --chart-1: #2eb8a6;
-  --chart-2: var(--warn);
-  --chart-3: #5fa8f0;
-  --chart-4: #a98bea;
-  --chart-5: #e87fbb;
+  --switch-knob: #f4f5f7;
+  --overlay: rgba(6, 7, 10, 0.62);
 
-  --skeleton-from: #1d1d1d;
-  --skeleton-to: #2a2a2a;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-lift: 0 4px 12px -2px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 28px -6px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-toast: 0 16px 36px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-modal: 0 24px 56px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+
+  --row-hover: #21252d;
+  --row-selected: #182a2a;
+
+  /* Same series order as light, re-stepped for the dark card surface. */
+  --chart-1: #26a897;
+  --chart-2: #d07a12;
+  --chart-3: #4d8ff0;
+  --chart-4: #e25c9e;
+  --chart-5: #9a7cf0;
+  --chart-muted: #5e6573;
+
+  --skeleton-from: #232730;
+  --skeleton-to: #2e333d;
 
   color-scheme: dark;
 }
 
 @theme inline {
+  --color-canvas: var(--canvas);
   --color-bg: var(--bg);
+  --color-elevated: var(--elevated);
   --color-surface: var(--surface);
   --color-surface-subtle: var(--surface-subtle);
+  --color-surface-strong: var(--surface-strong);
+  --color-sidebar: var(--sidebar);
   --color-border: var(--border);
   --color-border-subtle: var(--border-subtle);
   --color-border-strong: var(--border-strong);
   --color-border-hover: var(--border-hover);
   --color-ink: var(--ink);
+  --color-fg: var(--ink);
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
   --color-fg-disabled: var(--fg-disabled);
@@ -170,27 +272,39 @@
   --color-accent-surface: var(--accent-surface);
   --color-accent-surface-hover: var(--accent-surface-hover);
   --color-accent-tint: var(--accent-tint);
+  --color-accent-border: var(--accent-border);
   --color-accent-bright: var(--accent-bright);
   --color-accent-on-surface: var(--accent-on-surface);
   --color-on-accent: var(--on-accent);
+  --color-ring: var(--ring);
   --color-cloudflare: var(--cloudflare);
   --color-cloudflare-hover: var(--cloudflare-hover);
   --color-on-cloudflare: var(--on-cloudflare);
   --color-row-hover: var(--row-hover);
   --color-row-selected: var(--row-selected);
+  --color-success: var(--success);
+  --color-success-ink: var(--success-ink);
+  --color-success-surface: var(--success-surface);
+  --color-success-border: var(--success-border);
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
+  --color-danger-ink: var(--danger-ink);
   --color-danger-surface: var(--danger-surface);
   --color-danger-border: var(--danger-border);
   --color-warn: var(--warn);
   --color-warn-ink: var(--warn-ink);
   --color-warn-surface: var(--warn-surface);
   --color-warn-border: var(--warn-border);
+  --color-info: var(--info);
+  --color-info-ink: var(--info-ink);
+  --color-info-surface: var(--info-surface);
+  --color-info-border: var(--info-border);
   --color-inverse: var(--inverse);
   --color-on-inverse: var(--on-inverse);
   --color-on-inverse-dim: var(--on-inverse-dim);
   --color-on-inverse-soft: var(--on-inverse-soft);
   --color-on-inverse-border: var(--on-inverse-border);
+  --color-switch-knob: var(--switch-knob);
   --color-overlay: var(--overlay);
   --color-bio-bg: var(--bio-bg);
   --color-bio-bg-alt: var(--bio-bg-alt);
@@ -206,18 +320,25 @@
   --radius-default: var(--radius);
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
   --radius-pill: var(--radius-pill);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-muted: var(--chart-muted);
   --color-chart-grid: var(--chart-grid);
   --color-chart-track: var(--chart-track);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-card: var(--shadow-card);
   --shadow-lift: var(--shadow-lift);
   --shadow-pop: var(--shadow-pop);
   --shadow-toast: var(--shadow-toast);
   --shadow-modal: var(--shadow-modal);
+  --container-content: var(--content-max);
   --z-index-sticky: var(--z-sticky);
   --z-index-dropdown: var(--z-dropdown);
   --z-index-modal: 60;
@@ -233,25 +354,33 @@
 
   html {
     scroll-behavior: smooth;
+    background: var(--canvas);
   }
 
   body {
     min-height: 100vh;
-    background: var(--bg);
+    background: var(--canvas);
     color: var(--ink);
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     transition: background 0.2s ease, color 0.2s ease;
   }
 
   a {
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: none;
   }
 
   a:hover {
     color: var(--accent-hover);
     text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .dark a:hover {
+    color: var(--accent-hover);
   }
 
   button {
@@ -262,7 +391,7 @@
 
   /* Checkbox, radio and range keep their native box model — the full-width
      text-input treatment below would stretch them across the row. */
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
   textarea,
   select {
     appearance: none;
@@ -271,11 +400,25 @@
     min-width: 0;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    padding: 10px 12px;
+    padding: 8px 12px;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 20px;
     background: var(--bg);
     color: var(--ink);
+    box-shadow: var(--shadow-xs);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* One control height across inputs, selects and md buttons: 38px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select {
+    min-height: 2.375rem;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover:not(:focus):not(:disabled),
+  textarea:hover:not(:focus):not(:disabled),
+  select:hover:not(:focus):not(:disabled) {
+    border-color: var(--border-hover);
   }
 
   input:focus,
@@ -283,6 +426,18 @@
   select:focus {
     border-color: var(--accent);
     outline: none;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+
+  input[aria-invalid="true"],
+  textarea[aria-invalid="true"],
+  select[aria-invalid="true"] {
+    border-color: var(--danger);
   }
 
   input::placeholder,
@@ -302,14 +457,29 @@
     background-repeat: no-repeat;
   }
 
+  option {
+    background: var(--elevated);
+    color: var(--ink);
+  }
+
   input[type="checkbox"],
   input[type="radio"] {
     accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
   }
 
   input[type="range"] {
     accent-color: var(--accent);
     background: transparent;
+  }
+
+  input:-webkit-autofill,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--ink);
+    caret-color: var(--ink);
+    box-shadow: 0 0 0 1000px var(--bg) inset;
   }
 
   /* A disabled control has to look unavailable before it is clicked, not only
@@ -324,32 +494,38 @@
   input:disabled,
   textarea:disabled,
   select:disabled {
-    background: var(--surface);
+    background: var(--surface-subtle);
     color: var(--fg-disabled);
     border-color: var(--border);
+    box-shadow: none;
   }
 
-  /* Links, menu items and any roving-tabindex target were previously invisible
-     on keyboard focus — only form controls got a ring. */
+  /* Keyboard focus: one ring everywhere — accent, 2px, offset 2px. Text fields
+     use the border + halo above instead, so they are excluded here. */
   a:focus-visible,
   button:focus-visible,
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible,
   summary:focus-visible,
-  [tabindex]:focus-visible,
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible,
+  input[type="range"]:focus-visible,
+  [tabindex]:not(input):not(textarea):not(select):focus-visible,
   [role="button"]:focus-visible,
   [role="menuitem"]:focus-visible,
+  [role="option"]:focus-visible,
   [role="tab"]:focus-visible,
   [role="switch"]:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: var(--radius-xs);
+  }
+
+  main:focus-visible,
+  [role="tabpanel"]:focus-visible {
+    outline-offset: -2px;
   }
 
   ::selection {
-    background: var(--accent-surface);
-    color: var(--accent-on-surface);
+    background: var(--accent-surface-hover);
+    color: var(--ink);
   }
 
   /* Keep overflow areas (sidebar, wide tables) from shipping a heavy OS bar. */
@@ -393,6 +569,75 @@
   transform-origin: left center;
 }
 
+/* Entry motion for menus, popovers, toasts and dialogs. Short and subtle. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@utility animate-pop-in {
+  animation: pop-in 0.14s ease-out;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 0.16s ease-out;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}
+
+@utility animate-slide-in-up {
+  animation: slide-in-up 0.2s ease-out;
+}
+
+/*
+ * Page container: the single max-width + gutter every panel page sits in.
+ * PanelShell applies it to <main>; nothing else should set its own page width.
+ */
+@utility page-container {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
 @keyframes skeleton-shimmer {
   from {
     background-position: 200% 0;
@@ -425,13 +670,24 @@
   font-feature-settings: "tnum" 1;
 }
 
-.kit-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1em;
-  font-size: 1rem;
-  line-height: 1;
+/*
+ * Icon box. Lives in the components layer so a size utility on the icon
+ * (`text-xs`, `text-sm`) actually wins — unlayered, this rule used to pin every
+ * glyph to 16px. The box is fixed-width (1.25em × 1em) so tall glyphs such as
+ * chevrons and wide ones such as `users` share one optical size and align in
+ * lists.
+ */
+@layer components {
+  .kit-icon {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 1.25em;
+    height: 1em;
+    font-size: 1rem;
+    line-height: 1;
+    overflow: visible;
+    vertical-align: -0.125em;
+  }
 }
 
 /*
@@ -450,8 +706,12 @@
  */
 table[data-density="compact"] th,
 table[data-density="compact"] td {
-  padding-block: 0.375rem;
-  padding-inline: 0.75rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.875rem;
+}
+
+table[data-density="compact"] th {
+  height: 2.25rem;
 }
 
 /*
@@ -481,9 +741,9 @@ table[data-density] thead[data-sticky] th {
   min-width: 9rem;
   max-width: 16rem;
   padding: 0.5rem 0.625rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--elevated);
   box-shadow: var(--shadow-pop);
   pointer-events: none;
 }
