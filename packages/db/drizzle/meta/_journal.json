@@ -78,6 +78,13 @@
       "when": 1790535571345,
       "tag": "0010_hardening_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790553406844,
+      "tag": "0011_link_open_mode_starts_at",
+      "breakpoints": true
     }
   ]
 }

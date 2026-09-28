@@ -788,3 +788,211 @@ describe("hardening", () => {
     expect((init.headers as Record<string, string>)["x-short-edge-token"]).toBe("internal-token");
   });
 });
+
+const IPHONE_SAFARI =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+const ANDROID_CHROME =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
+const IPHONE_INSTAGRAM =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 339.0.3.12.91 (iPhone15,2; iOS 17_5; tr_TR; tr; scale=3.00; 1179x2556; 619461904)";
+const ANDROID_FACEBOOK =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A.240705.005; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.6478.134 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/473.0.0.46.108;]";
+
+describe("open mode", () => {
+  async function visit(record: Parameters<typeof linkRecord>[0], headers: Record<string, string>) {
+    const { env, ctx, queue } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord(record),
+    });
+    const response = await worker.fetch(edgeRequest("https://go.test/promo", { headers }), env, ctx);
+    await ctx.settled();
+    return { response, queue };
+  }
+
+  function scriptNonce(html: string): string {
+    return /<script nonce="([^"]+)">/.exec(html)?.[1] ?? "";
+  }
+
+  it("keeps redirecting records cached before the setting existed", async () => {
+    const { response } = await visit(
+      { destination: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+      { "user-agent": IPHONE_SAFARI },
+    );
+    expect(response.status).toBe(302);
+  });
+
+  it("serves the app interstitial on iOS and tracks the click once", async () => {
+    const { response, queue } = await visit(
+      { destination: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", openMode: "app" },
+      { "user-agent": IPHONE_SAFARI },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store, max-age=0");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
+    const html = await response.text();
+    expect(html).toContain('href="youtube://www.youtube.com/watch?v=dQw4w9WgXcQ"');
+    expect(html).toContain('id="web" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"');
+    expect(html).toContain('data-fallback="1"');
+
+    const nonce = scriptNonce(html);
+    expect(nonce).toMatch(/^[0-9a-f]{32}$/);
+    const csp = response.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain(`script-src 'nonce-${nonce}'`);
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).not.toContain("unsafe-eval");
+    expect(html.match(/<script/g)).toHaveLength(1);
+
+    expect(queue.sent).toHaveLength(1);
+    expect(queue.sent[0]?.type).toBe("click");
+  });
+
+  it("uses a package-pinned intent with a browser fallback on Android", async () => {
+    const { response } = await visit(
+      { destination: "https://www.instagram.com/p/C8abcdEFG/", openMode: "app" },
+      { "user-agent": ANDROID_CHROME },
+    );
+    const html = await response.text();
+    expect(html).toContain(
+      `intent://www.instagram.com/p/C8abcdEFG/#Intent;scheme=https;package=com.instagram.android;S.browser_fallback_url=${encodeURIComponent(
+        "https://www.instagram.com/p/C8abcdEFG/",
+      )};end`,
+    );
+  });
+
+  it("redirects desktops, unknown apps and bots normally in app mode", async () => {
+    const desktop = await visit(
+      { destination: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", openMode: "app" },
+      {},
+    );
+    expect(desktop.response.status).toBe(302);
+
+    const unknown = await visit(
+      { destination: "https://example.com/landing", openMode: "app" },
+      { "user-agent": IPHONE_SAFARI },
+    );
+    expect(unknown.response.status).toBe(302);
+
+    const bot = await visit(
+      { destination: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", openMode: "app" },
+      { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) facebookexternalhit/1.1" },
+    );
+    expect(bot.response.status).toBe(302);
+  });
+
+  it("lets the per-link iOS destination win over the app handoff", async () => {
+    const { response } = await visit(
+      {
+        destination: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        iosDestination: "https://apps.apple.com/app/id1",
+        openMode: "app",
+      },
+      { "user-agent": IPHONE_SAFARI },
+    );
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://apps.apple.com/app/id1");
+  });
+
+  it("escapes an iOS in-app browser with x-safari and a copy fallback, in Turkish", async () => {
+    const { response, queue } = await visit(
+      { destination: "https://shop.example.com/p/1?a=1&b=2", openMode: "browser" },
+      { "user-agent": IPHONE_INSTAGRAM, "accept-language": "tr-TR,tr;q=0.9,en;q=0.8" },
+    );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('href="x-safari-https://shop.example.com/p/1?a=1&amp;b=2"');
+    expect(html).toContain('id="copy"');
+    expect(html).toContain('value="https://shop.example.com/p/1?a=1&amp;b=2"');
+    expect(html).toContain('data-fallback="0"');
+    expect(html).toContain('lang="tr"');
+    expect(html).toContain("Tarayıcıda aç");
+    expect(queue.sent).toHaveLength(1);
+  });
+
+  it("escapes an Android webview with a VIEW intent", async () => {
+    const { response } = await visit(
+      { destination: "https://shop.example.com/p/1", openMode: "browser" },
+      { "user-agent": ANDROID_FACEBOOK },
+    );
+    const html = await response.text();
+    expect(html).toContain(
+      "intent://shop.example.com/p/1#Intent;scheme=https;action=android.intent.action.VIEW;S.browser_fallback_url=",
+    );
+  });
+
+  it("redirects real browsers normally in browser mode", async () => {
+    const { response } = await visit(
+      { destination: "https://shop.example.com/p/1", openMode: "browser" },
+      { "user-agent": IPHONE_SAFARI },
+    );
+    expect(response.status).toBe(302);
+  });
+
+  it("never lets link data break out of the interstitial markup", async () => {
+    const { response } = await visit(
+      {
+        destination: "https://shop.example.com/p/1?q=%22%3E%3Cscript%3Ealert(1)%3C/script%3E&x='\"<b>",
+        title: '"><script>alert(1)</script>',
+        openMode: "browser",
+      },
+      { "user-agent": IPHONE_INSTAGRAM },
+    );
+    const html = await response.text();
+    expect(html.match(/<script/g)).toHaveLength(1);
+    expect(html).not.toContain("<b>");
+    expect(html).not.toContain("javascript:");
+  });
+});
+
+describe("scheduled start", () => {
+  it("treats a link as missing until it starts, without tracking", async () => {
+    const { env, ctx, queue } = setup({
+      [keys.domainKey("go.test")]: domainRecord({ notFoundDestination: "https://example.com/soon" }),
+      [keys.linkKey("go.test", "promo")]: linkRecord({ startsAt: Date.now() + 3_600_000 }),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://example.com/soon");
+    await ctx.settled();
+    expect(queue.sent).toHaveLength(0);
+  });
+
+  it("does not reveal the password gate before the start", async () => {
+    const passwordHash = await hashGatePassword("open-sesame");
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord({ passwordHash, startsAt: Date.now() + 60_000 }),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+    expect(response.status).not.toBe(401);
+    expect(response.headers.get("location")).toBe("https://short.test/404");
+  });
+
+  it("redirects and tracks once the start has passed", async () => {
+    const { env, ctx, queue } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord({ startsAt: Date.now() - 1_000 }),
+    });
+
+    const response = await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://example.com/landing");
+    await ctx.settled();
+    expect(queue.sent).toHaveLength(1);
+  });
+
+  it("keeps working for records cached before the field existed", async () => {
+    const { env, ctx } = setup({
+      ...domainSeed,
+      [keys.linkKey("go.test", "promo")]: linkRecord(),
+    });
+    const response = await worker.fetch(edgeRequest("https://go.test/promo"), env, ctx);
+    expect(response.headers.get("location")).toBe("https://example.com/landing");
+  });
+});

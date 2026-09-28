@@ -1,5 +1,5 @@
 import { hashToUnitInterval, pickWeightedIndex } from "../hash";
-import type { BrowserName, DeviceType, OsName } from "../ua";
+import type { BrowserName, DeviceType, InAppName, OsName } from "../ua";
 import type { AbVariant, Condition, SetOperator, TargetRule } from "./schema";
 
 export type VisitorContext = {
@@ -12,7 +12,9 @@ export type VisitorContext = {
   device: DeviceType;
   os: OsName;
   browser: BrowserName;
-  /** Primary Accept-Language subtag, lowercase. */
+  /** Social app webview the visit came from, or null in a real browser. */
+  inApp: InAppName | null;
+  /** Primary subtag of the top-weighted Accept-Language entry, lowercase ("" if none). */
   language: string;
   referrer: string;
   now: Date;
@@ -27,9 +29,24 @@ export type Resolution = {
   variantId: string | null;
 };
 
-function matchesSet(op: SetOperator, values: readonly string[], actual: string): boolean {
+function includesValue(values: readonly string[], actual: string): boolean {
   const normalized = actual.toLowerCase();
-  const hit = values.some((value) => value.toLowerCase() === normalized);
+  return values.some((value) => value.toLowerCase() === normalized);
+}
+
+function matchesSet(op: SetOperator, values: readonly string[], actual: string): boolean {
+  const hit = includesValue(values, actual);
+  return op === "not_in" ? !hit : hit;
+}
+
+/**
+ * The schema stores bare primary subtags, but a rule written before that (or pushed
+ * straight into KV) may still hold `en-US`; comparing primary subtags keeps it working.
+ */
+function matchesLanguage(op: SetOperator, values: readonly string[], actual: string): boolean {
+  const hit =
+    actual !== "" &&
+    values.some((value) => (value.split(/[-_]/)[0] ?? "").toLowerCase() === actual);
   return op === "not_in" ? !hit : hit;
 }
 
@@ -92,10 +109,16 @@ export function matchesCondition(condition: Condition, ctx: VisitorContext): boo
       return matchesSet(condition.op, condition.values, ctx.device);
     case "os":
       return matchesSet(condition.op, condition.values, ctx.os);
-    case "browser":
-      return matchesSet(condition.op, condition.values, ctx.browser);
+    case "browser": {
+      // A webview is both its engine and its app: "Chrome" still covers an Instagram
+      // webview on Android, and "Instagram" covers it on either platform.
+      const hit =
+        includesValue(condition.values, ctx.browser) ||
+        (ctx.inApp !== null && includesValue(condition.values, ctx.inApp));
+      return condition.op === "not_in" ? !hit : hit;
+    }
     case "language":
-      return matchesSet(condition.op, condition.values, ctx.language);
+      return matchesLanguage(condition.op, condition.values, ctx.language);
     case "referrer": {
       if (condition.op === "empty") {
         return ctx.referrer === "";

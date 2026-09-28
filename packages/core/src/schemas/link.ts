@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LINK_OPEN_MODES } from "../open-mode";
 import { SLUG_PATTERN, isReservedSlug } from "../slug";
 import { abVariantSchema, safeDestinationSchema, targetRuleSchema } from "../targeting";
 
@@ -36,6 +37,9 @@ export const linkInputSchema = z
     comments: z.string().trim().max(2048).optional(),
     folderId: z.string().uuid().nullable().optional(),
     tags: z.array(z.string().trim().min(1).max(48)).max(20).default([]),
+    // Scheduled go-live; may lie in the past so a link that already started stays
+    // editable. Omitted on an update keeps the stored value, null clears it.
+    startsAt: z.coerce.date().nullable().optional(),
     expiresAt: z.coerce.date().nullable().optional(),
     expiredDestination: destinationSchema.nullable().optional(),
     // Every gate attempt costs the edge 100k PBKDF2 rounds, so short passwords are both
@@ -46,6 +50,9 @@ export const linkInputSchema = z
     cloaked: z.boolean().default(false),
     noIndex: z.boolean().default(true),
     forwardQuery: z.boolean().default(false),
+    // Optional rather than defaulted: an update that omits it keeps the stored mode
+    // (same convention as `password`); a create without it stores `auto`.
+    openMode: z.enum(LINK_OPEN_MODES).optional(),
     archived: z.boolean().default(false),
     utm: utmSchema.nullable().default(null),
     rules: z.array(targetRuleSchema).max(50).default([]),
@@ -58,6 +65,13 @@ export const linkInputSchema = z
   .refine(
     (value) => value.expiresAt == null || value.expiresAt.getTime() > Date.now(),
     { message: "Expiry must be in the future", path: ["expiresAt"] },
+  )
+  .refine(
+    (value) =>
+      value.startsAt == null ||
+      value.expiresAt == null ||
+      value.startsAt.getTime() < value.expiresAt.getTime(),
+    { message: "startBeforeExpiry", path: ["startsAt"] },
   );
 
 export type LinkInput = z.infer<typeof linkInputSchema>;
@@ -67,7 +81,7 @@ export const linkListQuerySchema = z.object({
   domainId: z.string().uuid().optional(),
   folderId: z.string().uuid().optional(),
   tag: z.string().trim().max(48).optional(),
-  status: z.enum(["all", "active", "archived", "expired"]).default("all"),
+  status: z.enum(["all", "active", "archived", "expired", "scheduled"]).default("all"),
   sort: z.enum(["created_desc", "created_asc", "clicks_desc", "slug_asc"]).default("created_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(10).max(100).default(25),

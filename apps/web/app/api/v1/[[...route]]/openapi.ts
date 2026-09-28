@@ -81,7 +81,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             {
               name: "status",
               in: "query",
-              schema: { type: "string", enum: ["all", "active", "archived", "expired"] },
+              schema: { type: "string", enum: ["all", "active", "archived", "expired", "scheduled"] },
             },
             { name: "page", in: "query", schema: { type: "integer", minimum: 1 } },
             { name: "pageSize", in: "query", schema: { type: "integer", minimum: 10, maximum: 100 } },
@@ -246,6 +246,13 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             total: { type: "integer" },
           },
         },
+        OpenMode: {
+          type: "string",
+          enum: ["auto", "app", "browser"],
+          default: "auto",
+          description:
+            "How phones are handed to the destination. auto: plain redirect. app: open well-known destinations (YouTube, Instagram, TikTok, X, Facebook, Spotify, LinkedIn, WhatsApp, Telegram, Pinterest) in their native app on iOS/Android, falling back to the web. browser: when opened inside a social app's in-app browser, offer to reopen the link in the phone's browser. Omit on PATCH to keep the current value.",
+        },
         Link: {
           type: "object",
           properties: {
@@ -257,8 +264,10 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             title: { type: "string", nullable: true },
             description: { type: "string", nullable: true },
             tags: { type: "array", items: { type: "string" } },
+            startsAt: { type: "string", format: "date-time", nullable: true },
             expiresAt: { type: "string", format: "date-time", nullable: true },
             passwordProtected: { type: "boolean" },
+            openMode: { $ref: "#/components/schemas/OpenMode" },
             archived: { type: "boolean" },
             createdAt: { type: "string", format: "date-time" },
           },
@@ -273,6 +282,13 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             title: { type: "string" },
             description: { type: "string" },
             tags: { type: "array", items: { type: "string" } },
+            startsAt: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description:
+                "Scheduled go-live. Until then the short link behaves as if it did not exist. Must be before expiresAt.",
+            },
             expiresAt: { type: "string", format: "date-time", nullable: true },
             expiredDestination: { type: "string", format: "uri", nullable: true },
             password: { type: "string", nullable: true },
@@ -281,6 +297,7 @@ export function openApiDocument(serverUrl: string): Record<string, unknown> {
             cloaked: { type: "boolean" },
             noIndex: { type: "boolean" },
             forwardQuery: { type: "boolean" },
+            openMode: { $ref: "#/components/schemas/OpenMode" },
             archived: { type: "boolean" },
             utm: { type: "object", nullable: true },
             rules: {

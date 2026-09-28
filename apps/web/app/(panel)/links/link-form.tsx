@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { AbVariant } from "@short/core";
+import { LINK_OPEN_MODES, type AbVariant, type LinkOpenMode } from "@short/core";
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import {
   CopyButton,
   Field,
   Grid,
+  InfoTip,
   Input,
   SaveBar,
   SecretInput,
@@ -59,11 +60,13 @@ const FIELD_TABS: Partial<Record<keyof LinkFormValues, TabId>> = {
   abVariants: "targeting",
   iosDestination: "targeting",
   androidDestination: "targeting",
+  openMode: "targeting",
   utmSource: "campaign",
   utmMedium: "campaign",
   utmCampaign: "campaign",
   utmTerm: "campaign",
   utmContent: "campaign",
+  startsAt: "advanced",
   expiresAt: "advanced",
   expiredDestination: "advanced",
   password: "advanced",
@@ -78,6 +81,7 @@ const INLINE_ERROR_FIELDS = new Set<keyof LinkFormValues>([
   "tagsText",
   "iosDestination",
   "androidDestination",
+  "startsAt",
   "expiresAt",
   "expiredDestination",
   "password",
@@ -103,11 +107,46 @@ function fieldError(
     message === "pickDomain" ||
     message === "destinationRequired" ||
     message === "slugPattern" ||
-    message === "slugReserved"
+    message === "slugReserved" ||
+    message === "startBeforeExpiry"
   ) {
     return t(message);
   }
   return message;
+}
+
+function openModeLabel(mode: LinkOpenMode, t: ReturnType<typeof useTranslations>): string {
+  switch (mode) {
+    case "app":
+      return t("openModeApp");
+    case "browser":
+      return t("openModeBrowser");
+    default:
+      return t("openModeAuto");
+  }
+}
+
+function openModeHint(mode: LinkOpenMode, t: ReturnType<typeof useTranslations>): string {
+  switch (mode) {
+    case "app":
+      return t("openModeAppHint");
+    case "browser":
+      return t("openModeBrowserHint");
+    default:
+      return t("openModeAutoHint");
+  }
+}
+
+/** Title line of a switch card; the switch is not wrapped in `Field`, so it gets its own tip. */
+function SwitchLabel({ label, info }: { label: string; info: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-sm font-medium">
+      <span className="min-w-0">{label}</span>
+      <InfoTip inline label={label}>
+        {info}
+      </InfoTip>
+    </span>
+  );
 }
 
 type LinkFormProps = {
@@ -152,9 +191,14 @@ export function LinkForm({
     { id: "advanced", label: t("tabAdvanced") },
   ];
 
-  // The edit page sends the expiry as ISO; the input needs it in the viewer's zone.
+  // The edit page sends the schedule as ISO; the inputs need it in the viewer's zone.
   const initialValues = useMemo(
-    () => ({ ...defaultValues, expiresAt: isoToDateTimeLocal(defaultValues.expiresAt) }),
+    () => ({
+      ...defaultValues,
+      expiresAt: isoToDateTimeLocal(defaultValues.expiresAt),
+      startsAt:
+        defaultValues.startsAt === undefined ? undefined : isoToDateTimeLocal(defaultValues.startsAt),
+    }),
     [defaultValues],
   );
 
@@ -186,7 +230,11 @@ export function LinkForm({
     setFormError(null);
     setSaved(null);
     // Sent as an absolute timestamp so the server does not re-read it in its own zone.
-    const payload = { ...formValues, expiresAt: dateTimeLocalToIso(formValues.expiresAt) };
+    const payload = {
+      ...formValues,
+      expiresAt: dateTimeLocalToIso(formValues.expiresAt),
+      startsAt: formValues.startsAt === undefined ? undefined : dateTimeLocalToIso(formValues.startsAt),
+    };
     try {
       const result =
         mode === "create"
@@ -251,6 +299,7 @@ export function LinkForm({
         <div className="flex flex-col gap-4">
           <Field
             label={t("destination")}
+            info={t("info.destination")}
             error={fieldError(errors.destination?.message, t)}
             hint={t("destinationHint")}
           >
@@ -262,7 +311,11 @@ export function LinkForm({
           </Field>
 
           <Grid columns={2}>
-            <Field label={t("domain")} error={fieldError(errors.domainId?.message, t)}>
+            <Field
+              label={t("domain")}
+              info={t("info.domain")}
+              error={fieldError(errors.domainId?.message, t)}
+            >
               <Select {...register("domainId")}>
                 {domains.map((domain) => (
                   <option key={domain.id} value={domain.id}>
@@ -272,7 +325,12 @@ export function LinkForm({
               </Select>
             </Field>
 
-            <Field label={t("shortLink")} error={fieldError(errors.slug?.message, t)} hint={t("slugHint")}>
+            <Field
+              label={t("shortLink")}
+              info={t("info.slug")}
+              error={fieldError(errors.slug?.message, t)}
+              hint={t("slugHint")}
+            >
               <Input placeholder={t("slugPlaceholder")} {...register("slug")} />
             </Field>
           </Grid>
@@ -297,10 +355,10 @@ export function LinkForm({
           ) : null}
 
           <Grid columns={2}>
-            <Field label={t("titleField")} hint={t("titleHint")}>
+            <Field label={t("titleField")} info={t("info.title")} hint={t("titleHint")}>
               <Input {...register("title")} />
             </Field>
-            <Field label={t("folder")}>
+            <Field label={t("folder")} info={t("info.folder")}>
               <Select {...register("folderId")}>
                 <option value="">{t("noFolder")}</option>
                 {folders.map((folder) => (
@@ -312,18 +370,23 @@ export function LinkForm({
             </Field>
           </Grid>
 
-          <Field label={t("descriptionField")}>
+          <Field label={t("descriptionField")} info={t("info.description")}>
             <Textarea rows={3} {...register("description")} />
           </Field>
 
           <Grid columns={2}>
-            <Field label={t("previewImage")}>
+            <Field label={t("previewImage")} info={t("info.image")}>
               <ImageUpload
                 value={values.image}
                 onChange={(url) => setValue("image", url, { shouldDirty: true })}
               />
             </Field>
-            <Field label={t("tags")} hint={t("tagsHint")} error={errors.tagsText?.message}>
+            <Field
+              label={t("tags")}
+              info={t("info.tags")}
+              hint={t("tagsHint")}
+              error={errors.tagsText?.message}
+            >
               <Input placeholder={t("tagsPlaceholder")} {...register("tagsText")} />
             </Field>
           </Grid>
@@ -370,13 +433,45 @@ export function LinkForm({
 
           <Section title={t("deepLinks")} description={t("deepLinksDesc")}>
             <Grid columns={2}>
-              <Field label={t("iosDestination")} error={errors.iosDestination?.message}>
+              <Field
+                label={t("iosDestination")}
+                info={t("info.iosDestination")}
+                error={errors.iosDestination?.message}
+              >
                 <Input placeholder={t("deepLinkPlaceholder")} {...register("iosDestination")} />
               </Field>
-              <Field label={t("androidDestination")} error={errors.androidDestination?.message}>
+              <Field
+                label={t("androidDestination")}
+                info={t("info.androidDestination")}
+                error={errors.androidDestination?.message}
+              >
                 <Input placeholder={t("deepLinkPlaceholder")} {...register("androidDestination")} />
               </Field>
             </Grid>
+          </Section>
+
+          <Section title={t("openMode")} description={t("openModeDesc")}>
+            {/* Controlled rather than registered: an edit page that does not pass the
+                stored mode must leave it untouched, not submit the first option. */}
+            <Field
+              label={t("openModeField")}
+              info={t("info.openMode")}
+              hint={openModeHint(values.openMode ?? "auto", t)}
+              error={errors.openMode?.message}
+            >
+              <Select
+                value={values.openMode ?? "auto"}
+                onChange={(event) =>
+                  setValue("openMode", event.target.value as LinkOpenMode, { shouldDirty: true })
+                }
+              >
+                {LINK_OPEN_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {openModeLabel(mode, t)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </Section>
 
           <Section
@@ -398,7 +493,11 @@ export function LinkForm({
             <div className="flex flex-col gap-3">
               {values.abVariants.map((variant, index) => (
                 <div key={variant.id} className="flex items-end gap-2">
-                  <Field label={t("variant", { n: index + 1 })} className="flex-1">
+                  <Field
+                    label={t("variant", { n: index + 1 })}
+                    info={t("info.variant")}
+                    className="flex-1"
+                  >
                     <Input
                       value={variant.destination}
                       placeholder={t("variantPlaceholder")}
@@ -416,7 +515,7 @@ export function LinkForm({
                       }
                     />
                   </Field>
-                  <Field label={t("weight")} className="w-24">
+                  <Field label={t("weight")} info={t("info.weight")} className="w-24">
                     <Input
                       type="number"
                       min={0}
@@ -464,26 +563,26 @@ export function LinkForm({
         <div className="flex flex-col gap-4">
           <p className="m-0 text-sm text-fg-muted">{t("campaignIntro")}</p>
           <Grid columns={2}>
-            <Field label={t("utmSource")}>
+            <Field label={t("utmSource")} info={t("info.utmSource")}>
               <Input placeholder={t("utmSourcePlaceholder")} {...register("utmSource")} />
             </Field>
-            <Field label={t("utmMedium")}>
+            <Field label={t("utmMedium")} info={t("info.utmMedium")}>
               <Input placeholder={t("utmMediumPlaceholder")} {...register("utmMedium")} />
             </Field>
-            <Field label={t("utmCampaign")}>
+            <Field label={t("utmCampaign")} info={t("info.utmCampaign")}>
               <Input placeholder={t("utmCampaignPlaceholder")} {...register("utmCampaign")} />
             </Field>
-            <Field label={t("utmTerm")}>
+            <Field label={t("utmTerm")} info={t("info.utmTerm")}>
               <Input {...register("utmTerm")} />
             </Field>
-            <Field label={t("utmContent")}>
+            <Field label={t("utmContent")} info={t("info.utmContent")}>
               <Input {...register("utmContent")} />
             </Field>
           </Grid>
 
           <Card staticHover className="flex-row items-center justify-between gap-4">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{t("forwardQuery")}</span>
+              <SwitchLabel label={t("forwardQuery")} info={t("info.forwardQuery")} />
               <span className="block text-sm text-fg-muted">{t("forwardQueryDesc")}</span>
             </span>
             <Switch
@@ -499,20 +598,42 @@ export function LinkForm({
       <TabPanel active={tab === "advanced"}>
         <div className="flex flex-col gap-4">
           <Grid columns={2}>
-            <Field label={t("expiresAt")} error={errors.expiresAt?.message}>
-              <Input type="datetime-local" autoComplete="off" {...register("expiresAt")} />
-            </Field>
-            <Field label={t("expiredDestination")} error={errors.expiredDestination?.message}>
+            <Field
+              label={t("startsAt")}
+              info={t("info.startsAt")}
+              hint={t("startsAtHint")}
+              error={fieldError(errors.startsAt?.message, t)}
+            >
+              {/* Controlled for the same reason as the open mode. */}
               <Input
-                placeholder={t("expiredPlaceholder")}
+                type="datetime-local"
                 autoComplete="off"
-                {...register("expiredDestination")}
+                value={values.startsAt ?? ""}
+                onChange={(event) =>
+                  setValue("startsAt", event.target.value, { shouldDirty: true })
+                }
               />
+            </Field>
+            <Field label={t("expiresAt")} info={t("info.expiresAt")} error={errors.expiresAt?.message}>
+              <Input type="datetime-local" autoComplete="off" {...register("expiresAt")} />
             </Field>
           </Grid>
 
           <Field
+            label={t("expiredDestination")}
+            info={t("info.expiredDestination")}
+            error={errors.expiredDestination?.message}
+          >
+            <Input
+              placeholder={t("expiredPlaceholder")}
+              autoComplete="off"
+              {...register("expiredDestination")}
+            />
+          </Field>
+
+          <Field
             label={t("password")}
+            info={t("info.password")}
             error={errors.password?.message}
             hint={
               !canProtect
@@ -533,7 +654,7 @@ export function LinkForm({
 
           <Card staticHover className="flex-row items-center justify-between gap-4">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{t("cloak")}</span>
+              <SwitchLabel label={t("cloak")} info={t("info.cloak")} />
               <span className="block text-sm text-fg-muted">
                 {canCloak ? t("cloakDesc") : t("cloakPaywall")}
               </span>
@@ -547,7 +668,7 @@ export function LinkForm({
 
           <Card staticHover className="flex-row items-center justify-between gap-4">
             <span className="min-w-0">
-              <span className="block text-sm font-medium">{t("noIndex")}</span>
+              <SwitchLabel label={t("noIndex")} info={t("info.noIndex")} />
               <span className="block text-sm text-fg-muted">
                 {t.rich("noIndexDesc", {
                   code: (chunks) => <code className="font-mono text-xs">{chunks}</code>,
@@ -563,7 +684,7 @@ export function LinkForm({
           {mode === "edit" ? (
             <Card staticHover className="flex-row items-center justify-between gap-4">
               <span className="min-w-0">
-                <span className="block text-sm font-medium">{tc("archive")}</span>
+                <SwitchLabel label={tc("archive")} info={t("info.archive")} />
                 <span className="block text-sm text-fg-muted">{t("archiveDesc")}</span>
               </span>
               <Switch
@@ -573,7 +694,7 @@ export function LinkForm({
             </Card>
           ) : null}
 
-          <Field label={t("notes")}>
+          <Field label={t("notes")} info={t("info.notes")}>
             <Textarea rows={3} {...register("comments")} />
           </Field>
         </div>

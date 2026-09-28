@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BROWSER_NAMES, DEVICE_TYPES, OS_NAMES } from "../ua";
+import { BROWSER_NAMES, DEVICE_TYPES, IN_APP_NAMES, OS_NAMES } from "../ua";
 import { isSafeDestination, normalizeDestination } from "../url";
 
 /**
@@ -31,9 +31,28 @@ export const deviceConditionSchema = z.object({
 });
 
 export const clientConditionSchema = z.object({
-  type: z.enum(["os", "browser", "language"]),
+  type: z.enum(["os", "browser"]),
   op: setOperatorSchema,
   values: z.array(z.string().min(1).max(32)).min(1).max(64),
+});
+
+/**
+ * Lowercase ISO 639-1/-2 primary subtag. A full tag such as `en-US` is cut to `en`,
+ * because the edge only ever compares the visitor's primary subtag and a stored region
+ * would silently never match.
+ */
+export const languageCodeSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(35)
+  .transform((value) => (value.split(/[-_]/)[0] ?? "").toLowerCase())
+  .refine((value) => /^[a-z]{2,3}$/.test(value), { message: "languageCode" });
+
+export const languageConditionSchema = z.object({
+  type: z.literal("language"),
+  op: setOperatorSchema,
+  values: z.array(languageCodeSchema).min(1).max(64),
 });
 
 export const referrerConditionSchema = z.object({
@@ -66,6 +85,7 @@ export const conditionSchema = z.union([
   geoConditionSchema,
   deviceConditionSchema,
   clientConditionSchema,
+  languageConditionSchema,
   referrerConditionSchema,
   scheduleConditionSchema,
 ]);
@@ -93,4 +113,20 @@ export type AbVariant = z.infer<typeof abVariantSchema>;
 
 export const OS_VALUES = OS_NAMES;
 export const BROWSER_VALUES = BROWSER_NAMES;
+/** Also valid in a `browser` condition; they match the app's webview, see `matchesCondition`. */
+export const IN_APP_VALUES = IN_APP_NAMES;
 export const DEVICE_VALUES = DEVICE_TYPES;
+
+/**
+ * Languages the rule builder offers, as lowercase ISO 639-1 codes. The edge compares
+ * against the visitor's top-weighted Accept-Language primary subtag; any other valid
+ * code is still accepted by `languageCodeSchema`.
+ */
+export const LANGUAGE_VALUES = [
+  "en", "tr", "de", "fr", "es", "it", "pt", "nl", "ru", "uk", "pl", "ar", "fa", "he",
+  "hi", "bn", "ur", "zh", "ja", "ko", "id", "ms", "th", "vi", "fil", "sv", "no", "nb",
+  "da", "fi", "is", "cs", "sk", "hu", "ro", "bg", "el", "sr", "hr", "bs", "sl", "mk",
+  "sq", "lt", "lv", "et", "ka", "hy", "az", "kk", "uz", "ky", "tk", "mn", "ca", "eu",
+  "gl", "ga", "cy", "af", "sw", "am", "ha", "yo", "zu", "ta", "te", "ml", "kn", "mr",
+  "gu", "pa", "ne", "si", "km", "lo", "my", "ku",
+] as const;

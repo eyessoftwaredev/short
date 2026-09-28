@@ -1,4 +1,10 @@
-import { abVariantSchema, linkInputSchema, targetRuleSchema, type LinkInput } from "@short/core";
+import {
+  abVariantSchema,
+  LINK_OPEN_MODES,
+  linkInputSchema,
+  targetRuleSchema,
+  type LinkInput,
+} from "@short/core";
 import { z } from "zod";
 
 /**
@@ -22,6 +28,11 @@ export const linkFormSchema = z.object({
    * action would otherwise parse it in the server's zone, not the user's.
    */
   expiresAt: z.string().trim(),
+  /**
+   * Same `datetime-local` / ISO handling as `expiresAt`. Optional so a form built
+   * without it leaves the stored schedule alone; `""` clears it.
+   */
+  startsAt: z.string().trim().optional(),
   expiredDestination: z.string().trim(),
   password: z.string().trim(),
   iosDestination: z.string().trim(),
@@ -29,6 +40,11 @@ export const linkFormSchema = z.object({
   cloaked: z.boolean(),
   noIndex: z.boolean(),
   forwardQuery: z.boolean(),
+  /**
+   * Optional so a form built without it (an older edit page) leaves the stored mode
+   * alone instead of resetting it to `auto`.
+   */
+  openMode: z.enum(LINK_OPEN_MODES).optional(),
   archived: z.boolean(),
   utmSource: z.string().trim().max(255),
   utmMedium: z.string().trim().max(255),
@@ -52,6 +68,7 @@ export const emptyLinkForm = (domainId: string): LinkFormValues => ({
   folderId: "",
   tagsText: "",
   expiresAt: "",
+  startsAt: "",
   expiredDestination: "",
   password: "",
   iosDestination: "",
@@ -59,6 +76,7 @@ export const emptyLinkForm = (domainId: string): LinkFormValues => ({
   cloaked: false,
   noIndex: true,
   forwardQuery: false,
+  openMode: "auto",
   archived: false,
   utmSource: "",
   utmMedium: "",
@@ -128,6 +146,8 @@ export function toLinkInput(values: LinkFormValues, options: ToLinkInputOptions 
       .split(",")
       .map((tag) => tag.trim())
       .filter((tag) => tag !== ""),
+    startsAt:
+      values.startsAt === undefined ? undefined : values.startsAt === "" ? null : values.startsAt,
     expiresAt: keepPastExpiry ? null : expiresAt,
     expiredDestination: values.expiredDestination === "" ? null : values.expiredDestination,
     password: passwordValue(values.password),
@@ -136,6 +156,7 @@ export function toLinkInput(values: LinkFormValues, options: ToLinkInputOptions 
     cloaked: values.cloaked,
     noIndex: values.noIndex,
     forwardQuery: values.forwardQuery,
+    openMode: values.openMode,
     archived: values.archived,
     utm: hasUtm ? utm : null,
     rules: values.rules,

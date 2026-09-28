@@ -8,7 +8,7 @@ export const CSV_IMPORT_MAX_ROWS = 1_000;
 /** Upper bound for one export so a huge workspace cannot exhaust the panel's memory. */
 const CSV_EXPORT_MAX_ROWS = 50_000;
 
-const HEADER = ["slug", "destination", "title", "tags", "folder"] as const;
+const HEADER = ["slug", "destination", "title", "tags", "folder", "open_mode"] as const;
 
 export function linksToCsv(rows: LinkWithDomain[]): string {
   const lines = [
@@ -20,6 +20,7 @@ export function linksToCsv(rows: LinkWithDomain[]): string {
         csvCell(row.title ?? ""),
         csvCell(row.tags.join("|")),
         csvCell(row.folderId ?? ""),
+        csvCell(row.openMode),
       ].join(","),
     ),
   ];
@@ -115,6 +116,8 @@ export async function importLinksCsv(
   const titleIdx = index("title");
   const tagsIdx = index("tags");
   const folderIdx = index("folder");
+  // Optional: files exported before the column existed import as `auto`.
+  const openModeIdx = index("open_mode");
 
   if (destIdx < 0) {
     return { created: 0, skipped: 0, errors: ["missing_destination"] };
@@ -175,6 +178,7 @@ export async function importLinksCsv(
           : [],
       folderId:
         folderIdx >= 0 ? (folderLookup.get(row[folderIdx]?.trim().toLowerCase() ?? "") ?? null) : null,
+      openMode: openModeIdx >= 0 ? row[openModeIdx]?.trim().toLowerCase() || undefined : undefined,
     });
     if (!input.success) {
       skipped += 1;

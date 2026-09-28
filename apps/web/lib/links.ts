@@ -16,6 +16,7 @@ import {
   eq,
   folders,
   getDb,
+  gt,
   ilike,
   isNotNull,
   isNull,
@@ -45,12 +46,14 @@ export function toKvRecord(link: LinkRow, hostname: string): LinkKvRecord {
     utm: link.utm ?? null,
     expiresAt: link.expiresAt ? link.expiresAt.getTime() : null,
     expiredDestination: link.expiredDestination,
+    startsAt: link.startsAt ? link.startsAt.getTime() : null,
     passwordHash: link.passwordHash,
     iosDestination: link.iosDestination,
     androidDestination: link.androidDestination,
     cloaked: link.cloaked,
     noIndex: link.noIndex,
     forwardQuery: link.forwardQuery,
+    openMode: link.openMode,
     disabled: link.archived || link.disabledAt != null,
     overQuota: false,
     title: link.title,
@@ -136,6 +139,7 @@ export async function createLink({
     rules: input.rules,
     abVariants: input.abVariants,
     utm: input.utm,
+    startsAt: input.startsAt ?? null,
     expiresAt: input.expiresAt ?? null,
     expiredDestination: input.expiredDestination ?? null,
     passwordHash,
@@ -144,6 +148,7 @@ export async function createLink({
     cloaked: input.cloaked,
     noIndex: input.noIndex,
     forwardQuery: input.forwardQuery,
+    openMode: input.openMode ?? "auto",
     archived: input.archived,
   };
 
@@ -221,6 +226,8 @@ export async function updateLink({
         rules: input.rules,
         abVariants: input.abVariants,
         utm: input.utm,
+        // Omitted means unchanged; null clears the schedule.
+        startsAt: input.startsAt === undefined ? existing.startsAt : input.startsAt,
         expiresAt: input.expiresAt ?? null,
         expiredDestination: input.expiredDestination ?? null,
         passwordHash,
@@ -229,6 +236,8 @@ export async function updateLink({
         cloaked: input.cloaked,
         noIndex: input.noIndex,
         forwardQuery: input.forwardQuery,
+        // Omitted means unchanged, e.g. an editor that never loaded the setting.
+        openMode: input.openMode ?? existing.openMode,
         archived: input.archived,
         updatedAt: new Date(),
       })
@@ -352,6 +361,9 @@ export async function listLinks(
   } else if (query.status === "expired") {
     filters.push(isNotNull(links.expiresAt));
     filters.push(lt(links.expiresAt, new Date()));
+  } else if (query.status === "scheduled") {
+    filters.push(eq(links.archived, false));
+    filters.push(gt(links.startsAt, new Date()));
   }
 
   const where = and(...filters);

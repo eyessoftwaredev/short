@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import type { AbVariant, DomainStatus, QrPayloadKind, QrStyle, TargetRule, UtmParams } from "@short/core";
+import type {
+  AbVariant,
+  DomainStatus,
+  LinkOpenMode,
+  QrPayloadKind,
+  QrStyle,
+  TargetRule,
+  UtmParams,
+} from "@short/core";
 import {
   boolean,
   index,
@@ -90,6 +98,8 @@ export const links = pgTable(
     abVariants: jsonb("ab_variants").$type<AbVariant[]>().notNull().default([]),
     utm: jsonb("utm").$type<UtmParams | null>(),
 
+    /** Scheduled go-live. Before it the edge treats the link as missing. */
+    startsAt: timestamp("starts_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     expiredDestination: text("expired_destination"),
     /** SHA-256 hex. The plaintext password is never stored. */
@@ -100,6 +110,8 @@ export const links = pgTable(
     cloaked: boolean("cloaked").notNull().default(false),
     noIndex: boolean("no_index").notNull().default(true),
     forwardQuery: boolean("forward_query").notNull().default(false),
+    /** `auto` redirects; `app` / `browser` serve the edge handoff page on phones. */
+    openMode: text("open_mode").$type<LinkOpenMode>().notNull().default("auto"),
     archived: boolean("archived").notNull().default(false),
 
     /** Set by admins when a link is reported or flagged by scanning. */

@@ -23,6 +23,22 @@ export const mediaPathSchema = z
     message: "mediaPath",
   });
 
+/**
+ * QR centre logo: an uploaded media path, a built-in preset (`/api/qr/logos/<id>`, the
+ * social/emoji catalogue served by the panel), or empty.
+ */
+export const qrLogoSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine(
+    (value) =>
+      value === "" ||
+      /^\/api\/media\/[0-9a-f-]{36}$/i.test(value) ||
+      /^\/api\/qr\/logos\/[a-z0-9-]{1,64}$/.test(value),
+    { message: "mediaPath" },
+  );
+
 export const qrStyleSchema = z.object({
   foreground: hexColor.default("#171717"),
   background: hexColor.default("#ffffff"),
@@ -33,7 +49,7 @@ export const qrStyleSchema = z.object({
   errorCorrection: z.enum(QR_ERROR_LEVELS).default("M"),
   margin: z.number().int().min(0).max(8).default(2),
   size: z.number().int().min(128).max(2048).default(512),
-  logoUrl: mediaPathSchema.nullable().default(null),
+  logoUrl: qrLogoSchema.nullable().default(null),
   /** Logo width as a fraction of the QR width. */
   logoScale: z.number().min(0.1).max(0.3).default(0.22),
   caption: z.string().trim().max(60).default(""),

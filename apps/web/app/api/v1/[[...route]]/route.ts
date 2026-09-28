@@ -38,7 +38,7 @@ import {
   listWorkspaceDomains,
   updateLink,
 } from "@/lib/links";
-import { assertOwnedMedia } from "@/lib/media";
+import { assertOwnedMedia, assertQrLogo } from "@/lib/media";
 import { createQrCode, getQrCode, listQrCodes, updateQrCode } from "@/lib/qr-codes";
 import {
   assertFeature,
@@ -307,6 +307,7 @@ app.patch("/links/:id", async (c) => {
     comments: existing.comments ?? undefined,
     folderId: existing.folderId,
     tags: existing.tags,
+    startsAt: existing.startsAt,
     expiresAt: existing.expiresAt,
     expiredDestination: existing.expiredDestination,
     iosDestination: existing.iosDestination,
@@ -314,6 +315,7 @@ app.patch("/links/:id", async (c) => {
     cloaked: existing.cloaked,
     noIndex: existing.noIndex,
     forwardQuery: existing.forwardQuery,
+    openMode: existing.openMode,
     archived: existing.archived,
     utm: existing.utm,
     rules: existing.rules,
@@ -494,7 +496,7 @@ app.post("/qr-codes", async (c) => {
   await assertQuota(context.workspace.id, context.plan, "qrCodes");
   if (parsed.data.style.logoUrl) {
     assertFeature(context.plan, "qrLogo");
-    await assertOwnedMedia(context.workspace.id, parsed.data.style.logoUrl);
+    await assertQrLogo(context.workspace.id, parsed.data.style.logoUrl);
   }
   const row = await createQrCode(context.workspace.id, parsed.data);
   return c.json({ data: serializeQrCode(row) }, 201);
@@ -520,7 +522,7 @@ app.patch("/qr-codes/:id", async (c) => {
   }
   if (parsed.data.style.logoUrl) {
     assertFeature(context.plan, "qrLogo");
-    await assertOwnedMedia(context.workspace.id, parsed.data.style.logoUrl);
+    await assertQrLogo(context.workspace.id, parsed.data.style.logoUrl);
   }
   const row = await updateQrCode(context.workspace.id, id, parsed.data);
   return c.json({ data: serializeQrCode(row) });

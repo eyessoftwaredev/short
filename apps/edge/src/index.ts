@@ -1,10 +1,13 @@
 import {
   applyUtm,
   forwardQuery,
+  isBeforeLinkStart,
   isBiopageLive,
   isSafeDestination,
+  normalizeOpenMode,
   parseAcceptLanguage,
   parseUserAgent,
+  planOpen,
   resolveDestination,
   verifyGatePassword,
   type EventType,
@@ -13,7 +16,7 @@ import {
   type VisitorContext,
 } from "@short/core";
 import type { EdgeEnv } from "./env";
-import { cloakHtml, passwordGateHtml } from "./html";
+import { cloakHtml, handoffHtml, passwordGateHtml } from "./html";
 import {
   gateAttemptBucket,
   gateCookieName,
@@ -266,6 +269,7 @@ function buildVisitorContext(
     device: ua.device,
     os: ua.os,
     browser: ua.browser,
+    inApp: ua.inApp,
     language,
     referrer,
     now: new Date(),
@@ -287,6 +291,27 @@ function applyDeepLink(link: LinkKvRecord, resolution: Resolution, os: string): 
     return { ...resolution, destination: link.androidDestination };
   }
   return resolution;
+}
+
+/**
+ * The open-mode interstitial. Its only script is a static block allowed by a
+ * per-response nonce; everything else it could load or submit is shut off, and the
+ * destination never learns the short link through a Referer.
+ */
+function handoffResponse(options: Omit<Parameters<typeof handoffHtml>[0], "nonce">): Response {
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  return new Response(handoffHtml({ ...options, nonce }), {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store, max-age=0",
+      "x-robots-tag": "noindex, nofollow",
+      "content-security-policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
+      "x-frame-options": "DENY",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+    },
+  });
 }
 
 type GateTarget = { id: string; passwordHash: string | null; title: string | null };
@@ -568,7 +593,9 @@ export default {
     }
 
     const link = target.link;
-    if (!link || link.disabled) {
+    // A scheduled link is indistinguishable from a missing one until it starts: no
+    // password gate, no click, no hint that the slug is taken.
+    if (!link || link.disabled || isBeforeLinkStart(link, Date.now())) {
       return notFound(env, target.domain.notFoundDestination);
     }
 
@@ -600,7 +627,11 @@ export default {
       return notFound(env, target.domain.notFoundDestination);
     }
 
+    const beforeDeepLink = resolution;
     resolution = applyDeepLink(link, resolution, ua.os);
+    // A per-link iOS/Android destination is the owner's own app link and wins over the
+    // generic open-mode handoff.
+    const deepLinked = resolution !== beforeDeepLink;
 
     const inbound = new URLSearchParams(url.search);
     const qrCodeId = inbound.get("qr");
@@ -629,6 +660,20 @@ export default {
           resolution: { ...resolution, destination },
         }),
       );
+    }
+
+    // Decided after tracking so the click is counted exactly once: the interstitial only
+    // ever points at the app or the destination itself, never back at this short link.
+    // It also takes precedence over cloaking, which cannot hand off to an app.
+    const plan = deepLinked ? null : planOpen(normalizeOpenMode(link.openMode), destination, ua);
+    if (plan && plan.kind !== "redirect") {
+      return handoffResponse({
+        mode: plan.kind,
+        launchUrl: plan.launchUrl,
+        webUrl: destination,
+        os: ua.os,
+        language,
+      });
     }
 
     if (link.cloaked) {

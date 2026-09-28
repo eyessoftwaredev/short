@@ -2,16 +2,28 @@
 
 import { Icon } from "@/components/kit/icon";
 
-import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useMemo, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   BROWSER_VALUES,
   DEVICE_VALUES,
+  IN_APP_VALUES,
+  LANGUAGE_VALUES,
   OS_VALUES,
   type Condition,
   type TargetRule,
 } from "@short/core";
-import { Badge, Button, Card, Chip, EmptyState, Field, Input, Select } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  InfoTip,
+  Input,
+  Select,
+} from "@/components/ui";
 
 const CONDITION_TYPES: Array<Condition["type"]> = [
   "country",
@@ -26,6 +38,36 @@ const CONDITION_TYPES: Array<Condition["type"]> = [
 ];
 
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+/** Product names are not translated; only "other" is. */
+const OS_LABELS: Record<string, string> = {
+  ios: "iOS",
+  android: "Android",
+  windows: "Windows",
+  macos: "macOS",
+  linux: "Linux",
+  chromeos: "ChromeOS",
+};
+
+const BROWSER_LABELS: Record<string, string> = {
+  chrome: "Chrome",
+  safari: "Safari",
+  firefox: "Firefox",
+  edge: "Edge",
+  opera: "Opera",
+  samsung: "Samsung Internet",
+  ie: "Internet Explorer",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  messenger: "Messenger",
+  tiktok: "TikTok",
+  snapchat: "Snapchat",
+  linkedin: "LinkedIn",
+  twitter: "X (Twitter)",
+  line: "LINE",
+  wechat: "WeChat",
+  pinterest: "Pinterest",
+};
 
 function conditionLabel(
   type: Condition["type"],
@@ -87,6 +129,14 @@ function deviceLabel(value: string, t: ReturnType<typeof useTranslations>): stri
   }
 }
 
+function clientLabel(
+  labels: Record<string, string>,
+  value: string,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  return value === "other" ? t("otherValue") : (labels[value] ?? value);
+}
+
 function newCondition(type: Condition["type"]): Condition {
   switch (type) {
     case "device":
@@ -110,6 +160,23 @@ function newCondition(type: Condition["type"]): Condition {
   }
 }
 
+function describeValue(
+  type: Condition["type"],
+  value: string,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (type) {
+    case "device":
+      return deviceLabel(value, t);
+    case "os":
+      return clientLabel(OS_LABELS, value, t);
+    case "browser":
+      return clientLabel(BROWSER_LABELS, value, t);
+    default:
+      return value;
+  }
+}
+
 function describeCondition(
   condition: Condition,
   t: ReturnType<typeof useTranslations>,
@@ -130,7 +197,7 @@ function describeCondition(
       return `${condition.from}–${condition.to} ${condition.timezone}`;
     default: {
       const values = condition.values
-        .map((value) => (condition.type === "device" ? deviceLabel(value, t) : value))
+        .map((value) => describeValue(condition.type, value, t))
         .join(", ");
       return t("descSet", {
         type: conditionLabel(condition.type, t),
@@ -141,18 +208,46 @@ function describeCondition(
   }
 }
 
+type FieldGroupProps = {
+  label: string;
+  info: ReactNode;
+  hint?: ReactNode;
+  children: ReactNode;
+};
+
+/**
+ * `Field` for chip groups. `Field` renders a `<label>`, and a label forwards clicks on its
+ * caption to its first labelable descendant, which for a chip group is the first chip:
+ * clicking the caption would silently toggle it.
+ */
+function FieldGroup({ label, info, hint, children }: FieldGroupProps) {
+  return (
+    <div role="group" aria-label={label} className="flex min-w-0 flex-col gap-1.5">
+      <span className="flex items-center gap-1.5 text-sm font-medium">
+        <span className="min-w-0">{label}</span>
+        <InfoTip inline label={label}>
+          {info}
+        </InfoTip>
+      </span>
+      {children}
+      {hint ? <span className="text-xs text-fg-subtle">{hint}</span> : null}
+    </div>
+  );
+}
+
 type TokenListProps = {
   label: string;
+  info: ReactNode;
   hint?: string;
   values: string[];
   onChange: (values: string[]) => void;
 };
 
 /** Comma-separated entry keeps geo lists fast to paste without a 250-row picker. */
-function TokenList({ label, hint, values, onChange }: TokenListProps) {
+function TokenList({ label, info, hint, values, onChange }: TokenListProps) {
   const text = useMemo(() => values.join(", "), [values]);
   return (
-    <Field label={label} hint={hint}>
+    <Field label={label} info={info} hint={hint}>
       <Input
         value={text}
         onChange={(event) =>
@@ -169,35 +264,158 @@ function TokenList({ label, hint, values, onChange }: TokenListProps) {
 }
 
 type OptionChipsProps = {
-  label: string;
   options: readonly string[];
   values: string[];
   onChange: (values: string[]) => void;
   formatOption?: (option: string) => string;
 };
 
-function OptionChips({ label, options, values, onChange, formatOption }: OptionChipsProps) {
+function OptionChips({ options, values, onChange, formatOption }: OptionChipsProps) {
   return (
-    <Field label={label}>
-      <div className="flex flex-wrap gap-2 pt-1">
-        {options.map((option) => {
-          const active = values.includes(option);
-          return (
+    <div className="flex flex-wrap gap-2 pt-1">
+      {options.map((option) => {
+        const active = values.includes(option);
+        return (
+          <Chip
+            key={option}
+            active={active}
+            onClick={() =>
+              onChange(active ? values.filter((value) => value !== option) : [...values, option])
+            }
+          >
+            {formatOption ? formatOption(option) : option}
+          </Chip>
+        );
+      })}
+    </div>
+  );
+}
+
+const LANGUAGE_CODE = /^[a-z]{2,3}$/;
+const KNOWN_LANGUAGES = new Set<string>(LANGUAGE_VALUES);
+
+/** Searchable picker over ISO 639-1 codes, with names in the panel's own language. */
+function LanguagePicker({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const t = useTranslations("links");
+  const locale = useLocale();
+  const [query, setQuery] = useState("");
+
+  const nameOf = useMemo(() => {
+    let names: Intl.DisplayNames | null = null;
+    try {
+      names = new Intl.DisplayNames([locale, "en"], { type: "language" });
+    } catch {
+      names = null;
+    }
+    return (code: string): string => {
+      try {
+        return names?.of(code) ?? code;
+      } catch {
+        return code;
+      }
+    };
+  }, [locale]);
+
+  const options = useMemo(
+    () =>
+      LANGUAGE_VALUES.map((code) => ({ code, name: nameOf(code) })).sort((a, b) =>
+        a.name.localeCompare(b.name, locale),
+      ),
+    [nameOf, locale],
+  );
+
+  const needle = query.trim().toLocaleLowerCase(locale);
+  const matches =
+    needle === ""
+      ? options
+      : options.filter(
+          (option) =>
+            option.code.startsWith(needle) || option.name.toLocaleLowerCase(locale).includes(needle),
+        );
+  const customCode =
+    LANGUAGE_CODE.test(needle) && !KNOWN_LANGUAGES.has(needle) && !values.includes(needle)
+      ? needle
+      : null;
+
+  const toggle = (code: string): void => {
+    onChange(values.includes(code) ? values.filter((value) => value !== code) : [...values, code]);
+  };
+
+  return (
+    <FieldGroup label={t("languages")} info={t("info.languages")} hint={t("languagesHint")}>
+      <div className="flex flex-col gap-2">
+        {values.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {values.map((code) => (
+              <Chip
+                key={code}
+                active
+                aria-label={t("removeLanguage", { language: nameOf(code) })}
+                onClick={() => toggle(code)}
+              >
+                {nameOf(code)}
+                <span className="font-mono text-xs">{code}</span>
+                <Icon name="xmark" className="text-xs" />
+              </Chip>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs text-fg-subtle">{t("languagesNone")}</span>
+        )}
+        <Input
+          type="search"
+          value={query}
+          placeholder={t("languageSearch")}
+          aria-label={t("languageSearch")}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") {
+              return;
+            }
+            // Enter would otherwise submit the whole link form.
+            event.preventDefault();
+            const only = matches.length === 1 ? matches[0] : undefined;
+            const pick = customCode ?? only?.code;
+            if (pick && !values.includes(pick)) {
+              onChange([...values, pick]);
+              setQuery("");
+            }
+          }}
+        />
+        <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+          {matches.map((option) => (
             <Chip
-              key={option}
-              active={active}
-              onClick={() =>
-                onChange(
-                  active ? values.filter((value) => value !== option) : [...values, option],
-                )
-              }
+              key={option.code}
+              active={values.includes(option.code)}
+              onClick={() => toggle(option.code)}
             >
-              {formatOption ? formatOption(option) : option}
+              {option.name}
+              <span className="font-mono text-xs text-fg-subtle">{option.code}</span>
             </Chip>
-          );
-        })}
+          ))}
+          {customCode ? (
+            <Chip
+              onClick={() => {
+                onChange([...values, customCode]);
+                setQuery("");
+              }}
+            >
+              <Icon name="plus" className="text-xs" />
+              {t("languageAddCode", { code: customCode })}
+            </Chip>
+          ) : null}
+          {matches.length === 0 && !customCode ? (
+            <span className="text-sm text-fg-muted">{t("languageNoMatch")}</span>
+          ) : null}
+        </div>
       </div>
-    </Field>
+    </FieldGroup>
   );
 }
 
@@ -215,7 +433,7 @@ function ConditionEditor({
   return (
     <div className="flex flex-col gap-3 rounded-default border border-border bg-surface-subtle p-4">
       <div className="flex items-end gap-2">
-        <Field label={t("when")} className="flex-1">
+        <Field label={t("when")} info={t("info.when")} className="flex-1">
           <Select
             value={condition.type}
             onChange={(event) => onChange(newCondition(event.target.value as Condition["type"]))}
@@ -229,7 +447,11 @@ function ConditionEditor({
         </Field>
 
         {condition.type !== "schedule" ? (
-          <Field label={t("operator")} className="w-40">
+          <Field
+            label={t("operator")}
+            info={condition.type === "referrer" ? t("info.referrerOperator") : t("info.operator")}
+            className="w-40"
+          >
             <Select
               value={condition.op}
               onChange={(event) =>
@@ -261,6 +483,7 @@ function ConditionEditor({
       {condition.type === "country" ? (
         <TokenList
           label={t("countries")}
+          info={t("info.countries")}
           hint={t("countriesHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
@@ -270,6 +493,7 @@ function ConditionEditor({
       {condition.type === "continent" ? (
         <TokenList
           label={t("continents")}
+          info={t("info.continents")}
           hint={t("continentsHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
@@ -279,6 +503,7 @@ function ConditionEditor({
       {condition.type === "region" ? (
         <TokenList
           label={t("regions")}
+          info={t("info.regions")}
           hint={t("regionsHint")}
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
@@ -286,46 +511,60 @@ function ConditionEditor({
       ) : null}
 
       {condition.type === "language" ? (
-        <TokenList
-          label={t("languages")}
-          hint={t("languagesHint")}
+        <LanguagePicker
           values={condition.values}
           onChange={(values) => onChange({ ...condition, values })}
         />
       ) : null}
 
       {condition.type === "device" ? (
-        <OptionChips
-          label={t("devices")}
-          options={DEVICE_VALUES}
-          values={condition.values}
-          formatOption={(option) => deviceLabel(option, t)}
-          onChange={(values) =>
-            onChange({ ...condition, values: values as typeof condition.values })
-          }
-        />
+        <FieldGroup label={t("devices")} info={t("info.devices")}>
+          <OptionChips
+            options={DEVICE_VALUES}
+            values={condition.values}
+            formatOption={(option) => deviceLabel(option, t)}
+            onChange={(values) =>
+              onChange({ ...condition, values: values as typeof condition.values })
+            }
+          />
+        </FieldGroup>
       ) : null}
 
       {condition.type === "os" ? (
-        <OptionChips
-          label={t("operatingSystems")}
-          options={OS_VALUES}
-          values={condition.values}
-          onChange={(values) => onChange({ ...condition, values })}
-        />
+        <FieldGroup label={t("operatingSystems")} info={t("info.operatingSystems")}>
+          <OptionChips
+            options={OS_VALUES}
+            values={condition.values}
+            formatOption={(option) => clientLabel(OS_LABELS, option, t)}
+            onChange={(values) => onChange({ ...condition, values })}
+          />
+        </FieldGroup>
       ) : null}
 
       {condition.type === "browser" ? (
-        <OptionChips
-          label={t("browsers")}
-          options={BROWSER_VALUES}
-          values={condition.values}
-          onChange={(values) => onChange({ ...condition, values })}
-        />
+        <>
+          <FieldGroup label={t("browsers")} info={t("info.browsers")}>
+            <OptionChips
+              options={BROWSER_VALUES}
+              values={condition.values}
+              formatOption={(option) => clientLabel(BROWSER_LABELS, option, t)}
+              onChange={(values) => onChange({ ...condition, values })}
+            />
+          </FieldGroup>
+          {/* Same value list: each group only toggles its own options. */}
+          <FieldGroup label={t("inAppBrowsers")} info={t("info.inAppBrowsers")}>
+            <OptionChips
+              options={IN_APP_VALUES}
+              values={condition.values}
+              formatOption={(option) => clientLabel(BROWSER_LABELS, option, t)}
+              onChange={(values) => onChange({ ...condition, values })}
+            />
+          </FieldGroup>
+        </>
       ) : null}
 
       {condition.type === "referrer" && condition.op !== "empty" && condition.op !== "not_empty" ? (
-        <Field label={t("value")} hint={t("valueHint")}>
+        <Field label={t("value")} info={t("info.referrerValue")} hint={t("valueHint")}>
           <Input
             value={condition.value ?? ""}
             placeholder={t("referrerPlaceholder")}
@@ -337,28 +576,33 @@ function ConditionEditor({
       {condition.type === "schedule" ? (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-3">
-            <Field label={t("from")} className="w-28">
+            <Field label={t("from")} info={t("info.from")} className="w-28">
               <Input
                 type="time"
                 value={condition.from}
                 onChange={(event) => onChange({ ...condition, from: event.target.value })}
               />
             </Field>
-            <Field label={t("to")} className="w-28">
+            <Field label={t("to")} info={t("info.to")} className="w-28">
               <Input
                 type="time"
                 value={condition.to}
                 onChange={(event) => onChange({ ...condition, to: event.target.value })}
               />
             </Field>
-            <Field label={t("timezone")} className="flex-1" hint={t("timezoneHint")}>
+            <Field
+              label={t("timezone")}
+              info={t("info.timezone")}
+              className="flex-1"
+              hint={t("timezoneHint")}
+            >
               <Input
                 value={condition.timezone}
                 onChange={(event) => onChange({ ...condition, timezone: event.target.value })}
               />
             </Field>
           </div>
-          <Field label={t("days")}>
+          <FieldGroup label={t("days")} info={t("info.days")}>
             <div className="flex flex-wrap gap-2 pt-1">
               {WEEKDAY_KEYS.map((day, index) => {
                 const active = condition.days.includes(index);
@@ -380,7 +624,7 @@ function ConditionEditor({
                 );
               })}
             </div>
-          </Field>
+          </FieldGroup>
         </div>
       ) : null}
     </div>
@@ -456,7 +700,7 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
               ) : null}
             </div>
             <div className="flex items-center gap-2">
-              <Field label={t("priority")} className="w-24">
+              <Field label={t("priority")} info={t("info.priority")} className="w-24">
                 <Input
                   type="number"
                   min={0}
@@ -510,7 +754,7 @@ export function RuleBuilder({ rules, onChange, disabled = false }: RuleBuilderPr
             </Button>
           </div>
 
-          <Field label={t("sendTo")}>
+          <Field label={t("sendTo")} info={t("info.sendTo")}>
             <Input
               value={rule.destination}
               placeholder={t("ruleDestinationPlaceholder")}

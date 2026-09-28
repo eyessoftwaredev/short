@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  languageConditionSchema,
   matchesCondition,
   resolveDestination,
+  targetRuleSchema,
   type Condition,
   type VisitorContext,
 } from "../targeting";
@@ -15,6 +17,7 @@ function ctx(overrides: Partial<VisitorContext> = {}): VisitorContext {
     device: "desktop",
     os: "windows",
     browser: "chrome",
+    inApp: null,
     language: "tr",
     referrer: "",
     now: new Date("2026-09-14T12:00:00.000Z"),
@@ -89,6 +92,64 @@ describe("matchesCondition", () => {
         ctx(),
       ),
     ).toBe(false);
+  });
+});
+
+describe("client conditions", () => {
+  it("matches operating systems", () => {
+    const condition = { type: "os", op: "in", values: ["windows", "macos", "linux"] } satisfies Condition;
+    expect(matchesCondition(condition, ctx({ os: "macos" }))).toBe(true);
+    expect(matchesCondition(condition, ctx({ os: "linux" }))).toBe(true);
+    expect(matchesCondition(condition, ctx({ os: "ios" }))).toBe(false);
+    expect(matchesCondition({ ...condition, op: "not_in" }, ctx({ os: "chromeos" }))).toBe(true);
+  });
+
+  it("matches a browser by engine or by in-app webview", () => {
+    const chrome = { type: "browser", op: "in", values: ["chrome"] } satisfies Condition;
+    const instagram = { type: "browser", op: "in", values: ["instagram"] } satisfies Condition;
+    const androidInstagram = ctx({ os: "android", browser: "chrome", inApp: "instagram" });
+    const iosInstagram = ctx({ os: "ios", browser: "other", inApp: "instagram" });
+
+    expect(matchesCondition(chrome, androidInstagram)).toBe(true);
+    expect(matchesCondition(instagram, androidInstagram)).toBe(true);
+    expect(matchesCondition(instagram, iosInstagram)).toBe(true);
+    expect(matchesCondition(chrome, iosInstagram)).toBe(false);
+    expect(matchesCondition(instagram, ctx())).toBe(false);
+    expect(matchesCondition({ ...instagram, op: "not_in" }, iosInstagram)).toBe(false);
+    expect(matchesCondition({ ...instagram, op: "not_in" }, ctx())).toBe(true);
+    expect(
+      matchesCondition({ type: "browser", op: "in", values: ["samsung"] }, ctx({ browser: "samsung" })),
+    ).toBe(true);
+  });
+
+  it("matches the visitor language by primary subtag", () => {
+    const condition = { type: "language", op: "in", values: ["tr", "de"] } satisfies Condition;
+    expect(matchesCondition(condition, ctx({ language: "tr" }))).toBe(true);
+    expect(matchesCondition(condition, ctx({ language: "en" }))).toBe(false);
+    // Legacy values stored with a region still match.
+    expect(matchesCondition({ ...condition, values: ["en-US"] }, ctx({ language: "en" }))).toBe(true);
+    // No Accept-Language never matches "in", always matches "not_in".
+    expect(matchesCondition(condition, ctx({ language: "" }))).toBe(false);
+    expect(matchesCondition({ ...condition, op: "not_in" }, ctx({ language: "" }))).toBe(true);
+  });
+
+  it("normalises language values on write", () => {
+    const parsed = languageConditionSchema.parse({ type: "language", op: "in", values: ["TR", "en-GB", "pt_BR"] });
+    expect(parsed.values).toEqual(["tr", "en", "pt"]);
+    expect(languageConditionSchema.safeParse({ type: "language", op: "in", values: ["english"] }).success).toBe(false);
+    expect(languageConditionSchema.safeParse({ type: "language", op: "in", values: [] }).success).toBe(false);
+  });
+
+  it("parses a language rule through the full rule schema", () => {
+    const rule = targetRuleSchema.parse({
+      id: "r1",
+      priority: 1,
+      destination: "https://acme.com/de",
+      conditions: [{ type: "language", op: "in", values: ["DE"] }],
+    });
+    expect(rule.conditions[0]).toEqual({ type: "language", op: "in", values: ["de"] });
+    const resolved = resolveDestination({ defaultDestination: "https://acme.com", rules: [rule] }, ctx({ language: "de" }));
+    expect(resolved.ruleId).toBe("r1");
   });
 });
 
