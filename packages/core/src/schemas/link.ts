@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LINK_HEALTH_STATUSES } from "../link-health";
 import { LINK_OPEN_MODES } from "../open-mode";
 import { SLUG_PATTERN, isReservedSlug } from "../slug";
 import { abVariantSchema, safeDestinationSchema, targetRuleSchema } from "../targeting";
@@ -10,6 +11,9 @@ export const slugSchema = z
   .trim()
   .regex(SLUG_PATTERN, { message: "slugPattern" })
   .refine((slug) => !isReservedSlug(slug), { message: "slugReserved" });
+
+/** Upper bound for a link's click limit; anything larger is effectively unlimited. */
+export const MAX_CLICKS_LIMIT = 1_000_000_000;
 
 export const utmSchema = z.object({
   utm_source: z.string().trim().max(255).optional(),
@@ -53,6 +57,10 @@ export const linkInputSchema = z
     // Optional rather than defaulted: an update that omits it keeps the stored mode
     // (same convention as `password`); a create without it stores `auto`.
     openMode: z.enum(LINK_OPEN_MODES).optional(),
+    // Lifetime click cap (bots excluded, QR scans included). Omitted on an update keeps
+    // the stored value, null removes the cap. Enforced by the panel's click-limit cron,
+    // so a busy link can overshoot by up to one cron interval.
+    maxClicks: z.number().int().min(1).max(MAX_CLICKS_LIMIT).nullable().optional(),
     archived: z.boolean().default(false),
     utm: utmSchema.nullable().default(null),
     rules: z.array(targetRuleSchema).max(50).default([]),
@@ -82,6 +90,10 @@ export const linkListQuerySchema = z.object({
   folderId: z.string().uuid().optional(),
   tag: z.string().trim().max(48).optional(),
   status: z.enum(["all", "active", "archived", "expired", "scheduled"]).default("all"),
+  /** Destination health from the link-health monitor, e.g. `broken`. */
+  health: z.enum(LINK_HEALTH_STATUSES).optional(),
+  /** `set`: links with a click limit; `reached`: links that used it up. */
+  clickLimit: z.enum(["set", "reached"]).optional(),
   sort: z.enum(["created_desc", "created_asc", "clicks_desc", "slug_asc"]).default("created_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(10).max(100).default(25),

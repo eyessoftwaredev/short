@@ -1,4 +1,5 @@
 export {
+  MAX_CLICKS_LIMIT,
   destinationSchema,
   linkInputSchema,
   linkListQuerySchema,
@@ -34,6 +35,8 @@ export {
   QR_DOT_STYLES,
   QR_ERROR_LEVELS,
   QR_EXPORT_FORMATS,
+  QR_FRAMES,
+  QR_FRAME_TEXT_MAX,
   QR_PAYLOAD_KINDS,
   mediaPathSchema,
   qrInputSchema,
@@ -45,6 +48,7 @@ export {
   type QrDotStyle,
   type QrErrorLevel,
   type QrExportFormat,
+  type QrFrame,
   type QrInput,
   type QrPayloadKind,
   type QrStyle,

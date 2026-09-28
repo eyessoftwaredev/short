@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type {
   AbVariant,
   DomainStatus,
+  LinkHealthStatus,
   LinkOpenMode,
   QrPayloadKind,
   QrStyle,
@@ -11,6 +12,7 @@ import type {
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -114,6 +116,19 @@ export const links = pgTable(
     openMode: text("open_mode").$type<LinkOpenMode>().notNull().default("auto"),
     archived: boolean("archived").notNull().default(false),
 
+    /** Lifetime click cap; null means unlimited. Enforced by `/api/cron/click-limits`. */
+    maxClicks: integer("max_clicks"),
+    /** Set when the cap was reached; the edge then treats the link as expired. */
+    clickLimitReachedAt: timestamp("click_limit_reached_at", { withTimezone: true }),
+
+    /** Destination health from `/api/cron/link-health`. */
+    healthStatus: text("health_status").$type<LinkHealthStatus>().notNull().default("unknown"),
+    healthCheckedAt: timestamp("health_checked_at", { withTimezone: true }),
+    healthStatusCode: integer("health_status_code"),
+    /** Consecutive failed probes; two in a row flip the link to `broken`. */
+    healthFailures: integer("health_failures").notNull().default(0),
+    brokenSince: timestamp("broken_since", { withTimezone: true }),
+
     /** Set by admins when a link is reported or flagged by scanning. */
     abuseFlaggedAt: timestamp("abuse_flagged_at", { withTimezone: true }),
     abuseReason: text("abuse_reason"),
@@ -133,6 +148,18 @@ export const links = pgTable(
     index("links_abuse_flagged_idx")
       .on(table.abuseFlaggedAt)
       .where(sql`${table.abuseFlaggedAt} IS NOT NULL`),
+    // Broken-links list per workspace and the digest's "new broken links" count.
+    index("links_health_broken_idx")
+      .on(table.workspaceId, table.brokenSince)
+      .where(sql`${table.healthStatus} = 'broken'`),
+    // The health cron picks the links checked longest ago (never-checked first).
+    index("links_health_checked_idx")
+      .on(table.healthCheckedAt.asc().nullsFirst())
+      .where(sql`${table.archived} = false AND ${table.disabledAt} IS NULL`),
+    // The click-limit cron only ever scans links that have a cap.
+    index("links_max_clicks_idx")
+      .on(table.maxClicks)
+      .where(sql`${table.maxClicks} IS NOT NULL`),
   ],
 );
 

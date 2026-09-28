@@ -58,6 +58,14 @@ export const ERROR_CODES = [
   "wrong_password",
   "last_owned_teams",
   "self_deactivated",
+  "forbidden",
+  "rate_limited",
+  "invalid_url",
+  "metadata_unavailable",
+  "utm_template_exists",
+  "utm_template_limit",
+  "share_limit",
+  "analytics_unavailable",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

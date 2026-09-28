@@ -409,6 +409,39 @@ export async function getWorkspaceDailySeries(
   }));
 }
 
+/** `IN {ids:Array(String)}` with thousands of ids makes a huge query; callers chunk. */
+export const LINK_TOTALS_MAX_IDS = 1000;
+
+/**
+ * Lifetime human traffic (clicks + QR scans, bots excluded) per link, read from the
+ * `link_daily` rollup, which outlives the 25-month raw `events` TTL. Links without a
+ * single event are absent from the map. `workspaceIds` narrows the primary key scan;
+ * pass every workspace the ids belong to.
+ */
+export async function getLinkClickTotals(
+  workspaceIds: string[],
+  linkIds: string[],
+): Promise<Map<string, number>> {
+  const totals = new Map<string, number>();
+  if (workspaceIds.length === 0 || linkIds.length === 0) {
+    return totals;
+  }
+  for (let index = 0; index < linkIds.length; index += LINK_TOTALS_MAX_IDS) {
+    const rows = await chQuery<{ link_id: string; clicks: string }>(
+      `SELECT link_id, sum(clicks) AS clicks
+       FROM link_daily
+       WHERE workspace_id IN {workspaceIds:Array(String)}
+         AND link_id IN {linkIds:Array(String)}
+       GROUP BY link_id`,
+      { workspaceIds, linkIds: linkIds.slice(index, index + LINK_TOTALS_MAX_IDS) },
+    );
+    for (const row of rows) {
+      totals.set(row.link_id, Number(row.clicks));
+    }
+  }
+  return totals;
+}
+
 /** Billable click count for a `YYYY-MM` period, read from the rollup. */
 export async function getMonthlyClickTotal(workspaceId: string, period: string): Promise<number> {
   const [row] = await chQuery<{ clicks: string }>(

@@ -273,6 +273,20 @@ export function hasWorkspaceRole(role: WorkspaceRole, minimum: WorkspaceRole): b
   return ROLE_RANK[role] >= ROLE_RANK[minimum];
 }
 
+/**
+ * For server actions that return `fail("forbidden")` instead of redirecting.
+ * `member` is the editor tier (creates and edits links); anything ranked below it — a
+ * future read-only role — cannot write. Superadmins pass like `requireWorkspaceRole`.
+ */
+export function canWriteWorkspace(context: WorkspaceContext): boolean {
+  return context.isSuperadmin || hasWorkspaceRole(context.role, "member");
+}
+
+/** Owner/admin tier: workspace-wide configuration and destructive actions. */
+export function canAdministerWorkspace(context: WorkspaceContext): boolean {
+  return context.isSuperadmin || hasWorkspaceRole(context.role, "admin");
+}
+
 export async function requireWorkspaceRole(minimum: WorkspaceRole): Promise<WorkspaceContext> {
   const context = await requireWorkspace();
   if (!hasWorkspaceRole(context.role, minimum) && !context.isSuperadmin) {

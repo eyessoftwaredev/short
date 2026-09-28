@@ -2,9 +2,11 @@ import {
   abVariantSchema,
   LINK_OPEN_MODES,
   linkInputSchema,
+  MAX_CLICKS_LIMIT,
   targetRuleSchema,
   type LinkInput,
 } from "@short/core";
+import type { LinkRow } from "@short/db";
 import { z } from "zod";
 
 /**
@@ -45,6 +47,16 @@ export const linkFormSchema = z.object({
    * alone instead of resetting it to `auto`.
    */
   openMode: z.enum(LINK_OPEN_MODES).optional(),
+  /**
+   * Lifetime click cap as typed (`"500"`); `""` removes it. Optional so a form built
+   * without the field leaves the stored cap alone.
+   */
+  maxClicks: z
+    .string()
+    .trim()
+    .regex(/^\d{0,10}$/, "maxClicksInvalid")
+    .refine((value) => value === "" || (Number(value) >= 1 && Number(value) <= MAX_CLICKS_LIMIT), "maxClicksInvalid")
+    .optional(),
   archived: z.boolean(),
   utmSource: z.string().trim().max(255),
   utmMedium: z.string().trim().max(255),
@@ -77,6 +89,7 @@ export const emptyLinkForm = (domainId: string): LinkFormValues => ({
   noIndex: true,
   forwardQuery: false,
   openMode: "auto",
+  maxClicks: "",
   archived: false,
   utmSource: "",
   utmMedium: "",
@@ -86,6 +99,43 @@ export const emptyLinkForm = (domainId: string): LinkFormValues => ({
   rules: [],
   abVariants: [],
 });
+
+/**
+ * Editor values for an existing link. Dates stay ISO on purpose: the form converts them
+ * to the viewer's local time in the browser. The password never round-trips.
+ */
+export function toLinkFormValues(link: LinkRow): LinkFormValues {
+  return {
+    domainId: link.domainId,
+    slug: link.slug,
+    destination: link.destination,
+    title: link.title ?? "",
+    description: link.description ?? "",
+    image: link.image ?? "",
+    comments: link.comments ?? "",
+    folderId: link.folderId ?? "",
+    tagsText: link.tags.join(", "),
+    expiresAt: link.expiresAt?.toISOString() ?? "",
+    startsAt: link.startsAt?.toISOString() ?? "",
+    expiredDestination: link.expiredDestination ?? "",
+    password: "",
+    iosDestination: link.iosDestination ?? "",
+    androidDestination: link.androidDestination ?? "",
+    cloaked: link.cloaked,
+    noIndex: link.noIndex,
+    forwardQuery: link.forwardQuery,
+    openMode: link.openMode,
+    maxClicks: link.maxClicks == null ? "" : String(link.maxClicks),
+    archived: link.archived,
+    utmSource: link.utm?.utm_source ?? "",
+    utmMedium: link.utm?.utm_medium ?? "",
+    utmCampaign: link.utm?.utm_campaign ?? "",
+    utmTerm: link.utm?.utm_term ?? "",
+    utmContent: link.utm?.utm_content ?? "",
+    rules: link.rules,
+    abVariants: link.abVariants,
+  };
+}
 
 function orUndefined(value: string): string | undefined {
   return value === "" ? undefined : value;
@@ -157,6 +207,8 @@ export function toLinkInput(values: LinkFormValues, options: ToLinkInputOptions 
     noIndex: values.noIndex,
     forwardQuery: values.forwardQuery,
     openMode: values.openMode,
+    maxClicks:
+      values.maxClicks === undefined ? undefined : values.maxClicks === "" ? null : Number(values.maxClicks),
     archived: values.archived,
     utm: hasUtm ? utm : null,
     rules: values.rules,

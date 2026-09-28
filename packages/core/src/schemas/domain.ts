@@ -26,6 +26,7 @@ export const WEBHOOK_EVENTS = [
   "link.updated",
   "link.deleted",
   "link.clicked",
+  "link.broken",
   "biopage.viewed",
   "domain.verified",
 ] as const;

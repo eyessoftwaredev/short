@@ -390,7 +390,47 @@
     "webhook_missing": "This webhook no longer exists.",
     "media_missing": "That file is no longer in your media library.",
     "domain_missing": "This domain no longer exists.",
-    "not_found": "The item you were looking for no longer exists."
+    "not_found": "The item you were looking for no longer exists.",
+    "forbidden": "You do not have permission to do that in this workspace.",
+    "rate_limited": "Too many requests. Wait a moment and try again.",
+    "invalid_url": "Enter a public http(s) address.",
+    "metadata_unavailable": "Could not read that page. Fill in the details by hand.",
+    "utm_template_exists": "A UTM template with that name already exists.",
+    "utm_template_limit": "This workspace already has 50 UTM templates. Delete one first.",
+    "share_limit": "This link already has 20 active share links. Revoke one first.",
+    "analytics_unavailable": "Click statistics are temporarily unavailable."
+  },
+  "share": {
+    "metaTitle": "Shared link statistics",
+    "eyebrow": "Shared statistics",
+    "rangeLabel": "Time range",
+    "ranges": {
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days",
+      "12m": "12 months",
+      "all": "All time"
+    },
+    "clicks": "Clicks",
+    "visitors": "Visitors",
+    "qrScans": "QR scans",
+    "change": "{delta}% vs previous period",
+    "noChange": "No change vs previous period",
+    "overTime": "Clicks over time",
+    "countries": "Countries",
+    "referrers": "Referrers",
+    "devices": "Devices",
+    "browsers": "Browsers",
+    "direct": "Direct / unknown",
+    "unknown": "Unknown",
+    "footnote": "Read-only statistics shared by the link owner. Bot traffic is excluded.",
+    "clampedNote": "Older data is not available on the owner's plan, so the range starts later.",
+    "expiresNote": "This page is available until {date}.",
+    "rateLimitedTitle": "Slow down",
+    "rateLimitedBody": "Too many requests from your network. Wait a minute and reload the page.",
+    "notFoundTitle": "This statistics page is not available",
+    "notFoundBody": "The link may have been revoked or expired. Ask the owner for a new one."
   },
   "auth": {
     "signIn": "Sign in",
@@ -1408,6 +1448,7 @@
     "startsAt": "Goes live at",
     "startsAtHint": "Leave empty to go live immediately.",
     "startBeforeExpiry": "The start must be before the expiry.",
+    "maxClicksInvalid": "Enter a whole number from 1 to 1,000,000,000, or leave it empty for no limit.",
     "info": {
       "destination": "The page visitors reach when no targeting rule or A/B variant applies. Must be a full http(s) address.",
       "domain": "The domain the short link lives on. Add your own branded domain under Domains.",
@@ -2311,6 +2352,7 @@
     "nameRequired": "Give the code a name",
     "linkRequired": "Pick a link",
     "hexColor": "Use a hex color like #0f766e",
+    "frameTextTooLong": "Keep the frame label to 24 characters.",
     "dotStyle": {
       "square": "Square",
       "rounded": "Rounded",
@@ -2718,6 +2760,7 @@
           "link.updated": "Any link field changes.",
           "link.deleted": "A link is permanently deleted.",
           "link.clicked": "Someone completes a redirect (sampled on high volume).",
+          "link.broken": "Two health checks in a row found the destination down (404/410/5xx, DNS failure or timeout).",
           "biopage.viewed": "A public bio page is viewed.",
           "domain.verified": "Custom domain DNS verification succeeds."
         }

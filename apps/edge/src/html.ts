@@ -11,67 +11,147 @@ export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ESCAPE_MAP[char] ?? char);
 }
 
+/**
+ * One calm palette for every page the worker renders itself (password gate, app
+ * handoff, link preview), matching the panel: a light grey page with a white card, or
+ * a near-black page with a lifted card, and the teal accent. Colors are tokens so the
+ * dark scheme only swaps values; everything is inline because the CSP allows no fetches.
+ */
 const BASE_STYLE = `
-  :root { color-scheme: light dark; }
+  :root {
+    color-scheme: light dark;
+    --page: #f5f6f8;
+    --card: #ffffff;
+    --border: #e4e7ec;
+    --text: #111418;
+    --muted: #5b6472;
+    --subtle: #f0f2f5;
+    --field: #ffffff;
+    --field-border: #cfd5dd;
+    --accent: #0f766e;
+    --accent-hover: #0b5f58;
+    --on-accent: #ffffff;
+    --ring: rgba(15, 118, 110, 0.35);
+    --danger: #b42318;
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #15171c;
+      --card: #1c1f26;
+      --border: #2a2f39;
+      --text: #f2f4f7;
+      --muted: #a3abb8;
+      --subtle: #242832;
+      --field: #15171c;
+      --field-border: #353b47;
+      --accent: #2dd4bf;
+      --accent-hover: #5eead4;
+      --on-accent: #062b27;
+      --ring: rgba(45, 212, 191, 0.4);
+      --danger: #f97066;
+      --shadow: none;
+    }
+  }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
     min-height: 100vh;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    background: #ffffff;
-    color: #171717;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: var(--page);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
   }
   .card {
     width: 100%;
-    max-width: 380px;
-    border: 1px solid #e3e8ee;
-    border-radius: 8px;
-    padding: 28px;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 24px 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
-  h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
-  p { margin: 0; font-size: 14px; color: #525252; line-height: 1.5; }
+  @media (min-width: 480px) { .card { padding: 32px; } }
+  h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+  p { margin: 0; font-size: 14px; color: var(--muted); }
   label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; }
   input {
     width: 100%;
+    min-height: 44px;
     padding: 10px 12px;
     font: inherit;
-    font-size: 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #171717;
+    font-size: 16px;
+    border: 1px solid var(--field-border);
+    border-radius: 10px;
+    background: var(--field);
+    color: var(--text);
   }
-  input:focus { outline: 2px solid #0f766e; outline-offset: 2px; border-color: #0f766e; }
-  button {
+  input:focus-visible { outline: 3px solid var(--ring); outline-offset: 1px; border-color: var(--accent); }
+  button, a.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
     padding: 10px 16px;
     font: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    border: 1px solid #0f766e;
-    border-radius: 8px;
-    background: #0f766e;
-    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
     cursor: pointer;
   }
-  button:hover { background: #0b5952; border-color: #0b5952; }
-  .error { font-size: 13px; color: #b42318; }
-  @media (prefers-color-scheme: dark) {
-    body { background: #111111; color: #f2f2f2; }
-    .card { border-color: #2a2a2a; }
-    p { color: #a3a3a3; }
-    input { background: #111111; border-color: #3d3d3d; color: #f2f2f2; }
+  button:hover, a.button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  button.secondary { background: transparent; color: var(--text); border-color: var(--field-border); }
+  button.secondary:hover { background: var(--subtle); }
+  a.link { font-size: 14px; font-weight: 500; color: var(--accent); text-align: center; }
+  .error { font-size: 13px; color: var(--danger); }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
 `;
 
-export function passwordGateHtml(options: { title: string; error: boolean }): string {
+const GATE_COPY = {
+  en: {
+    heading: "Password required",
+    body: "This short link is protected. Enter the password to continue.",
+    label: "Password",
+    error: "Incorrect password. Try again.",
+    submit: "Continue",
+  },
+  tr: {
+    heading: "Parola gerekli",
+    body: "Bu kısa bağlantı korumalı. Devam etmek için parolayı girin.",
+    label: "Parola",
+    error: "Parola yanlış. Tekrar deneyin.",
+    submit: "Devam et",
+  },
+} as const;
+
+export function passwordGateHtml(options: { title: string; error: boolean; language?: string }): string {
+  const tr = options.language === "tr";
+  const copy = tr ? GATE_COPY.tr : GATE_COPY.en;
   return `<!doctype html>
-<html lang="en">
+<html lang="${tr ? "tr" : "en"}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -81,14 +161,14 @@ export function passwordGateHtml(options: { title: string; error: boolean }): st
 </head>
 <body>
   <form class="card" method="post">
-    <h1>Password required</h1>
-    <p>This short link is protected. Enter the password to continue.</p>
+    <h1>${copy.heading}</h1>
+    <p>${copy.body}</p>
     <label>
-      Password
+      ${copy.label}
       <input type="password" name="password" autocomplete="current-password" autofocus required />
     </label>
-    ${options.error ? '<span class="error">Incorrect password. Try again.</span>' : ""}
-    <button type="submit">Continue</button>
+    ${options.error ? `<span class="error">${copy.error}</span>` : ""}
+    <button type="submit">${copy.submit}</button>
   </form>
 </body>
 </html>`;
@@ -201,26 +281,9 @@ const HANDOFF_SCRIPT = `(function () {
 
 const HANDOFF_STYLE = `${BASE_STYLE}
   .actions { display: flex; flex-direction: column; gap: 10px; }
-  a.button {
-    display: block;
-    text-align: center;
-    text-decoration: none;
-    padding: 12px 16px;
-    font-size: 15px;
-    font-weight: 500;
-    border: 1px solid #0f766e;
-    border-radius: 8px;
-    background: #0f766e;
-    color: #ffffff;
-  }
-  button.secondary { background: transparent; color: inherit; border-color: #cbd5e1; }
-  a.link { font-size: 14px; color: #0f766e; text-align: center; }
-  input[readonly] { font-size: 13px; }
+  a.link { padding: 6px 0; }
+  input[readonly] { font-size: 13px; background: var(--subtle); }
   .hint { font-size: 13px; }
-  @media (prefers-color-scheme: dark) {
-    button.secondary { border-color: #3d3d3d; }
-    a.link { color: #5eead4; }
-  }
 `;
 
 type HandoffBase = {
@@ -308,6 +371,154 @@ export function handoffHtml(options: HandoffOptions): string {
     ${body}
   </main>
   <script nonce="${escapeHtml(options.nonce)}">${HANDOFF_SCRIPT}</script>
+</body>
+</html>`;
+}
+
+const PREVIEW_COPY = {
+  en: {
+    eyebrow: "Link preview",
+    goesTo: "This short link goes to",
+    fullUrl: "Full address",
+    varies: "Some visitors may be sent elsewhere depending on their location, device or language.",
+    continue: "Continue to site",
+    protectedTitle: "Protected link",
+    protectedBody:
+      "This link is password-protected, so its destination is not shown here. Continue to enter the password.",
+    protectedButton: "Continue",
+    unavailableTitle: "Link unavailable",
+    unavailableBody: "This link does not exist, has expired or is not active right now.",
+    note: (short: string) =>
+      `You are seeing this preview because the address ends with “+”. Nothing was recorded. The short link is ${short}.`,
+  },
+  tr: {
+    eyebrow: "Bağlantı önizlemesi",
+    goesTo: "Bu kısa bağlantı şuraya gider",
+    fullUrl: "Tam adres",
+    varies: "Bazı ziyaretçiler konumlarına, cihazlarına veya dillerine göre başka bir sayfaya yönlendirilebilir.",
+    continue: "Siteye devam et",
+    protectedTitle: "Korumalı bağlantı",
+    protectedBody:
+      "Bu bağlantı parola korumalı olduğu için hedefi burada gösterilmez. Parolayı girmek için devam edin.",
+    protectedButton: "Devam et",
+    unavailableTitle: "Bağlantı kullanılamıyor",
+    unavailableBody: "Bu bağlantı yok, süresi dolmuş ya da şu anda etkin değil.",
+    note: (short: string) =>
+      `Adres “+” ile bittiği için bu önizlemeyi görüyorsunuz. Hiçbir ziyaret kaydedilmedi. Kısa bağlantı: ${short}.`,
+  },
+} as const;
+
+const PREVIEW_STYLE = `${BASE_STYLE}
+  .target { display: flex; flex-direction: column; gap: 4px; }
+  .host {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .title { color: var(--text); font-size: 15px; font-weight: 500; }
+  .url {
+    display: block;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--subtle);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: break-all;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .hint { font-size: 13px; }
+  .note { font-size: 12px; border-top: 1px solid var(--border); padding-top: 14px; }
+`;
+
+export type PreviewOptions = {
+  language: string;
+  /** `<hostname>/<slug>` of the short link, for display. */
+  shortLabel: string;
+  /** The tracked short link the button leads to. */
+  shortUrl: string;
+} & (
+  | {
+      state: "available";
+      /** Pre-validated with `isSafeDestination`. */
+      destination: string;
+      title: string | null;
+      /** Targeting / A-B / app links may send some visitors elsewhere. */
+      varies: boolean;
+    }
+  | { state: "protected" }
+  | { state: "unavailable" }
+);
+
+/**
+ * The `<slug>+` page: where a short link leads, without following it. Static markup
+ * only (no script, no remote images) and every value is escaped, because the title and
+ * the URL are whatever the link owner typed.
+ */
+export function previewHtml(options: PreviewOptions): string {
+  const tr = options.language === "tr";
+  const copy = tr ? PREVIEW_COPY.tr : PREVIEW_COPY.en;
+  const shortUrl = escapeHtml(options.shortUrl);
+  const note = `<p class="note">${escapeHtml(copy.note(options.shortLabel))}</p>`;
+
+  let title: string;
+  let body: string;
+  if (options.state === "available") {
+    let host = options.destination;
+    try {
+      // `hostname` is the ASCII (punycode) form, which defeats look-alike IDN spoofing.
+      host = new URL(options.destination).hostname;
+    } catch {
+      // Already validated upstream; fall back to the raw value, escaped below.
+    }
+    title = `${copy.eyebrow}: ${host}`;
+    body = `<span class="eyebrow">${copy.eyebrow}</span>
+    <div class="target">
+      <p>${copy.goesTo}</p>
+      <h1 class="host">${escapeHtml(host)}</h1>
+    </div>
+    ${options.title ? `<p class="title">${escapeHtml(options.title)}</p>` : ""}
+    <div class="field">
+      <span class="field-label">${copy.fullUrl}</span>
+      <code class="url">${escapeHtml(options.destination)}</code>
+    </div>
+    ${options.varies ? `<p class="hint">${copy.varies}</p>` : ""}
+    <a class="button" href="${shortUrl}" rel="nofollow noreferrer">${copy.continue}</a>
+    ${note}`;
+  } else if (options.state === "protected") {
+    title = copy.protectedTitle;
+    body = `<span class="eyebrow">${copy.eyebrow}</span>
+    <h1>${copy.protectedTitle}</h1>
+    <p>${copy.protectedBody}</p>
+    <a class="button" href="${shortUrl}" rel="nofollow noreferrer">${copy.protectedButton}</a>
+    ${note}`;
+  } else {
+    title = copy.unavailableTitle;
+    body = `<span class="eyebrow">${copy.eyebrow}</span>
+    <h1>${copy.unavailableTitle}</h1>
+    <p>${copy.unavailableBody}</p>`;
+  }
+
+  return `<!doctype html>
+<html lang="${tr ? "tr" : "en"}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="no-referrer" />
+<title>${escapeHtml(title)}</title>
+<style>${PREVIEW_STYLE}</style>
+</head>
+<body>
+  <main class="card">
+    ${body}
+  </main>
 </body>
 </html>`;
 }

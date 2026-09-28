@@ -1,6 +1,8 @@
 import {
   QR_DOT_STYLES,
   QR_ERROR_LEVELS,
+  QR_FRAME_TEXT_MAX,
+  QR_FRAMES,
   QR_PAYLOAD_KINDS,
   qrInputSchema,
   safeDestinationSchema,
@@ -42,6 +44,12 @@ export const qrFormSchema = z.object({
   logoUrl: z.string().trim().max(2048),
   logoScale: z.number().min(0.1).max(0.3),
   caption: z.string().trim().max(60),
+  // Frame fields are optional so a designer without frame controls still validates;
+  // missing values mean "no frame".
+  frame: z.enum(QR_FRAMES).optional(),
+  frameText: z.string().trim().max(QR_FRAME_TEXT_MAX, "frameTextTooLong").optional(),
+  useFrameColor: z.boolean().optional(),
+  frameColor: hexColor.optional(),
 })
   // Kind-specific requirements, on the form's own field names so errors land inline.
   .superRefine((values, ctx) => {
@@ -91,7 +99,21 @@ export const emptyQrForm = (linkId: string): QrFormValues => ({
   logoUrl: "",
   logoScale: 0.22,
   caption: "",
+  frame: "none",
+  frameText: "",
+  useFrameColor: false,
+  frameColor: "#0f766e",
 });
+
+/** Frame fields of a stored style; styles saved before frames existed have none. */
+function frameFormValues(style: QrStyle): Pick<QrFormValues, "frame" | "frameText" | "useFrameColor" | "frameColor"> {
+  return {
+    frame: style.frame ?? "none",
+    frameText: style.frameText ?? "",
+    useFrameColor: style.frameColor != null,
+    frameColor: style.frameColor ?? "#0f766e",
+  };
+}
 
 export function styleToFormPatch(style: QrStyle): Partial<QrFormValues> {
   return {
@@ -106,6 +128,7 @@ export function styleToFormPatch(style: QrStyle): Partial<QrFormValues> {
     logoUrl: style.logoUrl ?? "",
     logoScale: style.logoScale,
     caption: style.caption,
+    ...frameFormValues(style),
   };
 }
 
@@ -135,6 +158,9 @@ export function toQrStyle(values: QrFormValues): QrStyle {
     logoUrl: values.logoUrl === "" ? null : values.logoUrl,
     logoScale: values.logoScale,
     caption: values.caption,
+    frame: values.frame ?? "none",
+    frameText: values.frameText ?? "",
+    frameColor: values.useFrameColor && values.frameColor ? values.frameColor : null,
   };
 }
 
@@ -237,6 +263,7 @@ export function toQrForm(
     logoUrl: style.logoUrl ?? "",
     logoScale: style.logoScale,
     caption: style.caption,
+    ...frameFormValues(style),
   };
 }
 

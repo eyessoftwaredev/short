@@ -84,8 +84,12 @@ theme's `Table` primitives, and forms use React Hook Form + Zod through `Field`/
 
 Webhooks are signed with HMAC-SHA256 over `{timestamp}.{body}` and sent as
 `x-short-signature: t=...,v1=...`. `link.created`, `link.updated`, `link.deleted` and
-`domain.verified` are dispatched by the panel; `link.clicked` and `biopage.viewed` are
+`domain.verified` are dispatched by the panel; `link.broken` by the link-health cron when
+a destination fails two checks in a row; `link.clicked` and `biopage.viewed` are
 relayed by the ingest worker after the events land in ClickHouse.
+
+Appending `+` to a short link (`https://go.acme.com/promo+`) shows a preview of where it
+leads instead of redirecting; nothing is tracked for the preview itself.
 
 ## Privacy
 

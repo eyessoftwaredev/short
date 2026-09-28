@@ -1,4 +1,4 @@
-import { recommendedErrorLevel, type QrStyle } from "@short/core";
+import { QR_FRAMES, recommendedErrorLevel, type QrFrame, type QrStyle } from "@short/core";
 import QRCode from "qrcode";
 
 /**
@@ -74,23 +74,14 @@ export type QrSvgOptions = {
   size?: number;
 };
 
-export function buildQrSvg(data: string, rawStyle: QrStyle, options: QrSvgOptions = {}): string {
-  // Stored styles are schema-validated hex colors, but this markup is injected with
-  // dangerouslySetInnerHTML, so colors are escaped like every other interpolated value.
-  const style: QrStyle = {
-    ...rawStyle,
-    foreground: escapeXml(rawStyle.foreground),
-    background: escapeXml(rawStyle.background),
-    cornerColor: rawStyle.cornerColor == null ? null : escapeXml(rawStyle.cornerColor),
-  };
-  const matrix = buildMatrix(data, style);
-  const width = options.size ?? style.size;
-  const captionHeight = style.caption === "" ? 0 : Math.round(width * 0.085);
+type CodeLayer = { modules: string; finders: string; logo: string };
+
+/** Modules, finder patterns and logo for a code `width` wide, drawn from the origin. */
+function codeLayer(matrix: Matrix, style: QrStyle, width: number, logoHref: string | null | undefined): CodeLayer {
   const total = matrix.size + style.margin * 2;
   const cell = width / total;
   const offset = style.margin * cell;
   const cornerColor = style.cornerColor ?? style.foreground;
-  const height = width + captionHeight;
 
   const modules: string[] = [];
 
@@ -142,27 +133,150 @@ export function buildQrSvg(data: string, rawStyle: QrStyle, options: QrSvgOption
   ].join("");
 
   let logo = "";
-  if (options.logoHref) {
+  if (logoHref) {
     const logoSize = width * style.logoScale;
     const logoOffset = (width - logoSize) / 2;
     const pad = logoSize * 0.12;
     logo =
       `<rect x="${round(logoOffset - pad)}" y="${round(logoOffset - pad)}" width="${round(logoSize + pad * 2)}" height="${round(logoSize + pad * 2)}" rx="${round(logoSize * 0.18)}" fill="${style.background}"/>` +
-      `<image x="${round(logoOffset)}" y="${round(logoOffset)}" width="${round(logoSize)}" height="${round(logoSize)}" href="${escapeXml(options.logoHref)}" preserveAspectRatio="xMidYMid meet"/>`;
+      `<image x="${round(logoOffset)}" y="${round(logoOffset)}" width="${round(logoSize)}" height="${round(logoSize)}" href="${escapeXml(logoHref)}" preserveAspectRatio="xMidYMid meet"/>`;
   }
 
-  const caption =
-    style.caption === ""
-      ? ""
-      : `<text x="${round(width / 2)}" y="${round(width + captionHeight * 0.72)}" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${round(captionHeight * 0.6)}" fill="${style.foreground}">${escapeXml(style.caption)}</text>`;
+  return { modules: `<g fill="${style.foreground}">${modules.join("")}</g>`, finders, logo };
+}
+
+const FONT_FAMILY = "ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif";
+
+function captionText(style: QrStyle, centerX: number, top: number, height: number): string {
+  return style.caption === ""
+    ? ""
+    : `<text x="${round(centerX)}" y="${round(top + height * 0.72)}" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${round(height * 0.6)}" fill="${style.foreground}">${escapeXml(style.caption)}</text>`;
+}
+
+function labelText(text: string, centerX: number, top: number, height: number, fontSize: number, color: string): string {
+  // Baseline sits ~0.35em below the band's midline, which centres cap height visually.
+  return `<text x="${round(centerX)}" y="${round(top + height / 2 + fontSize * 0.35)}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="${round(fontSize)}" font-weight="700" fill="${color}">${escapeXml(text)}</text>`;
+}
+
+/**
+ * A rounded frame with an optional call-to-action label around the code. The whole
+ * artwork keeps the requested width (the code shrinks to make room), so previews and
+ * exports keep their size; only the height grows. The code itself keeps crisp edges,
+ * the frame and text are anti-aliased.
+ */
+function framedSvg(
+  matrix: Matrix,
+  style: QrStyle,
+  frame: Exclude<QrFrame, "none">,
+  width: number,
+  logoHref: string | null | undefined,
+): string {
+  const accent = style.frameColor ?? style.foreground;
+  const label = style.frameText;
+  const pad = width * 0.04;
+  const radius = width * 0.05;
+  const labelHeight = label === "" ? 0 : width * 0.12;
+  const fontSize = width * 0.052;
+  const parts: string[] = [];
+
+  let border: number;
+  let inner: number;
+  if (frame === "banner") {
+    border = width * 0.035;
+    inner = width * 0.03;
+  } else {
+    border = Math.max(1, width * 0.014);
+    inner = width * 0.035;
+  }
+  const codeSize = width - 2 * (pad + border + inner);
+  const captionHeight = style.caption === "" ? 0 : Math.round(codeSize * 0.085);
+  const codeX = pad + border + inner;
+  const codeY = pad + border + inner;
+  const contentBottom = codeY + codeSize + captionHeight;
+  const cardWidth = width - 2 * pad;
+  let height: number;
+
+  if (frame === "banner") {
+    // A solid band all round; its bottom edge widens into the label strip.
+    const panelHeight = inner * 2 + codeSize + captionHeight;
+    const bottom = label === "" ? border : labelHeight;
+    const cardHeight = border + panelHeight + bottom;
+    height = cardHeight + 2 * pad;
+    parts.push(
+      `<rect x="${round(pad)}" y="${round(pad)}" width="${round(cardWidth)}" height="${round(cardHeight)}" rx="${round(radius)}" fill="${accent}"/>`,
+      `<rect x="${round(pad + border)}" y="${round(pad + border)}" width="${round(cardWidth - 2 * border)}" height="${round(panelHeight)}" rx="${round(radius * 0.6)}" fill="${style.background}"/>`,
+    );
+    if (label !== "") {
+      parts.push(labelText(label, width / 2, pad + border + panelHeight, labelHeight, fontSize, style.background));
+    }
+  } else {
+    // box: label inside the card under the code. bubble: label in a pill below it.
+    const labelInside = frame === "box" && label !== "";
+    const cardHeight = border + inner + codeSize + captionHeight + (labelInside ? labelHeight : inner) + border;
+    parts.push(
+      `<rect x="${round(pad + border / 2)}" y="${round(pad + border / 2)}" width="${round(cardWidth - border)}" height="${round(cardHeight - border)}" rx="${round(radius)}" fill="${style.background}" stroke="${accent}" stroke-width="${round(border)}"/>`,
+    );
+    height = cardHeight + 2 * pad;
+    if (labelInside) {
+      parts.push(labelText(label, width / 2, contentBottom, labelHeight, fontSize, accent));
+    }
+    if (frame === "bubble" && label !== "") {
+      const gap = width * 0.02;
+      const tip = width * 0.035;
+      const pillTop = pad + cardHeight + gap + tip;
+      const pillWidth = Math.min(cardWidth, Math.max(width * 0.4, label.length * fontSize * 0.62 + fontSize * 2.4));
+      const pillX = (width - pillWidth) / 2;
+      parts.push(
+        `<path d="M${round(width / 2 - tip)} ${round(pillTop + 0.5)} L${round(width / 2)} ${round(pillTop - tip)} L${round(width / 2 + tip)} ${round(pillTop + 0.5)} Z" fill="${accent}"/>`,
+        `<rect x="${round(pillX)}" y="${round(pillTop)}" width="${round(pillWidth)}" height="${round(labelHeight)}" rx="${round(labelHeight / 2)}" fill="${accent}"/>`,
+        labelText(label, width / 2, pillTop, labelHeight, fontSize, style.background),
+      );
+      height = pillTop + labelHeight + pad;
+    }
+  }
+
+  const layer = codeLayer(matrix, style, codeSize, logoHref);
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${round(width)}" height="${round(height)}" viewBox="0 0 ${round(width)} ${round(height)}">`,
+    `<rect width="${round(width)}" height="${round(height)}" fill="${style.background}"/>`,
+    ...parts,
+    `<g transform="translate(${round(codeX)} ${round(codeY)})" shape-rendering="crispEdges">${layer.modules}${layer.finders}${layer.logo}</g>`,
+    captionText(style, width / 2, codeY + codeSize, captionHeight),
+    `</svg>`,
+  ].join("");
+}
+
+export function buildQrSvg(data: string, rawStyle: QrStyle, options: QrSvgOptions = {}): string {
+  // Stored styles are schema-validated hex colors, but this markup is injected with
+  // dangerouslySetInnerHTML, so colors are escaped like every other interpolated value.
+  // Styles saved before frames existed have no frame fields at all; they render as before.
+  const style: QrStyle = {
+    ...rawStyle,
+    foreground: escapeXml(rawStyle.foreground),
+    background: escapeXml(rawStyle.background),
+    cornerColor: rawStyle.cornerColor == null ? null : escapeXml(rawStyle.cornerColor),
+    frame: QR_FRAMES.includes(rawStyle.frame) ? rawStyle.frame : "none",
+    frameText: typeof rawStyle.frameText === "string" ? rawStyle.frameText.trim() : "",
+    frameColor: rawStyle.frameColor == null ? null : escapeXml(rawStyle.frameColor),
+  };
+  const matrix = buildMatrix(data, style);
+  const width = options.size ?? style.size;
+
+  if (style.frame !== "none") {
+    return framedSvg(matrix, style, style.frame, width, options.logoHref);
+  }
+
+  const captionHeight = style.caption === "" ? 0 : Math.round(width * 0.085);
+  const height = width + captionHeight;
+  const layer = codeLayer(matrix, style, width, options.logoHref);
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${round(width)}" height="${round(height)}" viewBox="0 0 ${round(width)} ${round(height)}" shape-rendering="crispEdges">`,
     `<rect width="${round(width)}" height="${round(height)}" fill="${style.background}"/>`,
-    `<g fill="${style.foreground}">${modules.join("")}</g>`,
-    finders,
-    logo,
-    caption,
+    layer.modules,
+    layer.finders,
+    layer.logo,
+    captionText(style, width / 2, width, captionHeight),
     `</svg>`,
   ].join("");
 }

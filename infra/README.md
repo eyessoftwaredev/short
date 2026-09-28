@@ -89,13 +89,33 @@ without one.
 
 ### Cron
 
-`POST /api/cron/usage` rolls ClickHouse click counts into `usage_counters` so quota
-checks do not have to query ClickHouse on every request. Schedule it hourly:
+Every `/api/cron/*` endpoint is a `POST` authenticated with
+`authorization: Bearer $CRON_SECRET` (falling back to `INTERNAL_TOKEN` when
+`CRON_SECRET` is unset, except `migrate`, which requires `CRON_SECRET`). None of them
+need extra environment variables. Schedule them with Coolify scheduled tasks or any
+external pinger:
+
+| Endpoint | Suggested schedule | What it does |
+| --- | --- | --- |
+| `/api/cron/usage` | hourly (`0 * * * *`) | Rolls ClickHouse click counts into `usage_counters` so quota checks stay cheap, and re-pushes link KV records. |
+| `/api/cron/click-limits` | every 5 min (`*/5 * * * *`) | Flags links whose lifetime clicks reached `max_clicks` and pushes `limitReached` to KV; the edge then treats them as expired. Enforcement is approximate: a link can overshoot by the traffic of one interval plus the ingest delay. |
+| `/api/cron/link-health` | every 15 min (`*/15 * * * *`) | Probes up to `?limit=` (default 200) destinations not checked in 6 h, 10 at a time, SSRF-safe. Two consecutive failures (404/410/5xx, DNS, timeout) mark a link `broken`, fire `link.broken` webhooks and send one alert email per workspace to owners/admins. Stops starting probes after ~100 s. |
+| `/api/cron/digest` | hourly on Mondays (`0 6-12 * * 1`) | Weekly summary email (previous Monday–Sunday, UTC) to owners/admins of workspaces with links and the digest on. Idempotent per week via `workspace_settings.digest_sent_for`; `"more": true` in the response means call it again. |
+| `/api/cron/migrate` | after each deploy | Applies pending Drizzle migrations (see above). |
 
 ```bash
 curl -fsS -X POST https://app.short.app/api/cron/usage \
   -H "authorization: Bearer $CRON_SECRET"
+curl -fsS -X POST https://app.short.app/api/cron/click-limits \
+  -H "authorization: Bearer $CRON_SECRET"
+curl -fsS -X POST "https://app.short.app/api/cron/link-health?limit=200" \
+  -H "authorization: Bearer $CRON_SECRET"
+curl -fsS -X POST https://app.short.app/api/cron/digest \
+  -H "authorization: Bearer $CRON_SECRET"
 ```
+
+Give `link-health` and `digest` a client timeout of at least two minutes; both stop
+starting new work after ~100 s so a proxy timeout never cuts a run in half.
 
 ## 2. Edge (Wrangler)
 
