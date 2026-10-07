@@ -157,7 +157,15 @@ export async function PublicChrome({ children }: { children: ReactNode }) {
         <div className="border-t border-border-subtle">
           <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-5 text-[13px] text-fg-subtle sm:px-6">
             <span>
-              © {new Date().getFullYear()} {brand.name}. {t("footer.rights")}
+              © {new Date().getFullYear()} {brand.name}. {t("footer.rights")} ·{" "}
+              <a
+                href="https://eyessoftware.com"
+                target="_blank"
+                rel="noopener"
+                className="font-medium text-fg-muted no-underline hover:text-ink hover:no-underline"
+              >
+                Eyes Software
+              </a>
             </span>
             {brand.localeSwitcherEnabled ? <LocaleSwitcher /> : null}
           </div>
