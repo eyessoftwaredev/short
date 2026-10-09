@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Icon } from "@/components/kit/icon";
 import { PublicChrome } from "@/components/landing/public-chrome";
 import { Callout } from "@/components/ui";
+import { contactEmails, type ContactEmails } from "@/lib/contact";
 import { cn } from "@/lib/cx";
 
 export type LegalDoc = "terms" | "privacy" | "cookies";
@@ -39,6 +40,40 @@ export async function LegalPage({
 }) {
   const [t, locale] = await Promise.all([getTranslations("legal"), getLocale()]);
   const current = DOCS.find((entry) => entry.id === doc) ?? DOCS[0];
+  const mail = contactEmails();
+  const contactRows: ReadonlyArray<[keyof ContactEmails, string]> =
+    doc === "terms"
+      ? [
+          ["legal", t("contactLegal")],
+          ["support", t("contactSupport")],
+          ["abuse", t("contactAbuse")],
+          ["security", t("contactSecurity")],
+        ]
+      : [
+          ["privacy", t("contactPrivacy")],
+          ["support", t("contactSupport")],
+        ];
+  // Every document ends with who to write to; it is listed in the index like any section.
+  const allSections: readonly LegalSection[] = [
+    ...sections,
+    {
+      id: "contact",
+      title: t("contactTitle"),
+      body: (
+        <>
+          <p>{t("contactIntro")}</p>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {contactRows.map(([key, label]) => (
+              <li key={key} className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                <span>{label}:</span>
+                <a href={`mailto:${mail[key]}`}>{mail[key]}</a>
+              </li>
+            ))}
+          </ul>
+        </>
+      ),
+    },
+  ];
   const updatedLabel = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
     new Date(`${updated}T00:00:00Z`),
   );
@@ -77,7 +112,7 @@ export async function LegalPage({
           <nav aria-label={t("onThisPage")} className="sticky top-24 flex flex-col gap-3">
             <p className="m-0 text-[13px] font-medium text-fg-subtle">{t("onThisPage")}</p>
             <ol className="m-0 flex list-none flex-col gap-0.5 border-l border-border p-0">
-              {sections.map((section) => (
+              {allSections.map((section) => (
                 <li key={section.id}>
                   <a
                     href={`#${section.id}`}
@@ -94,7 +129,7 @@ export async function LegalPage({
         <article className="flex max-w-[70ch] min-w-0 flex-col gap-8">
           {locale !== "en" ? <Callout tone="info">{t("englishOnly")}</Callout> : null}
           <div className="text-[15px] leading-7 text-fg-muted [&_p]:m-0">{intro}</div>
-          {sections.map((section, index) => (
+          {allSections.map((section, index) => (
             <section key={section.id} id={section.id} className="flex scroll-mt-24 flex-col gap-3">
               <h2 className="m-0 flex items-baseline gap-2.5 text-xl font-semibold tracking-tight text-ink">
                 <span className="numeric text-base font-medium text-fg-subtle">{index + 1}.</span>

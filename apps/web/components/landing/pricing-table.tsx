@@ -43,9 +43,11 @@ type PricingTableProps = {
   registerHref: string;
   /** Key of the plan to highlight; usually the first paid plan. */
   popularKey: PlanKey | null;
+  /** Custom-priced plans are sold by email rather than self-serve sign-up. */
+  salesEmail: string;
 };
 
-export function PricingTable({ plans, registerHref, popularKey }: PricingTableProps) {
+export function PricingTable({ plans, registerHref, popularKey, salesEmail }: PricingTableProps) {
   const t = useTranslations("pricing");
   const tb = useTranslations("billing");
   const tc = useTranslations("common");
@@ -150,7 +152,7 @@ export function PricingTable({ plans, registerHref, popularKey }: PricingTablePr
                 variant={popular ? "primary" : "secondary"}
                 size="lg"
                 block
-                href={registerHref}
+                href={custom ? `mailto:${salesEmail}` : registerHref}
                 trailingIcon={popular ? "arrow-right" : undefined}
               >
                 {free ? t("ctaFree") : custom ? t("ctaCustom") : t("ctaPaid", { plan: plan.name })}

@@ -1000,7 +1000,11 @@
       "rights": "All rights reserved.",
       "terms": "Terms of service",
       "privacy": "Privacy policy",
-      "cookies": "Cookie policy"
+      "cookies": "Cookie policy",
+      "contact": "Contact",
+      "support": "Support",
+      "sales": "Sales",
+      "abuse": "Report abuse"
     }
   },
   "pricing": {
@@ -1113,7 +1117,14 @@
     "marketingTitle": "Marketing",
     "marketingBody": "Third-party tags used to measure campaigns. Loaded only after you allow it.",
     "alwaysOn": "Always on",
-    "manageCookies": "Cookie settings"
+    "manageCookies": "Cookie settings",
+    "contactTitle": "Contact",
+    "contactIntro": "Questions about this document? Write to us — every address below is read by a person.",
+    "contactPrivacy": "Privacy and data requests (access, correction, deletion)",
+    "contactLegal": "Legal notices and terms",
+    "contactSupport": "Account and product support",
+    "contactAbuse": "Report a malicious or abusive short link",
+    "contactSecurity": "Report a security vulnerability"
   },
   "billing": {
     "pricingTitle": "Simple plans",
@@ -2849,7 +2860,7 @@
         "redis": "REDIS_URL not set — rate limits fail open",
         "kv": "Cloudflare credentials not set — edge cache disabled",
         "stripe": "Keys not set — billing disabled",
-        "email": "RESEND_API_KEY not set — mail is logged only",
+        "email": "CF_EMAIL_TOKEN not set — mail is logged only",
         "emailConfigured": "API key configured"
       },
       "edge": "Edge components",
@@ -4175,7 +4186,9 @@
         "analytics": "Read clicks, visitors, referrers, geography and devices — per link or across the workspace.",
         "api": "Create and manage links, QR codes, bio pages and domains from your own backend.",
         "webhooks": "Receive signed POST callbacks when links change or get clicked."
-      }
+      },
+      "helpTitle": "Need help?",
+      "helpBody": "Write to <support></support> — a person answers. Found a security issue? Report it privately to <security></security>."
     },
     "gettingStarted": {
       "metaTitle": "Getting started",

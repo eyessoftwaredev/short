@@ -9,7 +9,7 @@ const globalForRedis = globalThis as unknown as {
 /** Upper bound on waiting for the first handshake; past it the caller fails open as before. */
 const CONNECT_WAIT_MS = 2_000;
 
-function redisKey(suffix: string): string {
+export function redisKey(suffix: string): string {
   return `${serverEnv().REDIS_KEY_PREFIX}${suffix}`;
 }
 

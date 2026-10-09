@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { contactEmails } from "@/lib/contact";
 import type { ReactNode } from "react";
 import { BrandLockup } from "@/components/brand/brand-mark";
 import { BrandPreload } from "@/components/brand/brand-preload";
@@ -31,6 +32,7 @@ export async function PublicChrome({ children }: { children: ReactNode }) {
     getLandingAuthState(),
     getBrandLockupSources(),
   ]);
+  const contact = contactEmails();
 
   const navLinks = [
     { href: "/#features", label: t("nav.features") },
@@ -115,7 +117,7 @@ export async function PublicChrome({ children }: { children: ReactNode }) {
       </main>
 
       <footer className="border-t border-border-subtle bg-canvas">
-        <div className="mx-auto grid w-full max-w-6xl min-w-0 gap-10 px-4 py-12 sm:px-6 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+        <div className="mx-auto grid w-full max-w-6xl min-w-0 gap-10 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
           <div className="flex min-w-0 flex-col gap-3">
             <BrandLockup
               name={brand.name}
@@ -153,6 +155,11 @@ export async function PublicChrome({ children }: { children: ReactNode }) {
               <CookieSettingsButton className="text-sm text-fg-muted hover:text-ink" />
             </li>
           </FooterColumn>
+          <FooterColumn title={t("footer.contact")}>
+            <FooterMail label={t("footer.support")} address={contact.support} />
+            <FooterMail label={t("footer.sales")} address={contact.sales} />
+            <FooterMail label={t("footer.abuse")} address={contact.abuse} />
+          </FooterColumn>
         </div>
         <div className="border-t border-border-subtle">
           <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-5 text-[13px] text-fg-subtle sm:px-6">
@@ -172,6 +179,20 @@ export async function PublicChrome({ children }: { children: ReactNode }) {
         </div>
       </footer>
     </div>
+  );
+}
+
+function FooterMail({ label, address }: { label: string; address: string }) {
+  return (
+    <li className="flex min-w-0 flex-col">
+      <span className="text-[12px] text-fg-subtle">{label}</span>
+      <a
+        href={`mailto:${address}`}
+        className="truncate text-sm text-fg-muted no-underline hover:text-ink hover:no-underline"
+      >
+        {address}
+      </a>
+    </li>
   );
 }
 

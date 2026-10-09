@@ -115,8 +115,8 @@ async function checkStripe(): Promise<HealthCheck> {
 
 function checkEmail(): HealthCheck {
   return features().email
-    ? { id: "email", label: "Email (Resend)", state: "ok", detail: "API key configured", latencyMs: null }
-    : disabled("email", "Email (Resend)", "RESEND_API_KEY not set — mail is logged only");
+    ? { id: "email", label: "Email (Cloudflare)", state: "ok", detail: "Sending token configured", latencyMs: null }
+    : disabled("email", "Email (Cloudflare)", "CF_EMAIL_TOKEN not set — mail is logged only");
 }
 
 export async function runHealthChecks(): Promise<HealthCheck[]> {

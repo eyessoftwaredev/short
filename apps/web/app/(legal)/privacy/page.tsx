@@ -77,8 +77,8 @@ export default async function PrivacyPage() {
             <p>
               Account data is kept while the workspace is active and for a limited period after deletion to
               complete billing or security reviews. Click history follows the retention on your plan. You can
-              request access, correction or deletion of your account by contacting the address on your receipt or
-              the operator of this deployment.
+              request access, correction or deletion of your account by writing to the privacy address in the
+              Contact section below.
             </p>
           ),
         },

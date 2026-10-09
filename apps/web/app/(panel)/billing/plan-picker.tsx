@@ -42,6 +42,8 @@ type PlanPickerProps = {
   canManage: boolean;
   hasBillingAccount: boolean;
   stripeConfigured: boolean;
+  /** Platform sales mailbox for custom-priced plans. */
+  salesEmail: string;
 };
 
 const LIMIT_ROWS = [
@@ -81,6 +83,7 @@ export function PlanPicker({
   canManage,
   hasBillingAccount,
   stripeConfigured,
+  salesEmail,
 }: PlanPickerProps) {
   const locale = useLocale();
   const t = useTranslations("billing");
@@ -235,7 +238,7 @@ export function PlanPicker({
             );
           } else {
             action = (
-              <Button size="md" block leadingIcon="envelope" href="mailto:sales@short.app">
+              <Button size="md" block leadingIcon="envelope" href={`mailto:${salesEmail}`}>
                 {t("contactSales")}
               </Button>
             );

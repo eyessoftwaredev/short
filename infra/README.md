@@ -29,7 +29,7 @@ Create a **Docker Compose** resource pointing at this repository with
 | `CRON_SECRET` | Bearer token for `/api/cron/*` |
 | `VISITOR_SALT` | Same value as the edge worker secret, so biopage views and clicks share a `visitor_id`. Falls back to `INTERNAL_TOKEN`. Set it on the panel's Dockerfile resource; do not pass it as an empty string (the env schema rejects values under 16 characters). |
 
-Optional integrations (`CF_*`, `GOOGLE_*`, `RESEND_API_KEY`, `STRIPE_*`) can be left
+Optional integrations (`CF_*`, `GOOGLE_*`, `CF_EMAIL_TOKEN`, `STRIPE_*`) can be left
 empty — `/admin/system` renders each unset integration as *disabled* rather than
 failing. Stripe keys can also be pasted in `/admin/system` and are stored encrypted;
 env `STRIPE_*` remains a fallback for local boot. Without `CF_*` the panel keeps

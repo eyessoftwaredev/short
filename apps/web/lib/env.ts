@@ -47,8 +47,12 @@ const serverSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Short <noreply@short.app>"),
+  /** Cloudflare Email Service token (Email Sending: Send); uses CF_ACCOUNT_ID. */
+  CF_EMAIL_TOKEN: z.string().optional(),
+  /** "Name <address>"; the address must be on one of the platform's own domains. */
+  EMAIL_FROM: z.string().default("Short <noreply@short.ky>"),
+  /** Optional Reply-To for outgoing mail, e.g. support@short.ky. */
+  EMAIL_REPLY_TO: z.string().email().optional(),
 
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -111,7 +115,7 @@ export function features(): {
   const env = serverEnv();
   return {
     google: false,
-    email: Boolean(env.RESEND_API_KEY),
+    email: Boolean(env.CF_ACCOUNT_ID && env.CF_EMAIL_TOKEN),
     cloudflare: Boolean(env.CF_ACCOUNT_ID && env.CF_API_TOKEN && env.CF_KV_NAMESPACE_ID),
     cloudflareOAuth: Boolean(env.CF_OAUTH_CLIENT_ID && env.CF_OAUTH_CLIENT_SECRET),
     redis: Boolean(env.REDIS_URL),

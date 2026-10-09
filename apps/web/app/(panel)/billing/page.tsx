@@ -29,6 +29,7 @@ import { requireWorkspace } from "@/lib/session";
 import { stripeEnabled } from "@/lib/stripe";
 import { ManageBillingButton } from "./manage-billing-button";
 import { PlanPicker, type PlanCardView } from "./plan-picker";
+import { contactEmails } from "@/lib/contact";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("billing");
@@ -385,6 +386,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Sear
               canManage={canManage}
               hasBillingAccount={hasBillingAccount}
               stripeConfigured={billingConfigured}
+              salesEmail={contactEmails().sales}
             />
           </Section>
         )}

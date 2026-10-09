@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { isInternalPlan } from "@short/core";
 import { Icon } from "@/components/kit/icon";
 import { PublicChrome } from "@/components/landing/public-chrome";
+import { contactEmails } from "@/lib/contact";
 import {
   PLAN_FEATURE_ROWS,
   isCustomPriced,
@@ -108,7 +109,12 @@ export default async function PricingPage() {
             />
           ) : (
             <>
-              <PricingTable plans={plans} registerHref={registerHref} popularKey={popular?.key ?? null} />
+              <PricingTable
+                plans={plans}
+                registerHref={registerHref}
+                popularKey={popular?.key ?? null}
+                salesEmail={contactEmails().sales}
+              />
               {currencies.length > 0 ? (
                 <p className="m-0 text-center text-[13px] text-fg-subtle">
                   {t("note", { currency: currencies.join(", ") })}

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { DocsPageShell } from "@/components/docs/docs-page-shell";
 import { DocsCard, DocsHero } from "@/components/docs/docs-ui";
-import { Button } from "@/components/ui";
+import { Button, Callout } from "@/components/ui";
+import { contactEmails } from "@/lib/contact";
 import { docsNavGroups } from "@/lib/docs-nav";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,6 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function DocsOverviewPage() {
   const t = await getTranslations("docs");
   const overview = await getTranslations("docs.overview");
+  const mail = contactEmails();
   const groups = docsNavGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => item.id !== "overview") }))
     .filter((group) => group.items.length > 0);
@@ -52,6 +54,13 @@ export default async function DocsOverviewPage() {
           </div>
         </section>
       ))}
+
+      <Callout tone="neutral" title={overview("helpTitle")}>
+        {overview.rich("helpBody", {
+          support: () => <a href={`mailto:${mail.support}`}>{mail.support}</a>,
+          security: () => <a href={`mailto:${mail.security}`}>{mail.security}</a>,
+        })}
+      </Callout>
     </DocsPageShell>
   );
 }

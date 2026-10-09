@@ -1000,7 +1000,11 @@
       "rights": "Tüm hakları saklıdır.",
       "terms": "Hizmet şartları",
       "privacy": "Gizlilik politikası",
-      "cookies": "Çerez politikası"
+      "cookies": "Çerez politikası",
+      "contact": "İletişim",
+      "support": "Destek",
+      "sales": "Satış",
+      "abuse": "Kötüye kullanım bildir"
     }
   },
   "pricing": {
@@ -1113,7 +1117,14 @@
     "marketingTitle": "Pazarlama",
     "marketingBody": "Kampanya ölçümü için üçüncü taraf etiketler. Yalnızca izin verdikten sonra yüklenir.",
     "alwaysOn": "Her zaman açık",
-    "manageCookies": "Çerez ayarları"
+    "manageCookies": "Çerez ayarları",
+    "contactTitle": "İletişim",
+    "contactIntro": "Bu belgeyle ilgili sorularınız için bize yazın; aşağıdaki adreslerin hepsi bir kişi tarafından okunur.",
+    "contactPrivacy": "Gizlilik ve veri talepleri (erişim, düzeltme, silme)",
+    "contactLegal": "Hukuki bildirimler ve koşullar",
+    "contactSupport": "Hesap ve ürün desteği",
+    "contactAbuse": "Zararlı veya kötüye kullanılan bir kısa linki bildirin",
+    "contactSecurity": "Güvenlik açığı bildirin"
   },
   "billing": {
     "pricingTitle": "Sade planlar",
@@ -2849,7 +2860,7 @@
         "redis": "REDIS_URL tanımlı değil — hız limitleri devre dışı, istekler geçer",
         "kv": "Cloudflare bilgileri tanımlı değil — edge önbelleği kapalı",
         "stripe": "Anahtarlar tanımlı değil — faturalandırma kapalı",
-        "email": "RESEND_API_KEY tanımlı değil — e-postalar yalnızca log’a yazılır",
+        "email": "CF_EMAIL_TOKEN tanımlı değil — e-postalar yalnızca log’a yazılır",
         "emailConfigured": "API anahtarı tanımlı"
       },
       "edge": "Kenar bileşenleri",
@@ -4175,7 +4186,9 @@
         "analytics": "Tıklama, ziyaretçi, kaynak, konum ve cihaz — link bazında veya tüm çalışma alanında.",
         "api": "Link, QR kod, bio sayfası ve domainleri kendi backend’inden yönet.",
         "webhooks": "Linkler değiştiğinde veya tıklandığında imzalı POST al."
-      }
+      },
+      "helpTitle": "Yardım mı lazım?",
+      "helpBody": "<support></support> adresine yaz, bir kişi yanıtlar. Bir güvenlik açığı bulduysan <security></security> adresine gizlice bildir."
     },
     "gettingStarted": {
       "metaTitle": "Başlarken",
